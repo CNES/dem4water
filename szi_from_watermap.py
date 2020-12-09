@@ -34,6 +34,11 @@ def main(arguments):
                         type=int,
                         default=185,
                         help="Starting altitude")
+    parser.add_argument('-s',
+                        '--step',
+                        type=int,
+                        default=5,
+                        help="Altitude sampling step")
     parser.add_argument('-t',
                         '--tmp',
                         help="Temporary directory")
@@ -49,7 +54,7 @@ def main(arguments):
     last_result = -1
     msk = otb.Registry.CreateApplication("BandMath")
     seg = otb.Registry.CreateApplication("Segmentation")
-    for i in range(args.zmax, 0, -10):
+    for i in range(args.zmax, 0, -1 * args.step):
 
         msk.SetParameterStringList("il", [args.watermap, args.dem])
         msk.SetParameterString("out", os.path.join(args.tmp, "mask_S_Z-"+str(i)+".tif"))
