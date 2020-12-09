@@ -17,6 +17,7 @@ import argparse
 from osgeo import ogr
 from osgeo import osr
 from osgeo import gdal
+import numpy as np
 import otbApplication as otb
 
 
@@ -108,7 +109,31 @@ def main(arguments):
     app.ExecuteAndWriteOutput()
 
 
+    # Search dam bottom
+    extw_bt = otb.Registry.CreateApplication("ExtractROI")
+    extw_bt.SetParameterString("in", args.watermap)
+    extw_bt.SetParameterString("mode","radius")
+    extw_bt.SetParameterString("mode.radius.unitr", "phy")
+    extw_bt.SetParameterFloat("mode.radius.r", 500)
+    extw_bt.SetParameterString("mode.radius.unitc", "phy")
+    extw_bt.SetParameterFloat("mode.radius.cx", point.GetX())
+    extw_bt.SetParameterFloat("mode.radius.cy", point.GetY())
+    extw_bt.Execute()
 
+    extd_bt = otb.Registry.CreateApplication("Superimpose")
+    extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
+    extd_bt.SetParameterString("inm", args.dem)
+    extd_bt.Execute()
+
+    bm = otb.Registry.CreateApplication("BandMath")
+    bm.AddImageToParameterInputImageList("il",extw_bt.GetParameterOutputImage("out"));
+    bm.AddImageToParameterInputImageList("il",extd_bt.GetParameterOutputImage("out"));
+    bm.SetParameterString("exp", "( im1b1  > 0.50 ) ? im2b1 : "+str(calt))
+    bm.Execute()
+
+    np_surf = bm.GetImageAsNumpyArray('out')
+    bt_alt = np.amin(np_surf)
+    print("Bottom Alt: " + str(bt_alt))
 
 
 if __name__ == '__main__':
