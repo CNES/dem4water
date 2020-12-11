@@ -40,15 +40,29 @@ else
     --dem      "../data/dem/dem.vrt" \
     --name     "$DAM" \
     --radius   2000 \
-    --out      "$ROOT_DIR/$DAM" # --loglevel "DEBUG"
+    --out      "$ROOT_DIR/$DAM" \
+    --loglevel "DEBUG"
 fi
 
 
-python3 szi_from_watermap.py \
-  --watermap "$ROOT_DIR/$DAM/wmap_extract-$DAM.tif" \
-  --dem      "$ROOT_DIR/$DAM/dem_extract-$DAM.tif" \
-  --tmp      "$ROOT_DIR/$DAM/tmp" \
-  --zmin     123.55 \
-  --zmax     184.11 \
-  --step     5 \
-  --outfile  "$ROOT_DIR/$DAM/szi_wmap.txt" # --loglevel "DEBUG"
+if [ -f "$ROOT_DIR/$DAM/szi_wmap.dat" ] ; then
+  echo "S(Zi)s already available --> Skipping szi_from_watermap."
+else
+  python3 szi_from_watermap.py \
+    --watermap "$ROOT_DIR/$DAM/wmap_extract-$DAM.tif" \
+    --dem      "$ROOT_DIR/$DAM/dem_extract-$DAM.tif" \
+    --tmp      "$ROOT_DIR/$DAM/tmp" \
+    --zmin     123.55 \
+    --zmax     184.11 \
+    --step     2 \
+    --outfile  "$ROOT_DIR/$DAM/szi_wmap.dat" \
+    --loglevel "DEBUG"
+fi
+
+
+if [ -f "$ROOT_DIR/$DAM/szi_wmap.dat" ] ; then
+  python3 szi_to_model.py \
+    --infile   "$ROOT_DIR/$DAM/szi_wmap.dat" \
+    --outfile  "$ROOT_DIR/$DAM/szi_wmap.png" \
+    --loglevel "INFO"
+fi
