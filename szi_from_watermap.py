@@ -20,6 +20,7 @@ import numpy as np
 import otbApplication as otb
 from osgeo import gdal
 
+
 def main(arguments):
     '''Entrypoint'''
 
@@ -67,14 +68,14 @@ def main(arguments):
     logging.basicConfig(stream=sys.stdout, level=numeric_level, format=logging_format)
     logging.info("Starting szi_from_watermap.py")
 
-    with open(args.outfile, 'w') as f:
-        print("["+ str(args.zmin) +", 0.0]", file=f)
-
     raster = gdal.Open(args.watermap)
     gt =raster.GetGeoTransform()
     pixelSizeX = gt[1]
     pixelSizeY =-gt[5]
     logging.debug("pixelSizeX: " + str(pixelSizeX) +" - pixelSizeY: " + str(pixelSizeY))
+
+    zi = []
+    S_zi = []
 
     last_result = -1
     msk = otb.Registry.CreateApplication("BandMath")
@@ -131,10 +132,13 @@ def main(arguments):
             break
         else:
             last_result = best_surf
-            with open(args.outfile, 'a') as f:
-                print("["+ str(i) +", "+ str(surf_m2) +"]", file=f)
+            zi.append(i)
+            S_zi.append(surf_m2)
 
-
+    zi.append(args.zmin)
+    S_zi.append(0.0)
+    data = np.column_stack((zi, S_zi))
+    np.savetxt(args.outfile, data)
 
 
 if __name__ == '__main__':
