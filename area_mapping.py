@@ -13,6 +13,7 @@ Retrieve dam coordinate
 
 import os
 import sys
+import logging
 import argparse
 from osgeo import ogr
 from osgeo import osr
@@ -46,9 +47,18 @@ def main(arguments):
     parser.add_argument('-o',
                         '--out',
                         help="Output directory")
+    parser.add_argument('--loglevel',
+                        help="Log Level",
+                        default="INFO")
 
     args = parser.parse_args(arguments)
-    #  print(args)
+
+    numeric_level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % args.loglevel)
+    logging_format = '%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
+    logging.basicConfig(stream=sys.stdout, level=numeric_level, format=logging_format)
+    logging.info("Starting area_mapping.py")
 
     driver = ogr.GetDriverByName("ESRI Shapefile")
     dataSource = driver.Open(args.infile, 0)
@@ -57,21 +67,17 @@ def main(arguments):
     clat = 0
     clon = 0
     for feature in layer:
-        #  print(feature.GetField("Nom du bar"))
+        logging.debug(feature.GetField("Nom du bar"))
         if (feature.GetField("Nom du bar") == args.name):
-            print(feature.GetField("Nom du bar"))
+            logging.debug(feature.GetField("Nom du bar"))
             geom = feature.GetGeometryRef()
             clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
             clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
-            #  print("Lat: " + geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
-            #  print("Lon: " + geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
             break
     layer.ResetReading()
 
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
-    print("Lat: " + str(clat))
-    print("Lon: " + str(clon))
-    print("Alt: " + str(calt))
+    logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
 
     src = osr.SpatialReference();
@@ -82,7 +88,7 @@ def main(arguments):
     point = ogr.Geometry(ogr.wkbPoint)
     point.AddPoint(clat, clon)
     point.Transform(ct)
-    print("Coordinates: " + str(point.GetX())+" - "+str(point.GetY()))
+    logging.debug("Coordinates: " + str(point.GetX())+" - "+str(point.GetY()))
 
     extw = otb.Registry.CreateApplication("ExtractROI")
     extw.SetParameterString("in", args.watermap)
@@ -133,7 +139,7 @@ def main(arguments):
 
     np_surf = bm.GetImageAsNumpyArray('out')
     bt_alt = np.amin(np_surf)
-    print("Bottom Alt: " + str(bt_alt))
+    logging.info("Bottom Alt: " + str(bt_alt))
 
 
 if __name__ == '__main__':
