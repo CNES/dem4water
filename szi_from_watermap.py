@@ -13,9 +13,12 @@ Measure, for a given range of Z_i, the water surface associated.
 
 import os
 import sys
+import math
+import logging
 import argparse
 import numpy as np
 import otbApplication as otb
+from osgeo import gdal
 
 def main(arguments):
     '''Entrypoint'''
@@ -25,36 +28,58 @@ def main(arguments):
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-w',
                         '--watermap',
+                        required=True,
                         help="Input water map file")
     parser.add_argument('-d',
                         '--dem',
+                        required=True,
                         help="Input DEM")
-    parser.add_argument('-z',
-                        '--zmax',
-                        type=int,
-                        default=185,
+    parser.add_argument('--zmin',
+                        type=float,
+                        required=True,
+                        help="Bottom altitude")
+    parser.add_argument('--zmax',
+                        type=float,
+                        required=True,
                         help="Starting altitude")
+    parser.add_argument('-t',
+                        '--tmp',
+                        required=True,
+                        help="Temporary directory")
     parser.add_argument('-s',
                         '--step',
                         type=int,
                         default=5,
                         help="Altitude sampling step")
-    parser.add_argument('-t',
-                        '--tmp',
-                        help="Temporary directory")
     parser.add_argument('-o',
                         '--outfile',
-                        help="Output file",
-                        default=sys.stdout,
-                        type=argparse.FileType('w'))
+                        help="Output file")
+    parser.add_argument('--loglevel',
+                        help="Log Level",
+                        default="INFO")
 
     args = parser.parse_args(arguments)
-    #  print(args)
+
+    numeric_level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % args.loglevel)
+    logging_format = '%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
+    logging.basicConfig(stream=sys.stdout, level=numeric_level, format=logging_format)
+    logging.info("Starting szi_from_watermap.py")
+
+    with open(args.outfile, 'w') as f:
+        print("["+ str(args.zmin) +", 0.0]", file=f)
+
+    raster = gdal.Open(args.watermap)
+    gt =raster.GetGeoTransform()
+    pixelSizeX = gt[1]
+    pixelSizeY =-gt[5]
+    logging.debug("pixelSizeX: " + str(pixelSizeX) +" - pixelSizeY: " + str(pixelSizeY))
 
     last_result = -1
     msk = otb.Registry.CreateApplication("BandMath")
     seg = otb.Registry.CreateApplication("Segmentation")
-    for i in range(args.zmax, 0, -1 * args.step):
+    for i in range(math.ceil(args.zmax), math.floor(args.zmin), -1 * args.step):
 
         msk.SetParameterStringList("il", [args.watermap, args.dem])
         msk.SetParameterString("out", os.path.join(args.tmp, "mask_S_Z-"+str(i)+".tif"))
@@ -80,30 +105,35 @@ def main(arguments):
         #  bm.ExecuteAndWriteOutput()
         bm.Execute()
 
-        #  np_surf = msk.GetImageAsNumpyArray('out')
-        #  np_surf = seg.GetImageAsNumpyArray('mode.raster.out')
         np_surf = bm.GetImageAsNumpyArray('out')
         max_label = np.amax(np_surf)
-        #  print("max_label: "+str(max_label))
-        #  print("max_label: "+str(int(max_label)))
-        #  min_label = np.amin(np_surf)
+        logging.debug("pixelSizeX: " + str(pixelSizeX) +" - pixelSizeY: " + str(pixelSizeY))
+        logging.debug("max_label: "+str(max_label))
+        logging.debug("max_label: "+str(int(max_label)))
+
         best_surf = 0
         best_label = 0
         for l in range(1, int(max_label+1)):
             results_surf = np.count_nonzero((np_surf == [l]))
             if (results_surf > best_surf):
-                #  print("new best_surf: "+str(results_surf)+" [label: "+str(l)+"]")
+                logging.debug("new best_surf: "+str(results_surf)+" [label: "+str(l)+"]")
                 best_label = l
                 best_surf = results_surf
 
-
-        print("@" + str(i) + "m: best_surf: "+str(best_surf)+" [label: "+str(best_label)+"]")
+        surf_m2 = best_surf*pixelSizeX*pixelSizeY
+        logging.info("@"+ str(i) +"m: "+ str(surf_m2)+" m2.")
+        logging.debug("@" + str(i) + "m: best_surf: "+str(best_surf)+" pixels "+"[label: "+str(best_label)+"]")
+        logging.debug("--> "+str(surf_m2)+" m2 ")
+        logging.debug("--> "+str(surf_m2*0.000001)+" km2 ")
 
         if ( best_surf < last_result/2.0 ):
-            print("Estimated surface dropped --> Stop here." )
+            logging.info("Estimated surface dropped --> Stop here." )
             break
         else:
             last_result = best_surf
+            with open(args.outfile, 'a') as f:
+                print("["+ str(i) +", "+ str(surf_m2) +"]", file=f)
+
 
 
 
