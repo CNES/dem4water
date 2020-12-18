@@ -47,17 +47,16 @@ def main(arguments):
     parser.add_argument('-o',
                         '--out',
                         help="Output directory")
-    parser.add_argument('--loglevel',
-                        help="Log Level",
-                        default="INFO")
-
+    parser.add_argument('--debug',
+                        action='store_true',
+                        help='Activate Debug Mode')
     args = parser.parse_args(arguments)
 
-    numeric_level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args.loglevel)
     logging_format = '%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
-    logging.basicConfig(stream=sys.stdout, level=numeric_level, format=logging_format)
+    if (args.debug is True):
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=logging_format)
+    else:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting area_mapping.py")
 
     driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -69,7 +68,7 @@ def main(arguments):
     for feature in layer:
         logging.debug(feature.GetField("Nom du bar"))
         if (feature.GetField("Nom du bar") == args.name):
-            logging.debug(feature.GetField("Nom du bar"))
+            #  logging.debug(feature.GetField("Nom du bar"))
             geom = feature.GetGeometryRef()
             clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
             clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
@@ -117,7 +116,7 @@ def main(arguments):
 
     # Search dam bottom
     extw_bt = otb.Registry.CreateApplication("ExtractROI")
-    extw_bt.SetParameterString("in", args.watermap)
+    extw_bt.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
     extw_bt.SetParameterString("mode","radius")
     extw_bt.SetParameterString("mode.radius.unitr", "phy")
     extw_bt.SetParameterFloat("mode.radius.r", 500)
@@ -128,7 +127,7 @@ def main(arguments):
 
     extd_bt = otb.Registry.CreateApplication("Superimpose")
     extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
-    extd_bt.SetParameterString("inm", args.dem)
+    extd_bt.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
     extd_bt.Execute()
 
     bm = otb.Registry.CreateApplication("BandMath")
@@ -140,6 +139,41 @@ def main(arguments):
     np_surf = bm.GetImageAsNumpyArray('out')
     bt_alt = np.amin(np_surf)
     logging.info("Bottom Alt: " + str(bt_alt))
+
+    # Profiling:
+    if (args.debug is True):
+        for r in range(200, 1001, 50):
+            extw_l = otb.Registry.CreateApplication("ExtractROI")
+            extw_l.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+            extw_l.SetParameterString("mode","radius")
+            extw_l.SetParameterString("mode.radius.unitr", "phy")
+            extw_l.SetParameterFloat("mode.radius.r", r)
+            extw_l.SetParameterString("mode.radius.unitc", "phy")
+            extw_l.SetParameterFloat("mode.radius.cx", point.GetX())
+            extw_l.SetParameterFloat("mode.radius.cy", point.GetY())
+            extw_l.Execute()
+
+            extd_l = otb.Registry.CreateApplication("Superimpose")
+            extd_l.SetParameterInputImage("inr", extw_l.GetParameterOutputImage("out"))
+            extd_l.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
+            extd_l.Execute()
+
+            np_extdl = extd_l.GetImageAsNumpyArray('out')
+            extdl_alt = np.amin(np_extdl)
+
+            bml = otb.Registry.CreateApplication("BandMath")
+            bml.AddImageToParameterInputImageList("il",extw_l.GetParameterOutputImage("out"));
+            bml.AddImageToParameterInputImageList("il",extd_l.GetParameterOutputImage("out"));
+            bml.SetParameterString("exp", "( im1b1  > 0.50 ) ? im2b1 : "+str(calt))
+            bml.Execute()
+
+            np_bml = bml.GetImageAsNumpyArray('out')
+            bml_alt = np.amin(np_bml)
+            logging.info("@radius= "+ str(r)
+                         +"m: Local min (dem)= "
+                         + str(extdl_alt)
+                         +"m / Local min (dem+w>.5)= "
+                         + str(bml_alt) +"m")
 
 
 if __name__ == '__main__':
