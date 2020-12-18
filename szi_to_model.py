@@ -54,13 +54,20 @@ def main(arguments):
     data = np.loadtxt(args.infile)
     x = data[:, 0]
     y = data[:, 1]
-
     print("x: ")
     print(x[:-1])
-
     logging.info("med(zi):"+ str(median(x[:-1])) +" - med(Szi): "+ str(median(y[:-1])))
 
+
+    data_up = np.loadtxt(args.infile+"_up.dat")
+    x_up = data_up[:, 0]
+    y_up = data_up[:, 1]
+
+
     plt.plot(x, y, 'ro')
+    plt.plot(x_up, y_up, 'go')
+    plt.xlabel('Superficie (m²)')
+    plt.ylabel('Cote du plan d\'eau (m)')
     plt.savefig(args.outfile)
 
 
