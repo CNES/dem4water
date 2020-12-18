@@ -78,6 +78,8 @@ def main(arguments):
     zi = []
     S_zi = []
 
+    zi_up = []
+    S_zi_up= []
 
     #  wshed = otb.Registry.CreateApplication("Segmentation")
     #  wshed.SetParameterString("in", args.dem)
@@ -191,6 +193,7 @@ def main(arguments):
     kp = otb.Registry.CreateApplication("BandMath")
     #  kp.AddImageToParameterInputImageList("il", bm.GetParameterOutputImage("out"));
     kp.AddImageToParameterInputImageList("il", wshed.GetParameterOutputImage("mode.raster.out"));
+    kp.SetParameterOutputImagePixelType("out", otb.ImagePixelType_uint8)
     #  kp.SetParameterString("out", os.path.join(args.tmp, "kp_@"+str(max_alt)+"m.tif"))
     kp.SetParameterString("out", os.path.join(args.tmp, "kp_@"+str(args.zmax)+"m.tif"))
     kp.SetParameterString("exp", "( im1b1 == "+ str(best_label) +" ) ? 1 : 0")
@@ -227,6 +230,7 @@ def main(arguments):
     #  dil.ExecuteAndWriteOutput()
 
     last_result = -1
+    last_valid_alt = math.ceil(args.zmax)
     #  for i in range(math.ceil(args.zmax - args.step), math.floor(args.zmin), -1 * args.step):
     for i in range(math.ceil(args.zmax), math.floor(args.zmin), -1 * args.step):
 
@@ -287,6 +291,7 @@ def main(arguments):
             break
         else:
             last_result = best_surf
+            last_valid_alt = i
             zi.append(i)
             S_zi.append(surf_m2)
 
@@ -297,29 +302,66 @@ def main(arguments):
 
 
     # Ascending Search
-    for i in range(math.ceil(args.zmax + args.step), math.floor(args.zmax + 10*args.step), args.step):
+    init = True
+    prev_alt = last_valid_alt
+    for i in range(last_valid_alt, math.floor(args.zmax + 10*args.step), args.step):
         adil = otb.Registry.CreateApplication("BinaryMorphologicalOperation")
-        adil.SetParameterString("in", os.path.join(args.tmp, "kp_@"+str(args.zmax)+"m.tif"))
-        adil.SetParameterString("out", os.path.join(args.tmp, "maskdil_S_Z-"+str(i)+".tif"))
+        #  adil.SetParameterString("in", os.path.join(args.tmp, "kp_@"+str(args.zmax)+"m.tif"))
+        if (init is True):
+            adil.SetParameterString("in", os.path.join(args.tmp, "mask_S_Z-"+str(prev_alt)+".tif"))
+        else:
+            adil.SetParameterString("in", os.path.join(args.tmp, "up_mask_S_Z-"+str(prev_alt)+".tif"))
+
+        adil.SetParameterString("out", os.path.join(args.tmp, "up_maskdil_S_Z-"+str(i)+".tif"))
+        adil.SetParameterOutputImagePixelType("out", otb.ImagePixelType_uint8)
         adil.SetParameterInt("channel", 1)
-        adil.SetParameterInt("xradius", 10)
-        adil.SetParameterInt("yradius", 10)
+        adil.SetParameterInt("xradius", 20)
+        adil.SetParameterInt("yradius", 20)
         adil.SetParameterString("filter","dilate")
         adil.ExecuteAndWriteOutput()
         #  adil.Execute()
 
         amsk = otb.Registry.CreateApplication("BandMath")
-        amsk.SetParameterStringList("il", [args.dem,
-                                           os.path.join(args.tmp, "kp_@"+str(args.zmax)+"m.tif"),
-                                           os.path.join(args.tmp, "maskdil_S_Z-"+str(i)+".tif")])
+        if (init is True):
+            amsk.SetParameterStringList("il", [args.dem,
+                                               os.path.join(args.tmp, "mask_S_Z-"+str(prev_alt)+".tif"),
+                                               os.path.join(args.tmp, "up_maskdil_S_Z-"+str(i)+".tif")])
+            init = False
+        else:
+            amsk.SetParameterStringList("il", [args.dem,
+                                               #  os.path.join(args.tmp, "up_mask_S_Z-"+str(prev_alt)+".tif"),
+                                               os.path.join(args.tmp, "up_masktmp_S_Z-"+str(prev_alt)+".tif"),
+                                               os.path.join(args.tmp, "up_maskdil_S_Z-"+str(i)+".tif")])
         #  amsk.AddImageToParameterInputImageList("il",kp.GetParameterOutputImage("out"));
-        amsk.SetParameterString("out", os.path.join(args.tmp, "mask_S_Z-"+str(i)+".tif"))
+        amsk.SetParameterString("out", os.path.join(args.tmp, "up_masktmp_S_Z-"+str(i)+".tif"))
         amsk.SetParameterOutputImagePixelType("out", otb.ImagePixelType_uint8)
-        amsk.SetParameterString("exp", "(im2b1 == 1) ? im2b1 : (((im3b1 == 1)*(im1b1 > "+str(args.zmax)+")*(im1b1 <= "+str(i)+") ) ? 1 : 0 ) ")
+        amsk.SetParameterString("exp", "(im2b1 == 1) ? im2b1 : (((im3b1 == 1)*(im1b1 > "+str(prev_alt)+")*(im1b1 <= "+str(i)+") ) ? 1 : 0 ) ")
         amsk.ExecuteAndWriteOutput()
         #  msk.Execute()
 
+        aclo = otb.Registry.CreateApplication("BinaryMorphologicalOperation")
+        aclo.SetParameterString("in", os.path.join(args.tmp, "up_masktmp_S_Z-"+str(i)+".tif"))
+        aclo.SetParameterString("out", os.path.join(args.tmp, "up_mask_S_Z-"+str(i)+".tif"))
+        aclo.SetParameterOutputImagePixelType("out", otb.ImagePixelType_uint8)
+        aclo.SetParameterInt("channel", 1)
+        aclo.SetParameterInt("xradius", 1)
+        aclo.SetParameterInt("yradius", 1)
+        aclo.SetParameterString("filter","erode")
+        aclo.ExecuteAndWriteOutput()
 
+        np_surf = aclo.GetImageAsNumpyArray('out')
+        best_surf = np.count_nonzero((np_surf == [1]))
+
+        surf_m2 = best_surf*pixelSizeX*pixelSizeY
+        logging.info("@"+ str(i) +"m: "+ str(surf_m2)+" m2.")
+        #  logging.debug("@" + str(i) + "m: best_surf: "+str(best_surf)+" pixels "+"[label: "+str(best_label)+"]")
+        #  logging.debug("--> "+str(surf_m2)+" m2 ")
+        logging.debug("--> "+str(surf_m2*0.000001)+" km2 ")
+
+        zi_up.append(i)
+        S_zi_up.append(surf_m2)
+
+        prev_alt = i
 
 
     zi.append(args.zmin)
@@ -327,6 +369,10 @@ def main(arguments):
     data = np.column_stack((zi, S_zi))
     np.savetxt(args.outfile, data)
 
+    zi_up.append(args.zmin)
+    S_zi_up.append(0.0)
+    data_up = np.column_stack((zi_up, S_zi_up))
+    np.savetxt(args.outfile+"_up.dat", data_up)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
