@@ -52,6 +52,18 @@ else
 
 fi
 
+python3 szi_from_contourline.py \
+  --name     "$DAM" \
+  --infile   "../data/synth_names.shp" \
+  --watermap "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+  --dem      "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --radius   500 \
+  --step     5 \
+  --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
+  --debug
+
+exit
+
 if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/contour.shp" ] ; then
   echo "Contours already available --> Skipping gdal_contour."
 else
