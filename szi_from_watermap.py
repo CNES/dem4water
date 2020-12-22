@@ -114,8 +114,8 @@ def main(arguments):
     mdil.SetParameterString("in", os.path.join(args.tmp, "mask_@"+str(args.zmax)+"m.tif"))
     mdil.SetParameterString("out", os.path.join(args.tmp, "maskdil_@"+str(args.zmax)+"m.tif"))
     mdil.SetParameterInt("channel", 1)
-    mdil.SetParameterInt("xradius", 5)
-    mdil.SetParameterInt("yradius", 5)
+    mdil.SetParameterInt("xradius", 20)
+    mdil.SetParameterInt("yradius", 20)
     mdil.SetParameterString("filter","dilate")
     mdil.Execute()
 
@@ -303,8 +303,10 @@ def main(arguments):
 
     # Ascending Search
     init = True
-    prev_alt = last_valid_alt
-    for i in range(last_valid_alt, math.floor(args.zmax + 10*args.step), args.step):
+    #  prev_alt = last_valid_alt
+    #  for i in range(last_valid_alt, math.floor(args.zmax + 10*args.step), args.step):
+    prev_alt = math.ceil(args.zmax)
+    for i in range(math.ceil(args.zmax), math.floor(args.zmax + 10*args.step), args.step):
         adil = otb.Registry.CreateApplication("BinaryMorphologicalOperation")
         #  adil.SetParameterString("in", os.path.join(args.tmp, "kp_@"+str(args.zmax)+"m.tif"))
         if (init is True):
@@ -347,9 +349,20 @@ def main(arguments):
         aclo.SetParameterInt("xradius", 1)
         aclo.SetParameterInt("yradius", 1)
         aclo.SetParameterString("filter","erode")
-        aclo.ExecuteAndWriteOutput()
+        aclo.Execute()
 
-        np_surf = aclo.GetImageAsNumpyArray('out')
+        aclod = otb.Registry.CreateApplication("BinaryMorphologicalOperation")
+        aclod.SetParameterString("in", os.path.join(args.tmp, "up_masktmp_S_Z-"+str(i)+".tif"))
+        aclod.SetParameterString("out", os.path.join(args.tmp, "up_mask_S_Z-"+str(i)+".tif"))
+        aclod.SetParameterOutputImagePixelType("out", otb.ImagePixelType_uint8)
+        aclod.SetParameterInt("channel", 1)
+        aclod.SetParameterInt("xradius", 1)
+        aclod.SetParameterInt("yradius", 1)
+        aclod.SetParameterString("filter","dilate")
+        aclod.ExecuteAndWriteOutput()
+
+        #  np_surf = aclo.GetImageAsNumpyArray('out')
+        np_surf = aclod.GetImageAsNumpyArray('out')
         best_surf = np.count_nonzero((np_surf == [1]))
 
         surf_m2 = best_surf*pixelSizeX*pixelSizeY
