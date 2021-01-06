@@ -22,6 +22,8 @@ from osgeo import gdal
 import numpy as np
 import otbApplication as otb
 import matplotlib.pyplot as plt
+import itertools
+from math import sqrt,ceil
 
 
 def nderiv(y,x):
@@ -225,12 +227,16 @@ def main(arguments):
     ext.SetParameterFloat("mode.radius.cy", dam.GetY())
     ext.ExecuteAndWriteOutput()
 
-    #TODO: if multiple pdb detected
     np_ext = ext.GetImageAsNumpyArray('out')
     indices = np.where(np_ext == [alt_pdb])
-    print("Indices Length: "+str(len(indices[0])))
-    print("X: "+str(indices[1][0]))
-    print("Y: "+str(indices[0][0]))
+    #TODO: if multiple pdb detected
+    if (len(indices[0]) > 1):
+        logging.warning("Absolute minimum is not unique on the current area!["
+                        + str(len(indices[0]))
+                        + "]")
+    #  print("Indices Length: "+str(len(indices[0])))
+    #  print("X: "+str(indices[1][0]))
+    #  print("Y: "+str(indices[0][0]))
 
     ds = gdal.Open(os.path.join(args.out, "dem_pdb.tif"))
     #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
@@ -300,18 +306,21 @@ def main(arguments):
 
     prev = 0
     prevprev = 0
-
-    for radius in range(2, 100, 2):
+    prevpoint1 = ogr.Geometry(ogr.wkbPoint)
+    prevpoint1.AddPoint(dam.GetX(), dam.GetY())
+    prevpoint2 = ogr.Geometry(ogr.wkbPoint)
+    prevpoint2.AddPoint(dam.GetX(), dam.GetY())
+    multiline = ogr.Geometry(ogr.wkbMultiLineString)
+    for radius in range(5, 100, 2):
         # Array of booleans with the disk shape
         #  disk_out = (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2) & (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2)
         circle = np.logical_and(((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2, ((x_grid-center_x)**2 + (y_grid-center_y)**2) > (radius-2)**2)
         disk_out = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2
         disk_in = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2
 
-        # You can now do all sorts of things with the mask "disk":
-        # For instance, the following array has only 317 points (about pi*radius**2):
         points_on_circle = np_r[circle]
-        print(len(points_on_circle))
+
+        #  print(len(points_on_circle))
         if (len(points_on_circle)>prevprev):
             prevprev = prev
             prev = len(points_on_circle)
@@ -324,27 +333,125 @@ def main(arguments):
             masked_tmp = np.where(disk_out, np_r, 0)
             masked = np.where(~disk_in, masked_tmp, 0)
             im_masked = Image.fromarray(masked)
-            im_masked.save(os.path.join(args.out, "circle@"+str(radius)+".tif"))
+            #  im_masked.save(os.path.join(args.tmp, "circle@"+str(radius)+".tif"))
 
-            print(np.amax(im_masked))
-            print(np.amax(im_masked))
-            l_indices = np.where(masked == [np.amax(masked)])
-            print("Indices Length: "+str(len(l_indices[0])))
-            print("X: "+str(l_indices[1][0]))
-            print("Y: "+str(l_indices[0][0]))
+            #  print(np.amax(im_masked))
+            #  print(np.amax(im_masked))
 
             #  l_ds = gdal.Open(os.path.join(args.out, "circle@"+str(radius)+".tif"))
 
+            l_indices = np.where(masked == [np.amax(masked)])
             l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
             l_pX, l_pY = pixel(l_posX, l_posY, r_ds)
 
+            currpoint = ogr.Geometry(ogr.wkbPoint)
+            currpoint.AddPoint(l_posX, l_posY)
+
+            #TODO: if multiple max detected
+            if (len(l_indices[0]) > 1):
+                logging.warning("Absolute maximum is not unique on the current circle!["
+                                + str(len(l_indices[0]))
+                                + "]")
+            #  print("Indices Length: "+str(len(l_indices[0])))
+            #  print("X: "+str(l_indices[1][0]))
+            #  print("Y: "+str(l_indices[0][0]))
+
+            # Add Circle absolute max to json
             l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
             l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
             l_p = ogr.CreateGeometryFromWkt( l_wkt )
             l_feat.SetGeometryDirectly( l_p )
-            l_feat.SetField ( "name", str(radius) )
+            l_feat.SetField ( "name", str(radius)+"/1" )
             dst_layer.CreateFeature( l_feat )
             l_feat.Destroy()
+
+            #  logging.debug("First Point - Coordinates (pixel): " + str(l_pX)+" - "+str(l_pY))
+            #  logging.debug("First Point - Coordinates (carto): " + str(l_posX)+" - "+str(l_posY))
+
+            # Search for opposite relative max: mask half of the circle
+            done_half = ((x_grid-l_indices[1][0])**2 + (y_grid-l_indices[0][0])**2) <= (radius*1.7)**2
+            half_masked = np.where(~done_half, masked, 0)
+            im_hmasked = Image.fromarray(half_masked)
+            #  im_hmasked.save(os.path.join(args.tmp, "half_circle@"+str(radius)+".tif"))
+
+            l_indices = np.where(half_masked == [np.amax(half_masked)])
+            l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
+            l_pX, l_pY = pixel(l_posX, l_posY, r_ds)
+
+            nextpoint = ogr.Geometry(ogr.wkbPoint)
+            nextpoint.AddPoint(l_posX, l_posY)
+
+            #TODO: if multiple max detected
+            if (len(l_indices[0]) > 1):
+                logging.warning("Absolute maximum is not unique on the current circle!["
+                                + str(len(l_indices[0]))
+                                + "]")
+            #  print("Indices Length: "+str(len(l_indices[0])))
+            #  print("X: "+str(l_indices[1][0]))
+            #  print("Y: "+str(l_indices[0][0]))
+
+            # Add Circle absolute max to json
+            l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
+            l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+            l_p = ogr.CreateGeometryFromWkt( l_wkt )
+            l_feat.SetGeometryDirectly( l_p )
+            l_feat.SetField ( "name", str(radius)+"/1" )
+            dst_layer.CreateFeature( l_feat )
+            l_feat.Destroy()
+
+            #  logging.debug("Second Point - Coordinates (pixel): " + str(l_pX)+" - "+str(l_pY))
+            #  logging.debug("Second Point - Coordinates (carto): " + str(l_posX)+" - "+str(l_posY))
+
+            distance1 = currpoint.Distance(prevpoint1)
+            distance2 = currpoint.Distance(prevpoint2)
+            #  logging.debug("distance1: " + str(distance1))
+            #  logging.debug("distance2: " + str(distance2))
+
+            if (distance1 <= distance2):
+                logging.debug("First")
+                line1 = ogr.Geometry(ogr.wkbLineString)
+                line1.AddPoint(prevpoint1.GetX(),prevpoint1.GetY())
+                line1.AddPoint(currpoint.GetX(),currpoint.GetY())
+                multiline.AddGeometry(line1)
+                prevpoint1 = currpoint
+
+                line2 = ogr.Geometry(ogr.wkbLineString)
+                line2.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
+                line2.AddPoint(nextpoint.GetX(),nextpoint.GetY())
+                multiline.AddGeometry(line2)
+                prevpoint2 = nextpoint
+
+            else:
+                logging.debug("Second")
+                line1 = ogr.Geometry(ogr.wkbLineString)
+                line1.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
+                line1.AddPoint(currpoint.GetX(),currpoint.GetY())
+                multiline.AddGeometry(line1)
+                prevpoint2 = currpoint
+
+                line2 = ogr.Geometry(ogr.wkbLineString)
+                line2.AddPoint(prevpoint1.GetX(),prevpoint1.GetY())
+                line2.AddPoint(nextpoint.GetX(),nextpoint.GetY())
+                multiline.AddGeometry(line2)
+                prevpoint1 = nextpoint
+
+
+            # dict2wkbMultiLineString
+            #  multiline = ogr.Geometry(ogr.wkbMultiLineString)
+            #  for i in itertools.combinations(pointDict.values(), 2):
+            #      point1 = ogr.Geometry(ogr.wkbPoint)
+            #      point1.AddPoint(i[0][0],i[0][1])
+            #      point2 = ogr.Geometry(ogr.wkbPoint)
+            #      point2.AddPoint(i[1][0],i[1][1])
+            #
+            #      distance = point1.Distance(point2)
+            #
+            #      if distance < maxDistance:
+            #          line = ogr.Geometry(ogr.wkbLineString)
+            #          line.AddPoint(i[0][0],i[0][1])
+            #          line.AddPoint(i[1][0],i[1][1])
+            #          multiline.AddGeometry(line)
+
 
         else:
             logging.debug("Search area outside of ROI")
@@ -354,7 +461,16 @@ def main(arguments):
         #  im = Image.fromarray(A)
         #  im.save("your_file.jpeg")
 
-
+    shpDriver = ogr.GetDriverByName( 'GeoJSON' )
+    if os.path.exists(os.path.join(args.out, "line.json")):
+        shpDriver.DeleteDataSource(os.path.join(args.out, "line.json"))
+    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, "line.json"))
+    outLayer = outDataSource.CreateLayer('', srs=carto , \
+                                         geom_type=ogr.wkbMultiLineString )
+    featureDefn = outLayer.GetLayerDefn()
+    outFeature = ogr.Feature(featureDefn)
+    outFeature.SetGeometry(multiline)
+    outLayer.CreateFeature(outFeature)
 
     #  for r in range(1, args.radius, args.step):
     #      ext_l = otb.Registry.CreateApplication("ExtractROI")
