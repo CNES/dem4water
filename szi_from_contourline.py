@@ -15,6 +15,7 @@ import os
 import sys
 import logging
 import argparse
+from PIL import Image
 from osgeo import ogr
 from osgeo import osr
 from osgeo import gdal
@@ -296,21 +297,62 @@ def main(arguments):
 
     x_grid, y_grid = np.meshgrid(np.arange(image_size_x),
                                  np.arange(image_size_y))
-    for radius in range(5, 450, 5):
+
+    prev = 0
+    prevprev = 0
+
+    for radius in range(2, 100, 2):
         # Array of booleans with the disk shape
         #  disk_out = (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2) & (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2)
-        disk_out = np.logical_and(((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2, ((x_grid-center_x)**2 + (y_grid-center_y)**2) > (radius-2)**2)
-        #  disk_out = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2
-        #  disk_in = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2
+        circle = np.logical_and(((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2, ((x_grid-center_x)**2 + (y_grid-center_y)**2) > (radius-2)**2)
+        disk_out = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2
+        disk_in = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2
 
         # You can now do all sorts of things with the mask "disk":
         # For instance, the following array has only 317 points (about pi*radius**2):
-        points_in_disk = np_r[disk_out]
-        print(len(points_in_disk))
-        print(np.amax(points_in_disk))
-        # You can also use masked arrays:
-        #  points_on_circle = np.ma.masked_array(points_in_disk, ~disk_in)
-        #  print(np.amax(points_on_circle))
+        points_on_circle = np_r[circle]
+        print(len(points_on_circle))
+        if (len(points_on_circle)>prevprev):
+            prevprev = prev
+            prev = len(points_on_circle)
+
+            #  print(np.amax(points_on_circle))
+            # You can also use masked arrays:
+            #  circle_2 = np.ma.masked_array(disk_out, ~disk_in)
+            #  print(np.amax(circle_2))
+            #  print(np.amax(points_on_circle))
+            masked_tmp = np.where(disk_out, np_r, 0)
+            masked = np.where(~disk_in, masked_tmp, 0)
+            im_masked = Image.fromarray(masked)
+            im_masked.save(os.path.join(args.out, "circle@"+str(radius)+".tif"))
+
+            print(np.amax(im_masked))
+            print(np.amax(im_masked))
+            l_indices = np.where(masked == [np.amax(masked)])
+            print("Indices Length: "+str(len(l_indices[0])))
+            print("X: "+str(l_indices[1][0]))
+            print("Y: "+str(l_indices[0][0]))
+
+            #  l_ds = gdal.Open(os.path.join(args.out, "circle@"+str(radius)+".tif"))
+
+            l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
+            l_pX, l_pY = pixel(l_posX, l_posY, r_ds)
+
+            l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
+            l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+            l_p = ogr.CreateGeometryFromWkt( l_wkt )
+            l_feat.SetGeometryDirectly( l_p )
+            l_feat.SetField ( "name", str(radius) )
+            dst_layer.CreateFeature( l_feat )
+            l_feat.Destroy()
+
+        else:
+            logging.debug("Search area outside of ROI")
+            break
+
+        #  from PIL import Image
+        #  im = Image.fromarray(A)
+        #  im.save("your_file.jpeg")
 
 
 
