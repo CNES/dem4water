@@ -60,9 +60,10 @@ python3 szi_from_contourline.py \
   --radius    5000 \
   --step      5 \
   --pdbradius 500 \
+  --maxelev   250 \
   --tmp       "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out       "$ROOT_DIR/${DAM}_${RADIUS}" \
-  --debug
+  # --debug
 
 exit
 

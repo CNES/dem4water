@@ -115,6 +115,10 @@ def main(arguments):
                         type=float,
                         default=.3,
                         help="Max distance between two concecutive points in the cutline wrt internal loop radius")
+    parser.add_argument('--maxelev',
+                        type=float,
+                        default=500,
+                        help="Max elevation target for the cutline")
     parser.add_argument('-t',
                         '--tmp',
                         required=True,
@@ -327,34 +331,24 @@ def main(arguments):
     #TODO: @param
     step_lc = 2
     lc_first_it = True
+    stop_side_1 = False
+    stop_side_2 = False
+    # NB: range is define pixel-wise
     for radius in range(5, 500, step_lc):
         # Array of booleans with the disk shape
-        #  disk_out = (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2) & (((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2)
         circle = np.logical_and(((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2, ((x_grid-center_x)**2 + (y_grid-center_y)**2) > (radius-2)**2)
         disk_out = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2
         disk_in = ((x_grid-center_x)**2 + (y_grid-center_y)**2) <= (radius-1)**2
-
         points_on_circle = np_r[circle]
 
-        #  print(len(points_on_circle))
         if (len(points_on_circle)>prevprev):
             prevprev = prev
             prev = len(points_on_circle)
 
-            #  print(np.amax(points_on_circle))
-            # You can also use masked arrays:
-            #  circle_2 = np.ma.masked_array(disk_out, ~disk_in)
-            #  print(np.amax(circle_2))
-            #  print(np.amax(points_on_circle))
             masked_tmp = np.where(disk_out, np_r, 0)
             masked = np.where(~disk_in, masked_tmp, 0)
             im_masked = Image.fromarray(masked)
             #  im_masked.save(os.path.join(args.tmp, "circle@"+str(radius)+".tif"))
-
-            #  print(np.amax(im_masked))
-            #  print(np.amax(im_masked))
-
-            #  l_ds = gdal.Open(os.path.join(args.out, "circle@"+str(radius)+".tif"))
 
             l_indices = np.where(masked == [np.amax(masked)])
             l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
@@ -368,9 +362,6 @@ def main(arguments):
                 logging.warning("Absolute maximum is not unique on the current circle!["
                                 + str(len(l_indices[0]))
                                 + "]")
-            #  print("Indices Length: "+str(len(l_indices[0])))
-            #  print("X: "+str(l_indices[1][0]))
-            #  print("Y: "+str(l_indices[0][0]))
 
             # Add Circle absolute max to json
             l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
@@ -387,9 +378,9 @@ def main(arguments):
             distance1 = currpoint.Distance(prevpoint1) / r_ds.GetGeoTransform()[1]
             distance2 = currpoint.Distance(prevpoint2) / r_ds.GetGeoTransform()[1]
             if (distance1 > radius*args.maxdist) and (distance2 > radius*args.maxdist) and (lc_first_it is False):
-                logging.warning("New detected point "
-                                + "(first point of the current iteration) "
-                                + "too distant from previous one!")
+                logging.debug("New detected point "
+                              + "(first point of the current iteration) "
+                              + "too distant from previous one!")
                 logging.debug("radius    (px): " + str(radius))
                 logging.debug("maxdist   (px): " + str(radius*args.maxdist))
                 logging.debug("distance1 (px): " + str(distance1))
@@ -421,9 +412,9 @@ def main(arguments):
                 l_feat.SetField ( "name", str(radius)+"/1/alt" )
                 dst_layer.CreateFeature( l_feat )
                 l_feat.Destroy()
-                logging.warning("New detected point "
-                                + "(first point of the current iteration) "
-                                + "corrected by local restricted search!")
+                logging.debug("New detected point "
+                              + "(first point of the current iteration) "
+                              + "corrected by local restricted search!")
 
 
             # Search for opposite relative max: mask half of the circle
@@ -444,9 +435,6 @@ def main(arguments):
                 logging.warning("Absolute maximum is not unique on the current circle!["
                                 + str(len(l_indices[0]))
                                 + "]")
-            #  print("Indices Length: "+str(len(l_indices[0])))
-            #  print("X: "+str(l_indices[1][0]))
-            #  print("Y: "+str(l_indices[0][0]))
 
             # Add Circle absolute max to json
             l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
@@ -463,9 +451,9 @@ def main(arguments):
             distance3 = nextpoint.Distance(prevpoint1) / r_ds.GetGeoTransform()[1]
             distance4 = nextpoint.Distance(prevpoint2) / r_ds.GetGeoTransform()[1]
             if (distance3 > radius*args.maxdist) and (distance4 > radius*args.maxdist) and  (lc_first_it is False):
-                logging.warning("New detected point "
-                                + "(second point of the current iteration) "
-                                + "too distant from previous one!")
+                logging.debug("New detected point "
+                              + "(second point of the current iteration) "
+                              + "too distant from previous one!")
                 logging.debug("radius    (px): " + str(radius))
                 logging.debug("maxdist   (px): " + str(radius*args.maxdist))
                 logging.debug("distance3 (px): " + str(distance3))
@@ -498,22 +486,50 @@ def main(arguments):
                 f_feat.SetField ( "name", str(radius)+"/2/alt" )
                 dst_layer.CreateFeature( f_feat )
                 f_feat.Destroy()
-                logging.warning("New detected point "
-                                + "(second point of the current iteration) "
-                                + "corrected by local restricted search!")
+                logging.debug("New detected point "
+                              + "(second point of the current iteration) "
+                              + "corrected by local restricted search!")
+
+            # Check if under max elev
+            prev1geo = ogr.Geometry(ogr.wkbPoint)
+            prev1geo.AddPoint(float(prevpoint1.GetX()),float(prevpoint1.GetY()))
+            prev1geo.Transform(t)
+            prev1alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, prev1geo.GetY(), prev1geo.GetX())).read())
+            logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
+            if (prev1alt > args.maxelev):
+                stop_side_1 = True
+                logging.debug("Stop cutline search on side #1 "
+                              + "[prevalt: "+str(prev1alt)
+                              + " ; maxelev: "+ str(args.maxelev)+"]")
+
+            prev2geo = ogr.Geometry(ogr.wkbPoint)
+            prev2geo.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
+            prev2geo.Transform(t)
+            prev2alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))).read())
+            logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
+            if (prev2alt > args.maxelev):
+                stop_side_2 = True
+                logging.debug("Stop cutline search on side #2 "
+                              + "[prevalt: "+str(prev2alt)
+                              + " ; maxelev: "+ str(args.maxelev)+"]")
+
+            if (stop_side_1 is True) and (stop_side_2 is True):
+                logging.info("Cutline over target elevation ("+str(args.maxelev)+" m) on both sides - Stopping Search.")
+                break
 
             if (distance1 <= distance2):
-                #  logging.debug("First")
                 line1 = ogr.Geometry(ogr.wkbLineString)
                 line1.AddPoint(prevpoint1.GetX(),prevpoint1.GetY())
                 line1.AddPoint(currpoint.GetX(),currpoint.GetY())
-                multiline.AddGeometry(line1)
+                if stop_side_1 is False:
+                    multiline.AddGeometry(line1)
                 prevpoint1 = currpoint
 
                 line2 = ogr.Geometry(ogr.wkbLineString)
                 line2.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
                 line2.AddPoint(nextpoint.GetX(),nextpoint.GetY())
-                multiline.AddGeometry(line2)
+                if stop_side_2 is False:
+                    multiline.AddGeometry(line2)
                 prevpoint2 = nextpoint
 
             else:
@@ -521,26 +537,25 @@ def main(arguments):
                 line1 = ogr.Geometry(ogr.wkbLineString)
                 line1.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
                 line1.AddPoint(currpoint.GetX(),currpoint.GetY())
-                multiline.AddGeometry(line1)
+                if stop_side_2 is False:
+                    multiline.AddGeometry(line1)
                 prevpoint2 = currpoint
 
                 line2 = ogr.Geometry(ogr.wkbLineString)
                 line2.AddPoint(prevpoint1.GetX(),prevpoint1.GetY())
                 line2.AddPoint(nextpoint.GetX(),nextpoint.GetY())
-                multiline.AddGeometry(line2)
+                if stop_side_1 is False:
+                    multiline.AddGeometry(line2)
                 prevpoint1 = nextpoint
 
             # Activate Correction after first iteration
             lc_first_it = False
 
         else:
-            logging.debug("Search area outside of ROI")
+            logging.debug("Search area outside of ROI @radius= " + str(radius) + " pixels")
             break
 
-        #  from PIL import Image
-        #  im = Image.fromarray(A)
-        #  im.save("your_file.jpeg")
-
+    # Export line to line.json
     shpDriver = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, "line.json")):
         shpDriver.DeleteDataSource(os.path.join(args.out, "line.json"))
@@ -552,33 +567,8 @@ def main(arguments):
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
 
-    #  for r in range(1, args.radius, args.step):
-    #      ext_l = otb.Registry.CreateApplication("ExtractROI")
-    #      ext_l.SetParameterString("in", args.dem)
-    #      ext_l.SetParameterString("out", os.path.join(args.tmp, "extract@"+str(r)+"mFromDam.tif"))
-    #      ext_l.SetParameterString("mode","radius")
-    #      ext_l.SetParameterString("mode.radius.unitr", "phy")
-    #      ext_l.SetParameterFloat("mode.radius.r", r)
-    #      ext_l.SetParameterString("mode.radius.unitc", "phy")
-    #      ext_l.SetParameterFloat("mode.radius.cx", dam.GetX())
-    #      ext_l.SetParameterFloat("mode.radius.cy", dam.GetY())
-    #      ext_l.ExecuteAndWriteOutput()
-    #
-    #      # Dam location in pixel indicies
-    #      l_ds = gdal.Open(os.path.join(args.tmp, "extract@"+str(r)+"mFromDam.tif"), gdal.GA_ReadOnly);
-    #      l_x, l_y = pixel(dam.GetX(), dam.GetY(), l_ds)
-    #      logging.debug("Coordinates : [" + str(dam.GetX())+", "+str(dam.GetY())
-    #                    +"] --> ["+str(l_x)+", "+str(l_y)+"]")
-    #
-    #      np_ext_l = ext_l.GetImageAsNumpyArray('out')
-    #      ext_l_max = np.amax(np_ext_l)
-    #      #  logging.debug("@radius= "+ str(r)
-    #                  #  +"m: local max = "
-    #                  #  + str(ext_l_max))
-
-
     # close json
-    dst_ds = None
+    #  dst_ds = None
 
 
 if __name__ == '__main__':
