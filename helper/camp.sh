@@ -50,8 +50,9 @@ for DAM in ${StringArray[@]}; do
     --radius     "$RADIUS" \
     --pdbstep    5 \
     --pdbradius  500 \
+    --elevoffset 60 \
     --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
-    --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
-    --debug 2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/szi_from_contourline.log"
+    --out        "$ROOT_DIR/${DAM}_${RADIUS}"  2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/szi_from_contourline.log"
+    # --out        "$ROOT_DIR/${DAM}_${RADIUS}" --debug 2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/szi_from_contourline.log"
 
   done

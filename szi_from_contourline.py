@@ -98,10 +98,10 @@ def main(arguments):
                         default=5000,
                         help="Extract radius (m)")
     parser.add_argument('-s',
-                        '--step',
+                        '--pdbstep',
                         type=int,
                         default=5,
-                        help="Altitude sampling step")
+                        help="Sampling step for pdb search")
     parser.add_argument('-p',
                         '--pdbradius',
                         type=int,
@@ -115,10 +115,10 @@ def main(arguments):
                         type=float,
                         default=.3,
                         help="Max distance between two concecutive points in the cutline wrt internal loop radius")
-    parser.add_argument('--maxelev',
+    parser.add_argument('--elevoffset',
                         type=float,
-                        default=500,
-                        help="Max elevation target for the cutline")
+                        default=50,
+                        help="Elevation offset target for the cutline wrt the estimated dam elevation")
     parser.add_argument('-t',
                         '--tmp',
                         required=True,
@@ -147,7 +147,7 @@ def main(arguments):
     calt = 0
 
     for feature in layer:
-        logging.debug(feature.GetField("Nom du bar"))
+        #  logging.debug(feature.GetField("Nom du bar"))
         if (feature.GetField("Nom du bar") == args.name):
             geom = feature.GetGeometryRef()
             clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
@@ -169,11 +169,10 @@ def main(arguments):
     dam.Transform(ct)
     logging.debug("Coordinates Carto: " + str(dam.GetX())+" - "+str(dam.GetY()))
 
-    if os.path.exists(os.path.join(args.out, "map.json")):
-        # It does exist, so remove it
-        os.remove(os.path.join(args.out, "map.json"))
     drv = ogr.GetDriverByName( 'GeoJSON' )
-    dst_ds = drv.CreateDataSource( os.path.join(args.out, "map.json"))
+    if os.path.exists(os.path.join(args.out, args.name +"_map.json")):
+        os.remove(os.path.join(args.out, args.name +"_map.json"))
+    dst_ds = drv.CreateDataSource( os.path.join(args.out, args.name +"_map.json"))
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPoint )
     field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
@@ -188,7 +187,7 @@ def main(arguments):
 
     rad_l = []
     alt_l = []
-    for r in range(args.pdbradius, 1, -1*args.step):
+    for r in range(args.pdbradius, 1, -1*args.pdbstep):
         ext_l = otb.Registry.CreateApplication("ExtractROI")
         ext_l.SetParameterString("in", args.dem)
         ext_l.SetParameterString("mode","radius")
@@ -297,6 +296,28 @@ def main(arguments):
     logging.debug("Coordinates (latlon): " + str(pdb.GetX())+" - "+str(pdb.GetY()))
     logging.info("PDB detected: "+ args.name +" [pdbLat: "+ str(pdblat) +", pdbLon: "+ str(pdblon) +", pdbAlt: "+ str(pdbalt) +"]")
 
+    # Dam elevation from watermap
+    extw = otb.Registry.CreateApplication("Superimpose")
+    extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
+    extw.SetParameterString("inm", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+    extw.Execute()
+
+    bml = otb.Registry.CreateApplication("BandMath")
+    bml.AddImageToParameterInputImageList("il",extw.GetParameterOutputImage("out"));
+    bml.AddImageToParameterInputImageList("il",ext.GetParameterOutputImage("out"));
+    bml.SetParameterString("exp", "( im1b1  > 0.05 ) ? im2b1 : 0")
+    bml.Execute()
+
+    np_bml = bml.GetImageAsNumpyArray('out')
+    bml_alt = np.amax(np_bml)
+    targetelev = bml_alt + args.elevoffset
+
+    logging.info("Estimated dam elevation= "
+                 + str(bml_alt) +"m")
+    logging.info("Target Elevation for cutline search= "
+                 + str(targetelev) +"m")
+
+
     # Search for Dam Line
     ext_r = otb.Registry.CreateApplication("ExtractROI")
     ext_r.SetParameterString("in", args.dem)
@@ -381,10 +402,10 @@ def main(arguments):
                 logging.debug("New detected point "
                               + "(first point of the current iteration) "
                               + "too distant from previous one!")
-                logging.debug("radius    (px): " + str(radius))
-                logging.debug("maxdist   (px): " + str(radius*args.maxdist))
-                logging.debug("distance1 (px): " + str(distance1))
-                logging.debug("distance2 (px): " + str(distance2))
+                #  logging.debug("radius    (px): " + str(radius))
+                #  logging.debug("maxdist   (px): " + str(radius*args.maxdist))
+                #  logging.debug("distance1 (px): " + str(distance1))
+                #  logging.debug("distance2 (px): " + str(distance2))
                 # Search a local maxima:
                 px, py = pixel(prevpoint1.GetX(), prevpoint1.GetY(), r_ds)
                 if (distance1 > distance2):
@@ -397,24 +418,29 @@ def main(arguments):
                 f_posX, f_posY = coord(f_indices[1][0], f_indices[0][0], r_ds)
                 f_pX, f_pY = pixel(f_posX, f_posY, r_ds)
 
-                currpoint = ogr.Geometry(ogr.wkbPoint)
-                currpoint.AddPoint(f_posX, f_posY)
                 #TODO: if multiple max detected
                 if (len(f_indices[0]) > 1):
                     logging.warning("Absolute maximum is not unique on the current local mask!["
                                     + str(len(f_indices[0]))
                                     + "]")
-                # Add local absolute max to json
-                l_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
-                l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-                l_p = ogr.CreateGeometryFromWkt( l_wkt )
-                l_feat.SetGeometryDirectly( l_p )
-                l_feat.SetField ( "name", str(radius)+"/1/alt" )
-                dst_layer.CreateFeature( l_feat )
-                l_feat.Destroy()
-                logging.debug("New detected point "
-                              + "(first point of the current iteration) "
-                              + "corrected by local restricted search!")
+                if (len(f_indices[0]) < 42):   # Detecting when masked area is only zeros
+                    currpoint = ogr.Geometry(ogr.wkbPoint)
+                    currpoint.AddPoint(f_posX, f_posY)
+                    # Add local absolute max to json
+                    l_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
+                    l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+                    l_p = ogr.CreateGeometryFromWkt( l_wkt )
+                    l_feat.SetGeometryDirectly( l_p )
+                    l_feat.SetField ( "name", str(radius)+"/1/alt" )
+                    dst_layer.CreateFeature( l_feat )
+                    l_feat.Destroy()
+                    logging.debug("New detected point "
+                                  + "(first point of the current iteration) "
+                                  + "corrected by local restricted search!")
+                else:
+                    logging.warning("Too distant detected point "
+                                    + "(first point of the current iteration) "
+                                    + "NOT corrected by local restricted search!")
 
 
             # Search for opposite relative max: mask half of the circle
@@ -454,10 +480,10 @@ def main(arguments):
                 logging.debug("New detected point "
                               + "(second point of the current iteration) "
                               + "too distant from previous one!")
-                logging.debug("radius    (px): " + str(radius))
-                logging.debug("maxdist   (px): " + str(radius*args.maxdist))
-                logging.debug("distance3 (px): " + str(distance3))
-                logging.debug("distance4 (px): " + str(distance4))
+                #  logging.debug("radius    (px): " + str(radius))
+                #  logging.debug("maxdist   (px): " + str(radius*args.maxdist))
+                #  logging.debug("distance3 (px): " + str(distance3))
+                #  logging.debug("distance4 (px): " + str(distance4))
                 # Search a local maxima:
                 px, py = pixel(prevpoint1.GetX(), prevpoint1.GetY(), r_ds)
                 if (distance3 > distance4):
@@ -466,55 +492,59 @@ def main(arguments):
 
                 force_local_masked = np.where(force_local, half_masked, 0)
                 im_fmasked = Image.fromarray(force_local_masked)
-                #  print("max local contraint:" + str(np.amax(im_fmasked)))
                 f_indices = np.where(force_local_masked == [np.amax(force_local_masked)])
+                f_posX, f_posY = coord(f_indices[1][0], f_indices[0][0], r_ds)
+                f_pX, f_pY = pixel(f_posX, f_posY, r_ds)
+
                 #TODO: if multiple max detected
                 if (len(f_indices[0]) > 1):
                     logging.warning("Absolute maximum is not unique on the current local mask!["
                                     + str(len(f_indices[0]))
                                     + "]")
-                f_posX, f_posY = coord(f_indices[1][0], f_indices[0][0], r_ds)
-                f_pX, f_pY = pixel(f_posX, f_posY, r_ds)
-
-                nextpoint = ogr.Geometry(ogr.wkbPoint)
-                nextpoint.AddPoint(f_posX, f_posY)
-                # Add local absolute max to json
-                f_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
-                f_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-                f_p = ogr.CreateGeometryFromWkt( f_wkt )
-                f_feat.SetGeometryDirectly( f_p )
-                f_feat.SetField ( "name", str(radius)+"/2/alt" )
-                dst_layer.CreateFeature( f_feat )
-                f_feat.Destroy()
-                logging.debug("New detected point "
-                              + "(second point of the current iteration) "
-                              + "corrected by local restricted search!")
+                if (len(f_indices[0]) < 42):   # Detecting when masked area is only zeros
+                    nextpoint = ogr.Geometry(ogr.wkbPoint)
+                    nextpoint.AddPoint(f_posX, f_posY)
+                    # Add local absolute max to json
+                    f_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
+                    f_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+                    f_p = ogr.CreateGeometryFromWkt( f_wkt )
+                    f_feat.SetGeometryDirectly( f_p )
+                    f_feat.SetField ( "name", str(radius)+"/2/alt" )
+                    dst_layer.CreateFeature( f_feat )
+                    f_feat.Destroy()
+                    logging.debug("New detected point "
+                                  + "(second point of the current iteration) "
+                                  + "corrected by local restricted search!")
+                else:
+                    logging.warning("Too distant detected point "
+                                    + "(second point of the current iteration) "
+                                    + "NOT corrected by local restricted search!")
 
             # Check if under max elev
             prev1geo = ogr.Geometry(ogr.wkbPoint)
             prev1geo.AddPoint(float(prevpoint1.GetX()),float(prevpoint1.GetY()))
             prev1geo.Transform(t)
             prev1alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, prev1geo.GetY(), prev1geo.GetX())).read())
-            logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
-            if (prev1alt > args.maxelev):
+            #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
+            if (prev1alt > targetelev) and (stop_side_1 is False):
                 stop_side_1 = True
-                logging.debug("Stop cutline search on side #1 "
-                              + "[prevalt: "+str(prev1alt)
-                              + " ; maxelev: "+ str(args.maxelev)+"]")
+                logging.info("Stop cutline search on side #1 "
+                             + "[prevalt: "+str(prev1alt)
+                             + " ; targeted elevation: "+ str(targetelev)+"]")
 
             prev2geo = ogr.Geometry(ogr.wkbPoint)
             prev2geo.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
             prev2geo.Transform(t)
             prev2alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))).read())
-            logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
-            if (prev2alt > args.maxelev):
+            #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
+            if (prev2alt > targetelev) and (stop_side_2 is False):
                 stop_side_2 = True
-                logging.debug("Stop cutline search on side #2 "
-                              + "[prevalt: "+str(prev2alt)
-                              + " ; maxelev: "+ str(args.maxelev)+"]")
+                logging.info("Stop cutline search on side #2 "
+                             + "[prevalt: "+str(prev2alt)
+                             + " ; targeted elevation: "+ str(targetelev)+"]")
 
             if (stop_side_1 is True) and (stop_side_2 is True):
-                logging.info("Cutline over target elevation ("+str(args.maxelev)+" m) on both sides - Stopping Search.")
+                logging.info("Cutline over target elevation ("+str(targetelev)+" m) on both sides - Stopping Search.")
                 break
 
             if (distance1 <= distance2):
@@ -555,11 +585,15 @@ def main(arguments):
             logging.debug("Search area outside of ROI @radius= " + str(radius) + " pixels")
             break
 
+    if (stop_side_1 is False) or (stop_side_2 is False):
+        logging.warning("Target elevation for cutline extremities ("
+                        + str(targetelev) +" m) not reached!")
+
     # Export line to line.json
     shpDriver = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, "line.json")):
-        shpDriver.DeleteDataSource(os.path.join(args.out, "line.json"))
-    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, "line.json"))
+    if os.path.exists(os.path.join(args.out, args.name +"_line.json")):
+        shpDriver.DeleteDataSource(os.path.join(args.out, args.name +"_line.json"))
+    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, args.name +"_line.json"))
     outLayer = outDataSource.CreateLayer('', srs=carto , \
                                          geom_type=ogr.wkbMultiLineString )
     featureDefn = outLayer.GetLayerDefn()
@@ -567,8 +601,6 @@ def main(arguments):
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
 
-    # close json
-    #  dst_ds = None
 
 
 if __name__ == '__main__':

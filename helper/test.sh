@@ -53,16 +53,16 @@ else
 fi
 
 python3 szi_from_contourline.py \
-  --name      "$DAM" \
-  --infile    "../data/synth_names.shp" \
-  --watermap  "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
-  --dem       "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
-  --radius    5000 \
-  --step      5 \
-  --pdbradius 500 \
-  --maxelev   250 \
-  --tmp       "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
-  --out       "$ROOT_DIR/${DAM}_${RADIUS}" \
+  --name       "$DAM" \
+  --infile     "../data/synth_names.shp" \
+  --watermap   "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+  --dem        "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --radius     5000 \
+  --pdbstep    5 \
+  --pdbradius  500 \
+  --elevoffset 100 \
+  --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
+  --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
   # --debug
 
 exit
