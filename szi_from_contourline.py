@@ -601,6 +601,14 @@ def main(arguments):
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
 
+    # Generate contourlines
+    contourline_fname = os.path.join(args.out, args.name +"_contourlines.json")
+    if os.path.exists(contourline_fname):
+        os.remove(contourline_fname)
+    #  print("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
+    #  os.popen("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
+    #TODO @param
+    os.system("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
 
 
 if __name__ == '__main__':
