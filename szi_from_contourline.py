@@ -142,6 +142,44 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting szi_from_contourline.py")
 
+
+    # Init global srs:
+    geo = osr.SpatialReference();
+    geo.ImportFromEPSG(4326)
+
+    ds = gdal.Open(args.dem, gdal.GA_ReadOnly);
+    carto = osr.SpatialReference(wkt=ds.GetProjection());
+
+    geotocarto = osr.CoordinateTransformation(geo, carto);
+    cartotogeo = osr.CoordinateTransformation(carto, geo)
+
+    # Init output vector data files:
+    drv = ogr.GetDriverByName( 'GeoJSON' )
+    if os.path.exists(os.path.join(args.out, args.name +"_daminfo.json")):
+        os.remove(os.path.join(args.out, args.name +"_daminfo.json"))
+    dst_ds = drv.CreateDataSource( os.path.join(args.out, args.name +"_daminfo.json"))
+    dst_layer = dst_ds.CreateLayer('', srs=carto , \
+                                   geom_type=ogr.wkbPoint )
+    field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
+    dst_layer.CreateField( field_defn )
+
+    shpDriver = ogr.GetDriverByName( 'GeoJSON' )
+    if os.path.exists(os.path.join(args.out, args.name +"_cutline.json")):
+        shpDriver.DeleteDataSource(os.path.join(args.out, args.name +"_cutline.json"))
+    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, args.name +"_cutline.json"))
+    outLayer = outDataSource.CreateLayer('', srs=carto , \
+                                         geom_type=ogr.wkbMultiLineString )
+
+    drv_dbg = ogr.GetDriverByName( 'GeoJSON' )
+    if os.path.exists(os.path.join(args.tmp, args.name +"_cutline_points.json")):
+        os.remove(os.path.join(args.tmp, args.name +"_cutline_points.json"))
+    dbg_ds = drv_dbg.CreateDataSource( os.path.join(args.tmp, args.name +"_cutline_points.json"))
+    dbg_layer = dbg_ds.CreateLayer('', srs=carto , \
+                                   geom_type=ogr.wkbPoint )
+    dbg_field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
+    dbg_layer.CreateField( dbg_field_defn )
+
+    # Start processing by qualifying the Dam
     driver = ogr.GetDriverByName("ESRI Shapefile")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
@@ -162,25 +200,11 @@ def main(arguments):
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
-
-    geo = osr.SpatialReference();
-    geo.ImportFromEPSG(4326)
-    ds = gdal.Open(args.dem, gdal.GA_ReadOnly);
-    carto = osr.SpatialReference(wkt=ds.GetProjection());
-    ct = osr.CoordinateTransformation(geo, carto);
     dam = ogr.Geometry(ogr.wkbPoint)
     dam.AddPoint(clat, clon)
-    dam.Transform(ct)
+    dam.Transform(geotocarto)
     logging.debug("Coordinates Carto: " + str(dam.GetX())+" - "+str(dam.GetY()))
 
-    drv = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, args.name +"_map.json")):
-        os.remove(os.path.join(args.out, args.name +"_map.json"))
-    dst_ds = drv.CreateDataSource( os.path.join(args.out, args.name +"_map.json"))
-    dst_layer = dst_ds.CreateLayer('', srs=carto , \
-                                   geom_type=ogr.wkbPoint )
-    field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
-    dst_layer.CreateField( field_defn )
     wkt = "POINT ( %f %f )" % ( float(dam.GetX()), float(dam.GetY()) )
     feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
     p = ogr.CreateGeometryFromWkt( wkt )
@@ -281,16 +305,9 @@ def main(arguments):
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
-    # get CRS from dataset
-    crs = osr.SpatialReference()
-    crs.ImportFromWkt(ds.GetProjectionRef())
-    # create lat/long crs with WGS84 datum
-    crsGeo = osr.SpatialReference()
-    crsGeo.ImportFromEPSG(4326) # 4326 is the EPSG id of lat/long crs
-    t = osr.CoordinateTransformation(crs, crsGeo)
     pdb = ogr.Geometry(ogr.wkbPoint)
     pdb.AddPoint(float(posX), float(posY))
-    pdb.Transform(t)
+    pdb.Transform(cartotogeo)
     pdblat = pdb.GetX()
     pdblon = pdb.GetY()
 
@@ -390,11 +407,11 @@ def main(arguments):
 
             # Add Circle absolute max to json
             l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
-            l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+            l_feat = ogr.Feature(feature_def=dbg_layer.GetLayerDefn())
             l_p = ogr.CreateGeometryFromWkt( l_wkt )
             l_feat.SetGeometryDirectly( l_p )
             l_feat.SetField ( "name", str(radius)+"/1" )
-            dst_layer.CreateFeature( l_feat )
+            dbg_layer.CreateFeature( l_feat )
             l_feat.Destroy()
 
             #  logging.debug("First Point - Coordinates (pixel): " + str(l_pX)+" - "+str(l_pY))
@@ -433,11 +450,11 @@ def main(arguments):
                     currpoint.AddPoint(f_posX, f_posY)
                     # Add local absolute max to json
                     l_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
-                    l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+                    l_feat = ogr.Feature(feature_def=dbg_layer.GetLayerDefn())
                     l_p = ogr.CreateGeometryFromWkt( l_wkt )
                     l_feat.SetGeometryDirectly( l_p )
                     l_feat.SetField ( "name", str(radius)+"/1/alt" )
-                    dst_layer.CreateFeature( l_feat )
+                    dbg_layer.CreateFeature( l_feat )
                     l_feat.Destroy()
                     logging.debug("New detected point "
                                   + "(first point of the current iteration) "
@@ -469,11 +486,11 @@ def main(arguments):
 
             # Add Circle absolute max to json
             l_wkt = "POINT ( %f %f )" % ( float(l_posX), float(l_posY) )
-            l_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+            l_feat = ogr.Feature(feature_def=dbg_layer.GetLayerDefn())
             l_p = ogr.CreateGeometryFromWkt( l_wkt )
             l_feat.SetGeometryDirectly( l_p )
             l_feat.SetField ( "name", str(radius)+"/2" )
-            dst_layer.CreateFeature( l_feat )
+            dbg_layer.CreateFeature( l_feat )
             l_feat.Destroy()
 
             #  logging.debug("Second Point - Coordinates (pixel): " + str(l_pX)+" - "+str(l_pY))
@@ -512,11 +529,11 @@ def main(arguments):
                     nextpoint.AddPoint(f_posX, f_posY)
                     # Add local absolute max to json
                     f_wkt = "POINT ( %f %f )" % ( float(f_posX), float(f_posY) )
-                    f_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+                    f_feat = ogr.Feature(feature_def=dbg_layer.GetLayerDefn())
                     f_p = ogr.CreateGeometryFromWkt( f_wkt )
                     f_feat.SetGeometryDirectly( f_p )
                     f_feat.SetField ( "name", str(radius)+"/2/alt" )
-                    dst_layer.CreateFeature( f_feat )
+                    dbg_layer.CreateFeature( f_feat )
                     f_feat.Destroy()
                     logging.debug("New detected point "
                                   + "(second point of the current iteration) "
@@ -529,7 +546,7 @@ def main(arguments):
             # Check if under max elev
             prev1geo = ogr.Geometry(ogr.wkbPoint)
             prev1geo.AddPoint(float(prevpoint1.GetX()),float(prevpoint1.GetY()))
-            prev1geo.Transform(t)
+            prev1geo.Transform(cartotogeo)
             prev1alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, prev1geo.GetY(), prev1geo.GetX())).read())
             #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
             if (prev1alt > targetelev) and (stop_side_1 is False):
@@ -540,7 +557,7 @@ def main(arguments):
 
             prev2geo = ogr.Geometry(ogr.wkbPoint)
             prev2geo.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
-            prev2geo.Transform(t)
+            prev2geo.Transform(cartotogeo)
             prev2alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))).read())
             #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
             if (prev2alt > targetelev) and (stop_side_2 is False):
@@ -596,12 +613,6 @@ def main(arguments):
                         + str(targetelev) +" m) not reached!")
 
     # Export line to line.json
-    shpDriver = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, args.name +"_line.json")):
-        shpDriver.DeleteDataSource(os.path.join(args.out, args.name +"_line.json"))
-    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, args.name +"_line.json"))
-    outLayer = outDataSource.CreateLayer('', srs=carto , \
-                                         geom_type=ogr.wkbMultiLineString )
     featureDefn = outLayer.GetLayerDefn()
     outFeature = ogr.Feature(featureDefn)
     outFeature.SetGeometry(multiline)
