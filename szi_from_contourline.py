@@ -119,6 +119,10 @@ def main(arguments):
                         type=float,
                         default=50,
                         help="Elevation offset target for the cutline wrt the estimated dam elevation")
+    parser.add_argument('--elevsampling',
+                        type=int,
+                        default=2,
+                        help="Elevation sampling step for contour lines generation.")
     parser.add_argument('-t',
                         '--tmp',
                         required=True,
@@ -423,6 +427,7 @@ def main(arguments):
                     logging.warning("Absolute maximum is not unique on the current local mask!["
                                     + str(len(f_indices[0]))
                                     + "]")
+                #TODO: find a better way to detect this problematic case:
                 if (len(f_indices[0]) < 42):   # Detecting when masked area is only zeros
                     currpoint = ogr.Geometry(ogr.wkbPoint)
                     currpoint.AddPoint(f_posX, f_posY)
@@ -501,6 +506,7 @@ def main(arguments):
                     logging.warning("Absolute maximum is not unique on the current local mask!["
                                     + str(len(f_indices[0]))
                                     + "]")
+                #TODO: find a better way to detect this problematic case:
                 if (len(f_indices[0]) < 42):   # Detecting when masked area is only zeros
                     nextpoint = ogr.Geometry(ogr.wkbPoint)
                     nextpoint.AddPoint(f_posX, f_posY)
@@ -601,14 +607,17 @@ def main(arguments):
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
 
-    # Generate contourlines
-    contourline_fname = os.path.join(args.out, args.name +"_contourlines.json")
+    # Generate relevant contourlines
+    contourline_fname = os.path.join(args.out, args.name
+                                     +"_contourlines@" + str(args.elevsampling) +"m.json")
+    elev_margin = 3*args.elevsampling
     if os.path.exists(contourline_fname):
         os.remove(contourline_fname)
-    #  print("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
-    #  os.popen("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
-    #TODO @param
-    os.system("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem, contourline_fname, str(int(pdbalt-10)), str(int(targetelev+10)), str(2)))
+    os.system("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem,
+                                                               contourline_fname,
+                                                               str(int(pdbalt-elev_margin)),
+                                                               str(int(targetelev+elev_margin)),
+                                                               str(args.elevsampling)))
 
 
 if __name__ == '__main__':
