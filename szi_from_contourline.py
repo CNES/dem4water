@@ -121,7 +121,7 @@ def main(arguments):
                         help="Elevation offset target for the cutline wrt the estimated dam elevation")
     parser.add_argument('--elevsampling',
                         type=int,
-                        default=2,
+                        default=1,
                         help="Elevation sampling step for contour lines generation.")
     parser.add_argument('-t',
                         '--tmp',
