@@ -8,7 +8,7 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210115"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210120"
 # DAM=${1:-"Agly"}
 RADIUS=${1:-5000}
 
@@ -21,11 +21,22 @@ echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
 cd $SRC_DIR
 
-declare -a StringArray=("Agly" "Cavayère" "Montbel" "Vinca" "Puyvalador"
-                        "Matemale" "Bouillouses" "Naguilhes" "Ganguise"
-                        "Aussoue" "Gimone" "Marcaoue" "Pessoulens"
-                        "Comberouger" "Malause" "Tordre" "Fontbouysse"
-                        "Pinet" "Bally" "Araing")
+# declare -a StringArray=("Agly" "Cavayère" "Montbel" "Vinca" "Puyvalador"
+                        # "Matemale" "Bouillouses" "Naguilhes" "Ganguise"
+                        # "Aussoue" "Gimone" "Marcaoue" "Pessoulens"
+                        # "Comberouger" "Malause" "Tordre" "Fontbouysse"
+                        # "Pinet" "Bally" "Araing")
+
+declare -a StringArray=("Agly"    "Astarac"  "Aussoue"             "Grandes Patures"
+                        "Balerme" "Cammazes" "Filhet"              "Pla de Soulcem"
+                        "Galaube" "Ganguise" "Izourt"              "Raschas"
+                        "Laparan" "Laprade"  "Matemale"            "Gouyre"
+                        "Salagou" "Montbel"  "Monts d'Orb (Avène)" "Olivettes")
+                        # "Cap de Long" "Pareloup" "Portillon" "Puydarrieux"
+                        # "Puylaurent" "Saint Ferréol" "Saint géraud" "Sainte Peyres"
+                        # "Tordre" "Vinca" "Boues - Serres-Rustaing" "Miélan"
+                        # "Charpal" "Villeneuve de la raho" "Gouyre" "Lac d'Oô"
+                        # "Puyvalador" "Arrêt-Darré" "Louet" "Gimone"
 
 for DAM in ${StringArray[@]}; do
 
@@ -55,6 +66,7 @@ for DAM in ${StringArray[@]}; do
     --radius     "$RADIUS" \
     --pdbstep    5 \
     --pdbradius  500 \
+    --elevsampling 1 \
     --elevoffset 60 \
     --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
     --out        "$ROOT_DIR/${DAM}_${RADIUS}"  2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/szi_from_contourline.log"
