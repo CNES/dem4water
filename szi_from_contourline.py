@@ -249,7 +249,7 @@ def main(arguments):
 
     d = nderiv(alt_l, rad_l)
 
-    plt.plot(rad_l, alt_l, 'r--', rad_l, d, 'bs')
+    plt.plot(rad_l, alt_l, 'r', rad_l, d, 'b')
     plt.title('PDB profile')
     plt.xlabel('Search Area to the Dam (px)')
     plt.ylabel('Min(elev) in red & d(minelev) in blue')
@@ -327,7 +327,7 @@ def main(arguments):
     pdblat = pdb.GetX()
     pdblon = pdb.GetY()
 
-    pdbalt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, pdblon, pdblat)).read())
+    pdbalt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, pdblon, pdblat)).read())
     logging.debug("Coordinates (pixel): " + str(pX)+" - "+str(pY))
     logging.debug("Coordinates (carto): " + str(posX)+" - "+str(posY))
     logging.debug("Coordinates (latlon): " + str(pdb.GetX())+" - "+str(pdb.GetY()))
@@ -563,7 +563,7 @@ def main(arguments):
             prev1geo = ogr.Geometry(ogr.wkbPoint)
             prev1geo.AddPoint(float(prevpoint1.GetX()),float(prevpoint1.GetY()))
             prev1geo.Transform(cartotogeo)
-            prev1alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, prev1geo.GetY(), prev1geo.GetX())).read())
+            prev1alt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, prev1geo.GetY(), prev1geo.GetX())).read())
             #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
             if (prev1alt > targetelev) and (stop_side_1 is False):
                 stop_side_1 = True
@@ -574,7 +574,7 @@ def main(arguments):
             prev2geo = ogr.Geometry(ogr.wkbPoint)
             prev2geo.AddPoint(prevpoint2.GetX(),prevpoint2.GetY())
             prev2geo.Transform(cartotogeo)
-            prev2alt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))).read())
+            prev2alt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))).read())
             #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
             if (prev2alt > targetelev) and (stop_side_2 is False):
                 stop_side_2 = True
@@ -640,11 +640,11 @@ def main(arguments):
     elev_margin = 3*args.elevsampling
     if os.path.exists(contourline_fname):
         os.remove(contourline_fname)
-    os.system("gdal_contour -a elev %s %s -fl {%s..%s..%s}" % (args.dem,
-                                                               contourline_fname,
-                                                               str(int(pdbalt-elev_margin)),
-                                                               str(int(targetelev+elev_margin)),
-                                                               str(args.elevsampling)))
+    os.system('gdal_contour -a elev "%s" "%s" -fl {%s..%s..%s}' % (args.dem,
+                                                                   contourline_fname,
+                                                                   str(int(pdbalt-elev_margin)),
+                                                                   str(int(targetelev+elev_margin)),
+                                                                   str(args.elevsampling)))
 
 
 if __name__ == '__main__':

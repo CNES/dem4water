@@ -52,6 +52,9 @@ def main(arguments):
                         help='Activate Debug Mode')
     args = parser.parse_args(arguments)
 
+    # Silence VRT related error (bad magic number)
+    gdal.PushErrorHandler('CPLQuietErrorHandler')
+
     logging_format = '%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
     if (args.debug is True):
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=logging_format)

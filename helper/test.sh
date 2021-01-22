@@ -43,10 +43,10 @@ if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
   echo "Extracts already available --> Skipping area_mapping."
 else
   python3 area_mapping.py \
+    --name     "${DAMNAME}" \
     --infile   "../data/synth_names.shp" \
-    --watermap "../data/T31TDH/all_cumul.tif" \
+    --watermap "../data/wmap/wmap.vrt" \
     --dem      "../data/dem/dem.vrt" \
-    --name     "$DAMNAME" \
     --radius   5000 \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
     # --debug
@@ -54,7 +54,7 @@ else
 fi
 
 python3 szi_from_contourline.py \
-  --name       "$DAMNAME" \
+  --name       "${DAMNAME}" \
   --infile     "../data/synth_names.shp" \
   --watermap   "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
   --dem        "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
