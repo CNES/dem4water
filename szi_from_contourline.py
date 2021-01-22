@@ -273,6 +273,19 @@ def main(arguments):
                     +"m: local min = "
                     + str(alt_pdb))
     else:
+        for i_r, i_a, i_d in zip(rad_l, alt_l, d):
+            #  print(i_r, i_a, i_d)
+            if (abs(i_d) > 0.10):
+                found_pdb = True
+                rad_pdb = i_r
+                alt_pdb = i_a
+                logging.warning("PDB found during 2nd pass - It may not be reliable")
+                logging.debug("@radius= "+ str(rad_pdb)
+                            +"m: local min = "
+                            + str(alt_pdb))
+                break
+
+    if found_pdb is False:
         logging.error("404 - PDB not Found")
 
     # Retrieve PDB coordinates
