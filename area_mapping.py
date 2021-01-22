@@ -59,6 +59,8 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting area_mapping.py")
 
+    dam_path = args.name.replace(" ", "_")
+
     driver = ogr.GetDriverByName("ESRI Shapefile")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
@@ -97,26 +99,26 @@ def main(arguments):
     extw.SetParameterString("mode.radius.unitc", "phy")
     extw.SetParameterFloat("mode.radius.cx", point.GetX())
     extw.SetParameterFloat("mode.radius.cy", point.GetY())
-    extw.SetParameterString("out", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+    extw.SetParameterString("out", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
     extw.ExecuteAndWriteOutput()
 
     #  extd = otb.Registry.CreateApplication("ExtractROI")
     #  extd.SetParameterString("in", args.dem)
     #  extd.SetParameterString("mode","fit")
-    #  extd.SetParameterString("mode.fit.im", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
-    #  extd.SetParameterString("out", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
+    #  extd.SetParameterString("mode.fit.im", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
+    #  extd.SetParameterString("out", os.path.join(args.out, "dem_extract-"+dam_path+".tif"))
     #  extd.ExecuteAndWriteOutput()
 
     app = otb.Registry.CreateApplication("Superimpose")
-    app.SetParameterString("inr", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+    app.SetParameterString("inr", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
     app.SetParameterString("inm", args.dem)
-    app.SetParameterString("out", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
+    app.SetParameterString("out", os.path.join(args.out, "dem_extract-"+dam_path+".tif"))
     app.ExecuteAndWriteOutput()
 
 
     # Search dam bottom
     extw_bt = otb.Registry.CreateApplication("ExtractROI")
-    extw_bt.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+    extw_bt.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
     extw_bt.SetParameterString("mode","radius")
     extw_bt.SetParameterString("mode.radius.unitr", "phy")
     extw_bt.SetParameterFloat("mode.radius.r", 500)
@@ -127,7 +129,7 @@ def main(arguments):
 
     extd_bt = otb.Registry.CreateApplication("Superimpose")
     extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
-    extd_bt.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
+    extd_bt.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+dam_path+".tif"))
     extd_bt.Execute()
 
     bm = otb.Registry.CreateApplication("BandMath")
@@ -144,7 +146,7 @@ def main(arguments):
     if (args.debug is True):
         for r in range(200, 1001, 50):
             extw_l = otb.Registry.CreateApplication("ExtractROI")
-            extw_l.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+            extw_l.SetParameterString("in", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
             extw_l.SetParameterString("mode","radius")
             extw_l.SetParameterString("mode.radius.unitr", "phy")
             extw_l.SetParameterFloat("mode.radius.r", r)
@@ -155,7 +157,7 @@ def main(arguments):
 
             extd_l = otb.Registry.CreateApplication("Superimpose")
             extd_l.SetParameterInputImage("inr", extw_l.GetParameterOutputImage("out"))
-            extd_l.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+args.name+".tif"))
+            extd_l.SetParameterString("inm", os.path.join(args.out, "dem_extract-"+dam_path+".tif"))
             extd_l.Execute()
 
             np_extdl = extd_l.GetImageAsNumpyArray('out')

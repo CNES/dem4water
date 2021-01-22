@@ -9,7 +9,8 @@
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 ROOT_DIR="/home/ad/briciera/scratch/HSV"
-DAM=${1:-"Agly"}
+DAMNAME=${1:-"Agly"}
+DAM=${DAMNAME// /_}
 RADIUS=${2:-7500}
 
 
@@ -45,7 +46,7 @@ else
     --infile   "../data/synth_names.shp" \
     --watermap "../data/T31TDH/all_cumul.tif" \
     --dem      "../data/dem/dem.vrt" \
-    --name     "$DAM" \
+    --name     "$DAMNAME" \
     --radius   5000 \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
     # --debug
@@ -53,7 +54,7 @@ else
 fi
 
 python3 szi_from_contourline.py \
-  --name       "$DAM" \
+  --name       "$DAMNAME" \
   --infile     "../data/synth_names.shp" \
   --watermap   "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
   --dem        "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
@@ -63,7 +64,7 @@ python3 szi_from_contourline.py \
   --elevoffset 100 \
   --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
-  # --debug
+  --debug
 
 exit
 

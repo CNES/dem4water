@@ -15,6 +15,7 @@ import os
 import sys
 import logging
 import argparse
+import subprocess
 from PIL import Image
 from osgeo import ogr
 from osgeo import osr
@@ -142,6 +143,7 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting szi_from_contourline.py")
 
+    dam_path = args.name.replace(" ", "_")
 
     # Init global srs:
     geo = osr.SpatialReference();
@@ -155,25 +157,25 @@ def main(arguments):
 
     # Init output vector data files:
     drv = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, args.name +"_daminfo.json")):
-        os.remove(os.path.join(args.out, args.name +"_daminfo.json"))
-    dst_ds = drv.CreateDataSource( os.path.join(args.out, args.name +"_daminfo.json"))
+    if os.path.exists(os.path.join(args.out, dam_path +"_daminfo.json")):
+        os.remove(os.path.join(args.out, dam_path +"_daminfo.json"))
+    dst_ds = drv.CreateDataSource( os.path.join(args.out, dam_path +"_daminfo.json"))
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPoint )
     field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
     dst_layer.CreateField( field_defn )
 
     shpDriver = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, args.name +"_cutline.json")):
-        shpDriver.DeleteDataSource(os.path.join(args.out, args.name +"_cutline.json"))
-    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, args.name +"_cutline.json"))
+    if os.path.exists(os.path.join(args.out, dam_path +"_cutline.json")):
+        shpDriver.DeleteDataSource(os.path.join(args.out, dam_path +"_cutline.json"))
+    outDataSource = shpDriver.CreateDataSource(os.path.join(args.out, dam_path +"_cutline.json"))
     outLayer = outDataSource.CreateLayer('', srs=carto , \
                                          geom_type=ogr.wkbMultiLineString )
 
     drv_dbg = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.tmp, args.name +"_cutline_points.json")):
-        os.remove(os.path.join(args.tmp, args.name +"_cutline_points.json"))
-    dbg_ds = drv_dbg.CreateDataSource( os.path.join(args.tmp, args.name +"_cutline_points.json"))
+    if os.path.exists(os.path.join(args.tmp, dam_path +"_cutline_points.json")):
+        os.remove(os.path.join(args.tmp, dam_path +"_cutline_points.json"))
+    dbg_ds = drv_dbg.CreateDataSource( os.path.join(args.tmp, dam_path +"_cutline_points.json"))
     dbg_layer = dbg_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPoint )
     dbg_field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
@@ -197,7 +199,15 @@ def main(arguments):
             break
     layer.ResetReading()
 
-    calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
+    logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
+    altcmd = 'gdallocationinfo -valonly -wgs84 "'+args.dem+'" '+str(clon)+' '+str(clat)
+    print(altcmd)
+    print(os.popen('gdallocationinfo -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
+    calt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
+    #  calt = float(subprocess.check_output(['gdallocationinfo', '-valonly', '-wgs84', str(args.dem), str(clon), str(clat)]))
+    #  print(subprocess.Popen(['gdallocationinfo', '-valonly', '-wgs84', str(args.dem), str(clon), str(clat)]))
+    #  print(os.popen(altcmd).read())
+    #  calt = float(os.popen(altcmd).read())
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
     dam = ogr.Geometry(ogr.wkbPoint)
@@ -238,6 +248,12 @@ def main(arguments):
                       #  + str(ext_l_alt))
 
     d = nderiv(alt_l, rad_l)
+
+    plt.plot(rad_l, alt_l, 'r--', rad_l, d, 'bs')
+    plt.title('PDB profile')
+    plt.xlabel('Search Area to the Dam (px)')
+    plt.ylabel('Min(elev) in red & d(minelev) in blue')
+    plt.savefig(os.path.join(args.tmp, "pdb_profile.png"))
 
     found_pdb = False
     rad_pdb = 0
@@ -320,7 +336,7 @@ def main(arguments):
     # Dam elevation from watermap
     extw = otb.Registry.CreateApplication("Superimpose")
     extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
-    extw.SetParameterString("inm", os.path.join(args.out, "wmap_extract-"+args.name+".tif"))
+    extw.SetParameterString("inm", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
     extw.Execute()
 
     bml = otb.Registry.CreateApplication("BandMath")
@@ -609,7 +625,7 @@ def main(arguments):
             break
 
     if (stop_side_1 is False) or (stop_side_2 is False):
-        logging.warning("Target elevation for cutline extremities ("
+        logging.error("Target elevation for cutline extremities ("
                         + str(targetelev) +" m) not reached!")
 
     # Export line to line.json
@@ -619,7 +635,7 @@ def main(arguments):
     outLayer.CreateFeature(outFeature)
 
     # Generate relevant contourlines
-    contourline_fname = os.path.join(args.out, args.name
+    contourline_fname = os.path.join(args.out, dam_path
                                      +"_contourlines@" + str(args.elevsampling) +"m.json")
     elev_margin = 3*args.elevsampling
     if os.path.exists(contourline_fname):
