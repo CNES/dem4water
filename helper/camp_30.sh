@@ -8,7 +8,7 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-DB_PATH="../data/DB_Barrages_Fixed_v2/DB_Barrages_Fixed.shp"
+DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
 ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210126"
@@ -23,9 +23,9 @@ echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
 cd $SRC_DIR
 
-declare -a StringArray=('Arrêt-Darré' 'Astarac' 'Cap de Long'  'Gimone'
-                        'Puydarrieux' 'Miélan'  'Portillon'    'Louet'
-                        'Boues (Sere-Rustaing)' 'Lac d'\''Oô'  )
+declare -a StringArray=('Arrêt-Darré' 'Astarac' 'Gimone'    'Lac d'\''Oô'
+                        'Puydarrieux' 'Miélan'  'Portillon' 'Louet'
+                        'Boues (Sere-Rustaing)')
 
 for DAMNAME in "${StringArray[@]}"; do
 

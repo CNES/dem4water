@@ -44,7 +44,7 @@ if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
 else
   python3 area_mapping.py \
     --name     "${DAMNAME}" \
-    --infile   "../data/synth_names.shp" \
+    --infile   "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
     --watermap "../data/wmap/wmap.vrt" \
     --dem      "../data/dem/dem.vrt" \
     --radius   5000 \
@@ -55,7 +55,7 @@ fi
 
 python3 szi_from_contourline.py \
   --name       "${DAMNAME}" \
-  --infile     "../data/synth_names.shp" \
+  --infile     "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
   --watermap   "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
   --dem        "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --radius     5000 \
