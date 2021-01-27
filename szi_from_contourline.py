@@ -249,11 +249,15 @@ def main(arguments):
 
     d = nderiv(alt_l, rad_l)
 
-    plt.plot(rad_l, alt_l, 'r', rad_l, d, 'b')
-    plt.title('PDB profile')
-    plt.xlabel('Search Area to the Dam (px)')
-    plt.ylabel('Min(elev) in red & d(minelev) in blue')
-    plt.savefig(os.path.join(args.tmp, "pdb_profile.png"))
+    fig, axs = plt.subplots(2)
+    fig.suptitle('PDB profile')
+    axs[0].plot(rad_l, alt_l, 'r')
+    axs[0].set(xlabel='Search Area to the Dam (m)', ylabel='Minimum Elevation')
+    axs[0].label_outer()
+    axs[1].plot(rad_l, abs(d), 'b')
+    axs[1].set(xlabel='Search Area to the Dam (m)', ylabel='d(Minimum Elevation)')
+    axs[1].label_outer()
+    fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
 
     found_pdb = False
     rad_pdb = 0
