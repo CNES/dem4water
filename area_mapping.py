@@ -70,15 +70,20 @@ def main(arguments):
 
     clat = 0
     clon = 0
+    dam_404 = True
     for feature in layer:
         logging.debug(feature.GetField("Nom du bar"))
         if (feature.GetField("Nom du bar") == args.name):
             #  logging.debug(feature.GetField("Nom du bar"))
+            dam_404 = False
             geom = feature.GetGeometryRef()
             clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
             clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
             break
     layer.ResetReading()
+
+    if dam_404 is True:
+        logging.error("404 - Dam Not Found: "+args.name+" is not present in "+args.infile)
 
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
