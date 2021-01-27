@@ -10,7 +10,7 @@
 CAMP_DIR=${1}
 EXPO_DIR=${2}
 
-cd $CAMP_DIR
+cd ${CAMP_DIR}
 find . \
   -name    '*_daminfo.json' \
   -o -name '*_cutline.json' \
@@ -19,4 +19,5 @@ find . \
   -o -name '*.log' \
   | cpio -pdm "${EXPO_DIR}"
 
-zip "${EXPO_DIR}.zip" "${EXPO_DIR}"
+cd ${EXPO_DIR}
+zip -v -r "${EXPO_DIR}.zip" "."
