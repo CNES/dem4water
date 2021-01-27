@@ -10,6 +10,7 @@
 CAMP_DIR=${1}
 EXPO_DIR=${2}
 
+# Extract JSONs
 cd ${CAMP_DIR}
 find . \
   -name    '*_daminfo.json' \
@@ -19,5 +20,10 @@ find . \
   -o -name '*.log' \
   | cpio -pdm "${EXPO_DIR}"
 
+# Archive
 cd ${EXPO_DIR}
 zip -v -r "${EXPO_DIR}.zip" "."
+
+# Clean the mess
+cd $HOME
+rm -rf ${EXPO_DIR}
