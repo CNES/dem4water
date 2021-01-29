@@ -15,6 +15,7 @@ cd ${CAMP_DIR}
 find . \
   -name    '*_daminfo.json' \
   -o -name '*_cutline.json' \
+  -o -name '*_cutline_points.json' \
   -o -name '*@5m.json' \
   -o -name '*.png' \
   -o -name '*.log' \
