@@ -11,7 +11,7 @@ SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210126"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210128"
 RADIUS=${1:-5000}
 
 module load otb/7.2-python3.7.2
@@ -25,7 +25,7 @@ cd $SRC_DIR
 
 declare -a StringArray=('Arrêt-Darré' 'Astarac' 'Gimone'    'Lac d'\''Oô'
                         'Puydarrieux' 'Miélan'  'Portillon' 'Louet'
-                        'Boues (Sere-Rustaing)')
+                        'Cap de Long' 'Boues (Sere-Rustaing)')
 
 for DAMNAME in "${StringArray[@]}"; do
 

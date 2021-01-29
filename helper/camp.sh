@@ -8,7 +8,7 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210126"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210128"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
@@ -28,9 +28,9 @@ declare -a StringArray=('Agly'        'Astarac'       'Aussoue'      'Grande Pat
                         'Galaube'     'Ganguise'      'Izourt'       'Raschas'
                         'Laparan'     'Laprade'       'Matemale'     'Gouyre'
                         'Salagou'     'Montbel'       'Olivettes'    'Monts d'\''Orb (Avène)'
-                        'Cap de Long' 'Pareloup'      'Tordre'       'Vinca'
+                        'Puyvalador'  'Pareloup'      'Tordre'       'Vinca'
                         'Puylaurent'  'Saint Ferréol' 'Saint géraud' 'Sainte Peyres'
-                        'Charpal'     'Puyvalador'   'Villeneuve de la raho')
+                        'Charpal'     'Villeneuve de la raho')
 
 for DAMNAME in "${StringArray[@]}"; do
 
