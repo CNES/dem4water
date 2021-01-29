@@ -143,6 +143,10 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting szi_from_contourline.py")
 
+
+    # Silence Mathplotlib related debug messages (font matching)
+    logging.getLogger('matplotlib').setLevel(logging.ERROR)
+
     dam_path = args.name.replace(" ", "_")
 
     # Init global srs:
@@ -250,14 +254,12 @@ def main(arguments):
     d = nderiv(alt_l, rad_l)
 
     fig, axs = plt.subplots(2)
-    fig.suptitle('PDB profile')
     axs[0].plot(rad_l, alt_l, 'r')
     axs[0].set(xlabel='Search Area to the Dam (m)', ylabel='Minimum Elevation')
     axs[0].label_outer()
     axs[1].plot(rad_l, abs(d), 'b')
     axs[1].set(xlabel='Search Area to the Dam (m)', ylabel='d(Minimum Elevation)')
     axs[1].label_outer()
-    fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
 
     found_pdb = False
     rad_pdb = 0
@@ -270,6 +272,9 @@ def main(arguments):
             found_pdb = True
             rad_pdb = i_r
             alt_pdb = i_a
+            fig.suptitle('PDB profile (1st pass detection)')
+            axs[0].plot(rad_pdb, alt_pdb,  'x')
+            axs[1].plot(rad_pdb, abs(i_d), 'x')
             break
 
     if found_pdb is True:
@@ -283,11 +288,16 @@ def main(arguments):
                 found_pdb = True
                 rad_pdb = i_r
                 alt_pdb = i_a
+                fig.suptitle('PDB profile (2nd pass detection)')
+                axs[0].plot(rad_pdb, alt_pdb,  'x')
+                axs[1].plot(rad_pdb, abs(i_d), 'x')
                 logging.warning("PDB found during 2nd pass - It may not be reliable")
                 logging.debug("@radius= "+ str(rad_pdb)
                             +"m: local min = "
                             + str(alt_pdb))
                 break
+
+    fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
 
     if found_pdb is False:
         logging.error("404 - PDB not Found")
@@ -400,9 +410,11 @@ def main(arguments):
     prevprev = 0
     prevpoint1 = ogr.Geometry(ogr.wkbPoint)
     prevpoint1.AddPoint(dam.GetX(), dam.GetY())
+    prev1alt = 0
     prevpoint2 = ogr.Geometry(ogr.wkbPoint)
     prevpoint2.AddPoint(dam.GetX(), dam.GetY())
     multiline = ogr.Geometry(ogr.wkbMultiLineString)
+    prev2alt = 0
     #TODO: @param
     step_lc = 2
     lc_first_it = True
@@ -643,7 +655,9 @@ def main(arguments):
 
     if (stop_side_1 is False) or (stop_side_2 is False):
         logging.error("Target elevation for cutline extremities ("
-                        + str(targetelev) +" m) not reached!")
+                      + str(targetelev) +" m) not reached! ["
+                      + str(prev1alt) +" m; "
+                      + str(prev2alt) +" m]")
 
     # Export line to line.json
     featureDefn = outLayer.GetLayerDefn()
