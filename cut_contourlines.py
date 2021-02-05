@@ -24,6 +24,7 @@ from shapely.ops import split
 from osgeo import ogr
 from osgeo import osr
 from osgeo import gdal
+import matplotlib.pyplot as plt
 
 
 def main(arguments):
@@ -69,12 +70,9 @@ def main(arguments):
     carto = osr.SpatialReference(wkt=ds.GetProjection());
 
     drv = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists("splitted.json"):
-        os.remove("splitted.json")
-    dst_ds = drv.CreateDataSource("splitted.json")
-    #  if os.path.exists(os.path.join(args.out, dam_path +"_daminfo.json")):
-        #  os.remove(os.path.join(args.out, dam_path +"_daminfo.json"))
-    #  dst_ds = drv.CreateDataSource( os.path.join(args.out, dam_path +"_daminfo.json"))
+    if os.path.exists(os.path.join(args.out, "virtual_surfaces.json")):
+        os.remove(os.path.join(args.out, "virtual_surfaces.json"))
+    dst_ds = drv.CreateDataSource( os.path.join(args.out, "virtual_surfaces.json"))
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPolygon )
     field_defn_id=ogr.FieldDefn( 'ID', ogr.OFTString )
@@ -85,9 +83,6 @@ def main(arguments):
     # load GeoJSON file containing info
     with open(args.info) as i:
         jsi = json.load(i)
-
-    #  dam=""
-    #  pdb=""
     for feature in jsi['features']:
         if feature['properties']['name'] == 'Dam':
             dam = shape(feature['geometry'])
@@ -98,33 +93,28 @@ def main(arguments):
     # load GeoJSON file containing cutline
     with open(args.cut) as c:
         jsc = json.load(c)
-
     for feature in jsc['features']:
         lines = shape(feature['geometry'])
         line = shapely.ops.linemerge(lines)
-        print(line)
 
     # load GeoJSON file containing contour lines
     with open(args.level) as l:
         jsl = json.load(l)
 
     r_id = 1
+    r_elev = []
+    r_area = []
     for feature in jsl['features']:
-        print('--')
-        print(feature['properties']['ID'])
-        #  print('--')
-        #  print('--')
-        #  print(feature)
         level = shape(feature['geometry'])
         results = split(level, line)
-        max_area = 0
+        found = False
+        max_area = -10000
+        max_elev = -10000
         for p in results:
-            #  print(p.contains(dam))
-            if not p.contains(pdb) and (p.area > max_area):
-                print("Contains PDB: " + str(p.contains(pdb)))
-                #  if p.touches(dam):
-                    #  print("Contains DAM: " + str(p.contains(dam)))
+            if not p.contains(pdb) and (p.area >= max_area) and p.intersects(line):
                 max_area = p.area
+                max_elev = float(feature['properties']['ID'])
+                found = True
                 print("Area: " + str(p.area) + "m2")
                 r_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
                 r_p = ogr.CreateGeometryFromWkt( p.wkt )
@@ -132,59 +122,23 @@ def main(arguments):
                 r_feat.SetField ( "ID", str(r_id) )
                 r_feat.SetField ( "level", feature['properties']['ID'] )
 
-        dst_layer.CreateFeature( r_feat )
-        r_feat.Destroy()
-        r_id =r_id + 1
+        if found is True:
+            dst_layer.CreateFeature( r_feat )
+            r_feat.Destroy()
+            r_elev.append(max_elev)
+            r_area.append(max_area)
+            r_id =r_id + 1
 
 
-    print(dam.wkt)
-    print(pdb.wkt)
-    #  print(results)
-
-    #  driver = ogr.GetDriverByName("ESRI Shapefile")
-    #  dataSource = driver.Open(args.level, 0)
-    #  layer = dataSource.GetLayer()
-    #
-    #  for feature in layer:
-    #      geom = feature.GetGeometryRef()
-    #      #  print(geom.Centroid().ExportToWkt())
-    #      P = shapely.wkt.loads(geom.ExportToWkt())
-    #      #  print(P)
+    print("index: "+str(r_id))
 
 
-
-
-        #  polygon = shape(feature['geometry'])
-
-    # load GeoJSON file containing levels
-    #  with open(args.level) as f:
-        #  levels = json.load(f)
-
-    #  levels = ogr.Open(args.level)
-    #  shape = levels.GetLayer(0)
-    #  for feature in layer:
-            #  print feature.GetField("STATE_NAME")
-    #first feature of the shapefile
-    #  for feature in shape:
-    #  feature = shape.GetFeature(0)
-    #  first = feature.ExportToJson()
-    #  print(first) # (GeoJSON format)
-
-
-    #  for feat in first['geometry']:
-        #  polygon = Polygon(feat)
-        #  print(type(polygon))
-#
-
-    #  from shapely.geometry import shape
-    #  shp_geom = Polygon(first['geometry'])
-    #  print(shp_geom)
-    #  for levelfeature in js['features']:
-        #  polygon = shape(feature['geometry'])
-        #  if polygon.contains(point):
-            #  print 'Found containing polygon:', feature
-
-
+    fig, ax = plt.subplots()
+    ax.plot(r_elev, r_area, '.-r')
+    ax.set(xlabel='Virtual Water Surface Elevation (m)',
+           ylabel='Virtual Water Surface (m2)')
+    plt.title('S(Z_i)')
+    fig.savefig(os.path.join(args.out, "SZi.png"))
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
