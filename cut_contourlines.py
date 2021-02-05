@@ -73,15 +73,15 @@ def main(arguments):
     # load GeoJSON file containing info
     with open(args.info) as i:
         jsi = json.load(i)
-    damname = ''
     for feature in jsi['features']:
         if feature['properties']['name'] == 'Dam':
-            print(feature)
+            logging.debug(feature)
             dam = shape(feature['geometry'])
             damname = feature['properties']['damname']
 
         if feature['properties']['name'] == 'PDB':
             pdb = shape(feature['geometry'])
+            pdbelev = feature['properties']['elev']
 
     drv = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, damname + "_vSurfaces.json")):
@@ -119,7 +119,7 @@ def main(arguments):
                 max_area = p.area
                 max_elev = float(feature['properties']['ID'])
                 found = True
-                print("Area: " + str(p.area) + "m2")
+                logging.info("Elevation: "+ str(feature['properties']['ID']) + " m - Area: " + str(p.area) + " m2")
                 r_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
                 r_p = ogr.CreateGeometryFromWkt( p.wkt )
                 r_feat.SetGeometryDirectly( r_p )
@@ -130,18 +130,29 @@ def main(arguments):
             dst_layer.CreateFeature( r_feat )
             r_feat.Destroy()
             r_elev.append(max_elev)
-            r_area.append(max_area)
+            r_area.append(max_area/10000.)
             r_id =r_id + 1
 
 
-    print("index: "+str(r_id))
+    logging.debug("Identified levels: "+str(r_id))
 
+    r_elev.append(float(pdbelev))
+    r_area.append(0.0)
 
     fig, ax = plt.subplots()
-    ax.plot(r_elev, r_area, '.-r')
+    ax.plot(r_elev[:-1], r_area[:-1],
+            color='#ff7f0e',
+            marker='o',
+            linestyle='dashed',
+            markerfacecolor='blue')
+    ax.set_ylim(bottom=0.0)
     ax.set(xlabel='Virtual Water Surface Elevation (m)',
-           ylabel='Virtual Water Surface (m2)')
-    plt.title('S(Z_i) ' + damname)
+           ylabel='Virtual Water Surface (ha)')
+    ax.plot(float(pdbelev), 0.0,  'ro')
+    ax.grid(b=True, which='major', linestyle='-')
+    ax.grid(b=False, which='minor', linestyle='--')
+    plt.minorticks_on()
+    plt.title(damname + ': S(Z_i)')
     fig.savefig(os.path.join(args.out, damname + "_SZi.png"))
 
     data = np.column_stack((r_elev, r_area))
