@@ -32,7 +32,7 @@ for i in $(find . -name '__TMP__poly_*_FIL.json' | sort -r ); do
   fi
 done
 
-ogr2ogr "contourlines.json" "__TMP__consolidated.shp"
+ogr2ogr "${5}" "__TMP__consolidated.shp"
 
 rm __TMP__poly_*.json
 rm __TMP__consolidated.*
