@@ -24,6 +24,7 @@ from shapely.ops import split
 from osgeo import ogr
 from osgeo import osr
 from osgeo import gdal
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -69,26 +70,29 @@ def main(arguments):
     ds = gdal.Open(args.dem, gdal.GA_ReadOnly);
     carto = osr.SpatialReference(wkt=ds.GetProjection());
 
+    # load GeoJSON file containing info
+    with open(args.info) as i:
+        jsi = json.load(i)
+    damname = ''
+    for feature in jsi['features']:
+        if feature['properties']['name'] == 'Dam':
+            print(feature)
+            dam = shape(feature['geometry'])
+            damname = feature['properties']['damname']
+
+        if feature['properties']['name'] == 'PDB':
+            pdb = shape(feature['geometry'])
+
     drv = ogr.GetDriverByName( 'GeoJSON' )
-    if os.path.exists(os.path.join(args.out, "virtual_surfaces.json")):
-        os.remove(os.path.join(args.out, "virtual_surfaces.json"))
-    dst_ds = drv.CreateDataSource( os.path.join(args.out, "virtual_surfaces.json"))
+    if os.path.exists(os.path.join(args.out, damname + "_vSurfaces.json")):
+        os.remove(os.path.join(args.out, damname + "_vSurfaces.json"))
+    dst_ds = drv.CreateDataSource( os.path.join(args.out, damname + "_vSurfaces.json"))
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPolygon )
     field_defn_id=ogr.FieldDefn( 'ID', ogr.OFTString )
     field_defn=ogr.FieldDefn( 'level', ogr.OFTString )
     dst_layer.CreateField( field_defn_id )
     dst_layer.CreateField( field_defn )
-
-    # load GeoJSON file containing info
-    with open(args.info) as i:
-        jsi = json.load(i)
-    for feature in jsi['features']:
-        if feature['properties']['name'] == 'Dam':
-            dam = shape(feature['geometry'])
-
-        if feature['properties']['name'] == 'PDB':
-            pdb = shape(feature['geometry'])
 
     # load GeoJSON file containing cutline
     with open(args.cut) as c:
@@ -137,8 +141,12 @@ def main(arguments):
     ax.plot(r_elev, r_area, '.-r')
     ax.set(xlabel='Virtual Water Surface Elevation (m)',
            ylabel='Virtual Water Surface (m2)')
-    plt.title('S(Z_i)')
-    fig.savefig(os.path.join(args.out, "SZi.png"))
+    plt.title('S(Z_i) ' + damname)
+    fig.savefig(os.path.join(args.out, damname + "_SZi.png"))
+
+    data = np.column_stack((r_elev, r_area))
+    np.savetxt(os.path.join(args.out, damname + "_SZi.dat"), data)
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

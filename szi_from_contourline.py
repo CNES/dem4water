@@ -168,8 +168,10 @@ def main(arguments):
                                    geom_type=ogr.wkbPoint )
     field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
     field_defnelev=ogr.FieldDefn( 'elev', ogr.OFTString )
+    field_defndam=ogr.FieldDefn( 'damname', ogr.OFTString )
     dst_layer.CreateField( field_defn )
     dst_layer.CreateField( field_defnelev )
+    dst_layer.CreateField( field_defndam )
 
     shpDriver = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, dam_path +"_cutline.json")):
@@ -227,6 +229,7 @@ def main(arguments):
     feat.SetGeometryDirectly( p )
     feat.SetField ( "name", "Dam" )
     feat.SetField ( "elev", str(calt) )
+    feat.SetField ( "damname", dam_path )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
@@ -361,6 +364,7 @@ def main(arguments):
     feat.SetGeometryDirectly( p )
     feat.SetField ( "name", "PDB" )
     feat.SetField ( "elev", str(pdbalt) )
+    feat.SetField ( "damname", dam_path )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
