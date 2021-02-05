@@ -8,11 +8,12 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210128"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
-RADIUS=${1:-5000}
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210204"
+EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
+RADIUS=${1:-10000}
 
 module load otb/7.2-python3.7.2
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
@@ -30,17 +31,18 @@ declare -a StringArray=('Agly'        'Astarac'       'Aussoue'      'Grande Pat
                         'Salagou'     'Montbel'       'Olivettes'    'Monts d'\''Orb (Avène)'
                         'Puyvalador'  'Pareloup'      'Tordre'       'Vinca'
                         'Puylaurent'  'Saint Ferréol' 'Saint géraud' 'Sainte Peyres'
-                        'Charpal'     'Villeneuve de la raho')
+                        'Charpal')
 
 for DAMNAME in "${StringArray[@]}"; do
 
   DAM=${DAMNAME// /_}
 
+  [ -d "$EXTR_DIR/${DAM}_${RADIUS}" ] || mkdir -p "$EXTR_DIR/${DAM}_${RADIUS}"
   [ -d "$ROOT_DIR/${DAM}_${RADIUS}/tmp" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/tmp"
   [ -d "$ROOT_DIR/${DAM}_${RADIUS}/log" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/log"
 
-  if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
-    && [ -f "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" ] ; then
+  if [ -f "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
+    && [ -f "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" ] ; then
     echo "Extracts already available --> Skipping area_mapping."
   else
     # python3 area_mapping.py \
@@ -50,7 +52,7 @@ for DAMNAME in "${StringArray[@]}"; do
       --watermap "${WMAP_PATH}" \
       --dem      "${DEM_PATH}" \
       --radius   "$RADIUS" \
-      --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
+      --out      "$EXTR_DIR/${DAM}_${RADIUS}" \
       2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/area_mapping.log"
   fi
 
@@ -58,22 +60,30 @@ for DAMNAME in "${StringArray[@]}"; do
   python3 szi_from_contourline.py --debug \
     --name         "${DAMNAME}" \
     --infile       "${DB_PATH}" \
-    --watermap     "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
-    --dem          "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+    --watermap     "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+    --dem          "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
     --radius       "$RADIUS" \
     --pdbstep      5 \
     --pdbradius    500 \
-    --elevsampling 5 \
+    --elevsampling 1 \
     --elevoffset   60 \
     --tmp          "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
     --out          "$ROOT_DIR/${DAM}_${RADIUS}" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_from_contourline.log"
 
   python3 cutline_score.py \
+    --watermap "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
     --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
-    --watermap "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
     --debug    \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cutline_score.log"
+
+  python3 cut_contourlines.py \
+    --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+    --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+    --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
+    --level    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
+    --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
+    2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cut_contourlines.log"
 
 done

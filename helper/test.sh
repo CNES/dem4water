@@ -9,6 +9,7 @@
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 ROOT_DIR="/home/ad/briciera/scratch/HSV"
+EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 DAMNAME=${1:-"Agly"}
 DAM=${DAMNAME// /_}
 RADIUS=${2:-7500}
@@ -23,6 +24,8 @@ echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
 
 cd $SRC_DIR
+
+[ -d "$EXTR_DIR/${DAM}_${RADIUS}" ] || mkdir -p "$EXTR_DIR/${DAM}_${RADIUS}"
 [ -d "$ROOT_DIR/${DAM}_${RADIUS}/tmp" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/tmp"
 
 
@@ -38,8 +41,8 @@ cd $SRC_DIR
 # Bottom Alt: 123.55
 
 
-if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
-  && [ -f "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" ] ; then
+if [ -f "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
+  && [ -f "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" ] ; then
   echo "Extracts already available --> Skipping area_mapping."
 else
   python3 area_mapping.py \
@@ -48,7 +51,7 @@ else
     --watermap "../data/wmap/wmap.vrt" \
     --dem      "../data/dem/dem.vrt" \
     --radius   5000 \
-    --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
+    --out      "$EXTR_DIR/${DAM}_${RADIUS}" \
     # --debug
 
 fi
@@ -56,15 +59,29 @@ fi
 python3 szi_from_contourline.py \
   --name       "${DAMNAME}" \
   --infile     "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
-  --watermap   "$ROOT_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
-  --dem        "$ROOT_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --watermap   "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+  --dem        "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --radius     5000 \
   --pdbstep    5 \
   --pdbradius  500 \
   --elevoffset 100 \
+  --elevsampling 2 \
   --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
   --debug
+
+python3 cutline_score.py \
+  --watermap "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+  --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
+  --out      "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
+  --debug
+
+python3 cut_contourlines.py \
+  --dem       "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --info      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+  --cut       "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
+  --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@2m.json" \
+  --out       "$ROOT_DIR/${DAM}_${RADIUS}"
 
 exit
 
