@@ -16,7 +16,8 @@ find . \
   -name    '*_daminfo.json' \
   -o -name '*_cutline.json' \
   -o -name '*_cutline_points.json' \
-  -o -name '*@5m.json' \
+  -o -name 'virtual_surfaces.json' \
+  -o -name '*@*m.json' \
   -o -name '*.png' \
   -o -name '*.log' \
   | cpio -pdm "${EXPO_DIR}"
