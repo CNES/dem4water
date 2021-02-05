@@ -167,7 +167,9 @@ def main(arguments):
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPoint )
     field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
+    field_defnelev=ogr.FieldDefn( 'elev', ogr.OFTString )
     dst_layer.CreateField( field_defn )
+    dst_layer.CreateField( field_defnelev )
 
     shpDriver = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, dam_path +"_cutline.json")):
@@ -224,6 +226,7 @@ def main(arguments):
     p = ogr.CreateGeometryFromWkt( wkt )
     feat.SetGeometryDirectly( p )
     feat.SetField ( "name", "Dam" )
+    feat.SetField ( "elev", str(calt) )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
@@ -340,14 +343,6 @@ def main(arguments):
     posX, posY = coord(indices[1][0], indices[0][0], ds)
     pX, pY = pixel(posX, posY, ds)
 
-    wkt = "POINT ( %f %f )" % ( float(posX), float(posY) )
-    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-    p = ogr.CreateGeometryFromWkt( wkt )
-    feat.SetGeometryDirectly( p )
-    feat.SetField ( "name", "PDB" )
-    dst_layer.CreateFeature( feat )
-    feat.Destroy()
-
     pdb = ogr.Geometry(ogr.wkbPoint)
     pdb.AddPoint(float(posX), float(posY))
     pdb.Transform(cartotogeo)
@@ -360,10 +355,19 @@ def main(arguments):
     logging.debug("Coordinates (latlon): " + str(pdb.GetX())+" - "+str(pdb.GetY()))
     logging.info("PDB detected: "+ args.name +" [pdbLat: "+ str(pdblat) +", pdbLon: "+ str(pdblon) +", pdbAlt: "+ str(pdbalt) +"]")
 
+    wkt = "POINT ( %f %f )" % ( float(posX), float(posY) )
+    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+    p = ogr.CreateGeometryFromWkt( wkt )
+    feat.SetGeometryDirectly( p )
+    feat.SetField ( "name", "PDB" )
+    feat.SetField ( "elev", str(pdbalt) )
+    dst_layer.CreateFeature( feat )
+    feat.Destroy()
+
     # Dam elevation from watermap
     extw = otb.Registry.CreateApplication("Superimpose")
     extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
-    extw.SetParameterString("inm", os.path.join(args.out, "wmap_extract-"+dam_path+".tif"))
+    extw.SetParameterString("inm", args.watermap)
     extw.Execute()
 
     bml = otb.Registry.CreateApplication("BandMath")
@@ -383,6 +387,7 @@ def main(arguments):
 
 
     # Search for Dam Line
+    #TODO: fix confusion between radius and pdbradius needed here
     ext_r = otb.Registry.CreateApplication("ExtractROI")
     ext_r.SetParameterString("in", args.dem)
     ext_r.SetParameterString("out", os.path.join(args.tmp, "extract@"+str(args.radius)+"mFromDam.tif"))
@@ -421,6 +426,7 @@ def main(arguments):
     stop_side_1 = False
     stop_side_2 = False
     # NB: range is define pixel-wise
+    #TODO: @param 500 -> pdbradius
     for radius in range(5, 500, step_lc):
         # Array of booleans with the disk shape
         circle = np.logical_and(((x_grid-center_x)**2 + (y_grid-center_y)**2) <= radius**2, ((x_grid-center_x)**2 + (y_grid-center_y)**2) > (radius-2)**2)
@@ -671,12 +677,18 @@ def main(arguments):
     elev_margin = 3*args.elevsampling
     if os.path.exists(contourline_fname):
         os.remove(contourline_fname)
-    os.system('gdal_contour -a elev "%s" "%s" -fl {%s..%s..%s}' % (args.dem,
-                                                                   contourline_fname,
-                                                                   str(int(pdbalt-elev_margin)),
-                                                                   str(int(targetelev+elev_margin)),
-                                                                   str(args.elevsampling)))
+    #  os.system('gdal_contour -a elev "%s" "%s" -fl {%s..%s..%s}' % (args.dem,
+                                                                   #  contourline_fname,
+                                                                   #  str(int(pdbalt-elev_margin)),
+                                                                   #  str(int(targetelev+elev_margin)),
+                                                                   #  str(args.elevsampling)))
 
+    os.system('./gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s"' % (args.dem,
+                                                                          str(int(pdbalt-elev_margin)),
+                                                                          str(args.elevsampling),
+                                                                          str(int(targetelev+elev_margin)),
+                                                                          contourline_fname))
+                                                                          #  args.out))
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
