@@ -64,8 +64,8 @@ python3 szi_from_contourline.py \
   --radius     5000 \
   --pdbstep    5 \
   --pdbradius  500 \
-  --elevoffset 100 \
-  --elevsampling 2 \
+  --elevoffset 50 \
+  --elevsampling 5 \
   --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
   --debug
@@ -76,11 +76,13 @@ python3 cutline_score.py \
   --out      "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --debug
 
-python3 cut_contourlines.py \
+python3 cut_contourlines.py --debug \
+  --name      "${DAMNAME}" \
   --dem       "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --info      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
   --cut       "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
   --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@2m.json" \
+  --fpoints   "../data/DB_in_points/Retenues-TETIS.shp" \
   --out       "$ROOT_DIR/${DAM}_${RADIUS}"
 
 exit
