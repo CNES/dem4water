@@ -19,6 +19,7 @@ find . \
   -o -name 'virtual_surfaces.json' \
   -o -name '*@*m.json' \
   -o -name '*.png' \
+  -o -name '*.dat' \
   -o -name '*.log' \
   | cpio -pdm "${EXPO_DIR}"
 
