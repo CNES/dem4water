@@ -46,6 +46,12 @@ def main(arguments):
     parser.add_argument('-d',
                         '--dem',
                         help="Input DEM")
+    parser.add_argument('-n',
+                        '--name',
+                        help="Dam Name")
+    parser.add_argument('-f',
+                        '--fpoints',
+                        help="Points inside the water body for polygon filtering")
     parser.add_argument('-t',
                         '--tmp',
                         help="Temporary directory")
@@ -101,6 +107,50 @@ def main(arguments):
         lines = shape(feature['geometry'])
         line = shapely.ops.linemerge(lines)
 
+    # Find the inner point for filtering
+    # Init global srs:
+    geo = osr.SpatialReference();
+    geo.ImportFromEPSG(4326)
+
+    ds = gdal.Open(args.dem, gdal.GA_ReadOnly);
+    carto = osr.SpatialReference(wkt=ds.GetProjection());
+
+    geotocarto = osr.CoordinateTransformation(geo, carto);
+
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    dataSource = driver.Open(args.fpoints, 0)
+    layer = dataSource.GetLayer()
+
+    clat = 0
+    clon = 0
+    dam_found = False
+
+    for feature in layer:
+        logging.debug(feature.GetField("Nom du bar"))
+        if (feature.GetField("Nom du bar") == args.name):
+            #  geom = feature.GetGeometryRef()
+            #  clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
+            #  clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
+            #  logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
+            clat = float(feature.GetField("Lat. reten"))
+            clon = float(feature.GetField("Long. Rete"))
+            logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
+            dam_found  = True
+            break
+    layer.ResetReading()
+
+    if dam_found is False:
+        logging.error("Dam not found in input file "+ args.fpoints)
+
+    inp = ogr.Geometry(ogr.wkbPoint)
+    inp.AddPoint(clat, clon)
+    inp.Transform(geotocarto)
+    logging.debug("Coordinates Carto: " + str(inp.GetX())+" - "+str(inp.GetY()))
+    innerp = shapely.wkt.loads(inp.Centroid().ExportToWkt())
+    #  innerp = shape(inp)
+
+
+
     # load GeoJSON file containing contour lines
     with open(args.level) as l:
         jsl = json.load(l)
@@ -108,6 +158,7 @@ def main(arguments):
     r_id = 1
     r_elev = []
     r_area = []
+    r_areaha = []
     for feature in jsl['features']:
         level = shape(feature['geometry'])
         results = split(level, line)
@@ -115,7 +166,8 @@ def main(arguments):
         max_area = -10000
         max_elev = -10000
         for p in results:
-            if not p.contains(pdb) and (p.area >= max_area) and p.intersects(line):
+            if p.contains(innerp):
+            #  if not p.contains(pdb) and (p.area >= max_area) and p.intersects(line):
                 max_area = p.area
                 max_elev = float(feature['properties']['ID'])
                 found = True
@@ -130,17 +182,21 @@ def main(arguments):
             dst_layer.CreateFeature( r_feat )
             r_feat.Destroy()
             r_elev.append(max_elev)
-            r_area.append(max_area/10000.)
+            r_area.append(max_area)
+            r_areaha.append(max_area/10000.)
             r_id =r_id + 1
+        else:
+            logging.debug("No relevant polygon found for Elevation " + str(feature['properties']['ID']) + " m")
 
 
     logging.debug("Identified levels: "+str(r_id))
 
     r_elev.append(float(pdbelev))
     r_area.append(0.0)
+    r_areaha.append(0.0)
 
     fig, ax = plt.subplots()
-    ax.plot(r_elev[:-1], r_area[:-1],
+    ax.plot(r_elev[:-1], r_areaha[:-1],
             color='#ff7f0e',
             marker='o',
             linestyle='dashed',
