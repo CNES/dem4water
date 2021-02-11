@@ -11,7 +11,7 @@ SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210204"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210210"
 EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 RADIUS=${1:-10000}
 
@@ -73,11 +73,14 @@ for DAMNAME in "${StringArray[@]}"; do
     --debug    \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cutline_score.log"
 
-  python3 cut_contourlines.py \
+  # python3 cut_contourlines.py \
+  python3 cut_contourlines.py --debug \
+    --name     "${DAMNAME}" \
     --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
     --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
     --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
     --level    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
+    --fpoints  "../data/DB_in_points/Retenues-TETIS.shp" \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cut_contourlines.log"
 
