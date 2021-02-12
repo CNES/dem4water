@@ -140,7 +140,7 @@ def main(arguments):
     layer.ResetReading()
 
     if dam_found is False:
-        logging.error("Dam not found in input file "+ args.fpoints)
+        logging.error("Dam <"+args.name+ "> not found in input file "+ args.fpoints)
 
     inp = ogr.Geometry(ogr.wkbPoint)
     inp.AddPoint(clat, clon)
