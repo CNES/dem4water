@@ -94,4 +94,5 @@ for DAMNAME in "${StringArray[@]}"; do
     --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
     --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
+
 done
