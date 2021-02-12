@@ -74,6 +74,7 @@ def main(arguments):
         else:
             ratio = 1
         #  print(str(ratio))
+        #TODO: @parameters max ratio
         if ratio < 10:
             prev = sz
             stop_i = stop_i+1
@@ -93,7 +94,7 @@ def main(arguments):
     logging.debug("S_Zi: ")
     logging.debug(S_Zi[:])
     logging.debug("Zi_max: "+ str(Zi[-1]) +" - S(Zi_max): "+ str(S_Zi[-1]))
-    logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:])))
+    logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
     logging.info("Z0: "+ str(Zi[0]) +" - S(Z0): "+ str(S_Zi[0]))
 
     #  # remove outliers / virtual surface overflow
@@ -138,6 +139,7 @@ def main(arguments):
     best_i=i
     best_alpha=0
     best_beta=0
+    #TODO: @parameters winsize
     while ((i+10) < (len(Zi)-1)):
         #  p = np.polyfit(x[:-1], y[:-1], 1, rcond=None, full=False, w=None, cov=False)
         p = np.polyfit(Zi[i:i+10], S_Zi[i:i+10], 1, rcond=None, full=False, w=None, cov=False)
