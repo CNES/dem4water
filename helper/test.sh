@@ -50,7 +50,7 @@ else
     --infile   "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
     --watermap "../data/wmap/wmap.vrt" \
     --dem      "../data/dem/dem.vrt" \
-    --radius   5000 \
+    --radius   "${RADIUS}" \
     --out      "$EXTR_DIR/${DAM}_${RADIUS}" \
     # --debug
 
@@ -61,11 +61,11 @@ python3 szi_from_contourline.py \
   --infile     "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
   --watermap   "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
   --dem        "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
-  --radius     5000 \
+  --radius     "${RADIUS}" \
   --pdbstep    5 \
   --pdbradius  500 \
-  --elevoffset 50 \
-  --elevsampling 5 \
+  --elevoffset 60 \
+  --elevsampling 1 \
   --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
   --debug
@@ -81,9 +81,14 @@ python3 cut_contourlines.py --debug \
   --dem       "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --info      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
   --cut       "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
-  --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@2m.json" \
+  --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
   --fpoints   "../data/DB_in_points/Retenues-TETIS.shp" \
   --out       "$ROOT_DIR/${DAM}_${RADIUS}"
+
+python3 szi_to_model.py \
+  --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
+  --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
+  --debug
 
 exit
 
@@ -106,15 +111,6 @@ else
     --zmax     184.11 \
     --step     2 \
     --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/szi_wmap.dat" \
-    --debug
-
-fi
-
-
-if [ -f "$ROOT_DIR/${DAM}_${RADIUS}/szi_wmap.dat" ] ; then
-  python3 szi_to_model.py \
-    --infile   "$ROOT_DIR/${DAM}_${RADIUS}/szi_wmap.dat" \
-    --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/szi_wmap.png" \
     --debug
 
 fi
