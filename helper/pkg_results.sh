@@ -17,12 +17,18 @@ cd ${CAMP_DIR}
   # -name '*.png' \
   # | cpio -pdm "${EXPO_DIR}"
 
+# find . \
+  # -name '*@*m.json' \
+  # | cpio -pdm "${EXPO_DIR}"
+
+# find . \
+  # -name '*_cutline_points.json' \
+  # | cpio -pdm "${EXPO_DIR}"
+
 find . \
   -name    '*_daminfo.json' \
   -o -name '*_cutline.json' \
-  -o -name '*_cutline_points.json' \
   -o -name '*_vSurfaces.json' \
-  -o -name '*@*m.json' \
   -o -name '*.png' \
   -o -name '*.dat' \
   -o -name '*.log' \
