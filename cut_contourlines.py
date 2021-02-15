@@ -26,6 +26,7 @@ from osgeo import osr
 from osgeo import gdal
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 def main(arguments):
@@ -158,7 +159,6 @@ def main(arguments):
     r_id = 1
     r_elev = []
     r_area = []
-    r_areaha = []
     for feature in jsl['features']:
         level = shape(feature['geometry'])
         results = split(level, line)
@@ -183,7 +183,6 @@ def main(arguments):
             r_feat.Destroy()
             r_elev.append(max_elev)
             r_area.append(max_area)
-            r_areaha.append(max_area/10000.)
             r_id =r_id + 1
         else:
             logging.debug("No relevant polygon found for Elevation " + str(feature['properties']['ID']) + " m")
@@ -193,10 +192,12 @@ def main(arguments):
 
     r_elev.append(float(pdbelev))
     r_area.append(0.0)
-    r_areaha.append(0.0)
 
     fig, ax = plt.subplots()
-    ax.plot(r_elev[:-1], r_areaha[:-1],
+    # Trick to display in Ha
+    ticks_y = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000.))
+    ax.yaxis.set_major_formatter(ticks_y)
+    ax.plot(r_elev[:-1], r_area[:-1],
             color='#ff7f0e',
             marker='o',
             linestyle='dashed',
