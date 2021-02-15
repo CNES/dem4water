@@ -24,7 +24,9 @@ import logging
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 from statistics import median
+
 
 def main(arguments):
 
@@ -79,13 +81,15 @@ def main(arguments):
             prev = sz
             stop_i = stop_i+1
         else:
-            logging.debug("Dropping S_ZI after index "+ str(stop_i) +" with a delta ratio of "+str(ratio)+".")
             break_found=True
             break
 
     if break_found is True:
+        logging.debug("Dropping S_ZI after index "+ str(stop_i) +" with a delta ratio of "+str(ratio)+".")
         Zi = Zi[stop_i:]
         S_Zi = S_Zi[stop_i:]
+    else:
+        logging.debug("No outliers detected, keeping all S_ZI data.")
 
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
@@ -122,13 +126,15 @@ def main(arguments):
     #  logging.debug(S_Zi[:])
 
     fig, ax = plt.subplots()
+    # Trick to display in Ha
+    ticks_y = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000.))
+    ax.yaxis.set_major_formatter(ticks_y)
     ax.plot(Zi[1:], S_Zi[1:],
             marker='.',
             linestyle='dashed')
-            #  markerfacecolor='blue')
     ax.set_ylim(bottom=-10.0)
     ax.set(xlabel='Virtual Water Surface Elevation (m)',
-           ylabel='Virtual Water Surface (m2)')
+           ylabel='Virtual Water Surface (ha)')
     ax.plot(Zi[0], S_Zi[0],  'ro')
     ax.grid(b=True, which='major', linestyle='-')
     ax.grid(b=False, which='minor', linestyle='--')
@@ -230,7 +236,7 @@ def main(arguments):
 
     #  ax.plot(x[:-1], P(x[:-1]), 'g+')
     #  plt.title(damname + ': S(Z_i)')
-    plt.savefig(args.outfile)
+    plt.savefig(args.outfile, dpi=300)
 
 
 if __name__ == '__main__':
