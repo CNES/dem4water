@@ -46,7 +46,11 @@ def main(arguments):
                         '--zmaxoffset',
                         type=int,
                         default=30,
-                        help="Maximum elevation on top of dam elevation used for optimal model search")
+                        help="Elevation offset on top of dam elevation used for ending optimal model search")
+    parser.add_argument('--zminoffset',
+                        type=int,
+                        default=10,
+                        help="Elevation offset from dam elevation used for starting optimal model search")
     parser.add_argument('-o',
                         '--outfile',
                         help="Output file")
@@ -123,7 +127,16 @@ def main(arguments):
     logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
     logging.info("Z0: "+ str(Zi[0]) +" - S(Z0): "+ str(S_Zi[0]))
 
-    i=0
+    # find start_i
+    start_i = 0
+    for z in Zi:
+        if z > float(damelev) - args.zminoffset:
+            logging.debug("start_i = :"+ str(start_i) +" - search stopped at Zi = "+ str(z))
+            break
+        else:
+            start_i = start_i +1
+
+    i=start_i
     best=-10000
     best_i=i
     best_alpha=0
