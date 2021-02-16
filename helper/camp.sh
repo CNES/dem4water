@@ -11,7 +11,7 @@ SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210212"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210216"
 EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 RADIUS=${1:-10000}
 
@@ -71,11 +71,11 @@ for DAMNAME in "${StringArray[@]}"; do
     --out          "$ROOT_DIR/${DAM}_${RADIUS}" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_from_contourline.log"
 
-  python3 cutline_score.py \
+  # python3 cutline_score.py \
+  python3 cutline_score.py --debug \
     --watermap "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
     --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
-    --debug    \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cutline_score.log"
 
   # python3 cut_contourlines.py \
@@ -91,8 +91,10 @@ for DAMNAME in "${StringArray[@]}"; do
 
   # python3 szi_to_model.py \
   python3 szi_to_model.py --debug \
-    --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
-    --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
-    2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
+    --infile     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
+    --daminfo    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+    --zmaxoffset 30 \
+    --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
+    2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
 
 done
