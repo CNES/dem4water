@@ -36,6 +36,7 @@ def main(arguments):
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
+
     parser.add_argument('-i',
                         '--infile',
                         help="Input file")
@@ -51,6 +52,11 @@ def main(arguments):
                         type=int,
                         default=10,
                         help="Elevation offset from dam elevation used for starting optimal model search")
+    list_of_mode = ["absolute", "first"]
+    parser.add_argument('-m',
+                        '--maemode',
+                        default='absolute',
+                        choices=list_of_mode)
     parser.add_argument('-o',
                         '--outfile',
                         help="Output file")
@@ -141,8 +147,12 @@ def main(arguments):
     best_i=i
     best_alpha=0
     best_beta=0
-    l_mae=[]
+    l_i=[]
     l_z=[]
+    l_sz=[]
+    l_mae=[]
+    l_alpha=[]
+    l_beta=[]
     #TODO: @parameters winsize
     while ((i+10) < (len(Zi)-1)) and (median(Zi[i:i+10]) < args.zmaxoffset+float(damelev)):
         p = np.polyfit(Zi[i:i+10], S_Zi[i:i+10], 1, rcond=None, full=False, w=None, cov=False)
@@ -174,8 +184,12 @@ def main(arguments):
         # Select MEA to be used:
         #  mae = glo_mae
         mae = loc_mae
+        l_i.append(i)
         l_z.append(median(Zi[i:i+10]))
+        l_sz.append(median(S_Zi[i:i+10]))
         l_mae.append(mae)
+        l_alpha.append(alpha)
+        l_beta.append(beta)
 
         if (best == -10000) or (mae < best):
             best = mae
@@ -189,18 +203,64 @@ def main(arguments):
 
         i = i+1
 
+    # For testing
+    abs_i = best_i
+    abs_mae = best
+    abs_beta = best_beta
+    abs_alpha = best_alpha
 
     logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
                  + " (Computed on the range ["
-                 + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])")
+                 + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
+                 +" (i= "+str(l_i[best_i])+").")
     logging.info(damname
                  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
                  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
+
+    found_first=False
+    if args.maemode == 'first':
+        logging.debug("Reanalizing local mae to find the first local minimum.")
+        prev_mae_id=0
+        next_mae_id=4
+        for e in l_mae[2:]:
+            if (e < l_mae[prev_mae_id]) and (e < l_mae[next_mae_id]):
+                found_first = True
+                logging.debug("First local minimum found at "+ str(l_z[prev_mae_id+2])
+                              +" (i= "+str(l_i[prev_mae_id+2])+").")
+                best_i = l_i[prev_mae_id+2]
+                best = e
+                best_beta = l_beta[best_i]
+                best_alpha = l_alpha[best_i]
+                logging.debug("i: "+ str(i)
+                              +" - alpha= " +str(best_alpha)
+                              +" - beta= "  +str(best_beta)
+                              +" - mae= " +str(best))
+                break
+            else:
+                prev_mae_id=prev_mae_id+1
+                next_mae_id=next_mae_id+1
+        if found_first is False:
+            logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
+
+
+    if found_first is True:
+        logging.info("Model updated using first LMAE minimum.")
+        logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
+                     + " (Computed on the range ["
+                     + str(l_z[prev_mae_id+2]-5)+ "; "+ str(l_z[prev_mae_id+2]+5) +"])"
+                     +" (i= "+str(l_i[best_i])+").")
+        logging.info(damname
+                     +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
+                     +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
+
     z = range(int(Zi[0])+1, int(Zi[-1:]))
     sz = []
+    abs_sz = []
     for h in z:
         s = S_Zi[0] + best_alpha * math.pow((h - Zi[0]), best_beta)
         sz.append(s)
+        s = S_Zi[0] + abs_alpha * math.pow((h - Zi[0]), abs_beta)
+        abs_sz.append(s)
 
     # Moldel Plot
     fig, ax = plt.subplots()
@@ -282,6 +342,9 @@ def main(arguments):
                    ls=':', lw=2,
                    color='teal',
                    label='Dam Elevation')
+    maeax0.plot(z, abs_sz,
+                'g--',
+                label='S(z) abs_model')
     maeax0.plot(z, sz,
                 'r--',
                 label='S(z)')
@@ -325,6 +388,10 @@ def main(arguments):
                 'p',
                 color='#ff7f0e',
                 label='min(MAE)')
+    maeax1.plot(median(Zi[abs_i:abs_i+10]), abs_mae,
+                '+',
+                color='black',
+                label='Absolute min(MAE)')
     maeax1.grid(b=True, which='major', linestyle='-')
     maeax1.grid(b=True, which='minor', linestyle='--')
     maeax1.set(xlabel='Virtual Water Surface Elevation (m)',
