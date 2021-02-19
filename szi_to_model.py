@@ -150,13 +150,14 @@ def main(arguments):
     l_i=[]
     l_z=[]
     l_sz=[]
+    l_P=[]
     l_mae=[]
     l_alpha=[]
     l_beta=[]
     #TODO: @parameters winsize
     while ((i+10) < (len(Zi)-1)) and (median(Zi[i:i+10]) < args.zmaxoffset+float(damelev)):
         p = np.polyfit(Zi[i:i+10], S_Zi[i:i+10], 1, rcond=None, full=False, w=None, cov=False)
-        P = np.poly1d(p)
+        #  P = np.poly1d(p)
 
         beta = p[0]*(median(Zi[i:i+10])-Zi[0])/(median(S_Zi[i:i+10])-S_Zi[0])
         alpha = p[0]*(math.pow(median(Zi[i:i+10])-Zi[0],1-beta))/beta
@@ -187,6 +188,7 @@ def main(arguments):
         l_i.append(i)
         l_z.append(median(Zi[i:i+10]))
         l_sz.append(median(S_Zi[i:i+10]))
+        l_P.append(p)
         l_mae.append(mae)
         l_alpha.append(alpha)
         l_beta.append(beta)
@@ -194,6 +196,7 @@ def main(arguments):
         if (best == -10000) or (mae < best):
             best = mae
             best_i = i
+            best_P = p
             best_alpha = alpha
             best_beta = beta
             logging.debug("i: "+ str(i)
@@ -205,6 +208,7 @@ def main(arguments):
 
     # For testing
     abs_i = best_i
+    abs_P = best_P
     abs_mae = best
     abs_beta = best_beta
     abs_alpha = best_alpha
@@ -228,6 +232,7 @@ def main(arguments):
                 logging.debug("First local minimum found at "+ str(l_z[prev_mae_id+2])
                               +" (i= "+str(l_i[prev_mae_id+2])+").")
                 best_i = l_i[prev_mae_id+2]
+                best_P = l_P[best_i]
                 best = e
                 best_beta = l_beta[best_i]
                 best_alpha = l_alpha[best_i]
@@ -262,6 +267,9 @@ def main(arguments):
         s = S_Zi[0] + abs_alpha * math.pow((h - Zi[0]), abs_beta)
         abs_sz.append(s)
 
+    reg_abs = np.poly1d(abs_P)
+    reg_best  = np.poly1d(best_P)
+
     # Moldel Plot
     fig, ax = plt.subplots()
     ax.plot(z, sz,
@@ -276,6 +284,8 @@ def main(arguments):
                color='#ff7f0e',
                marker='p',
                label='Selected S(Zi)')
+    ax.plot(z, reg_abs(z), 'b-')
+    ax.plot(z, reg_best(z), 'g-')
     ax.grid(b=True, which='major', linestyle='-')
     ax.grid(b=False, which='minor', linestyle='--')
     ax.set(xlabel='Virtual Water Surface Elevation (m)',
@@ -419,30 +429,30 @@ def main(arguments):
         v = v0 + math.pow(((a-S_Zi[0])/best_alpha), 1/best_beta) * (S_Zi[0] + ((a-S_Zi[0]) / (best_beta + 1.)))
         vs.append(v)
 
-    #  # V(S) Moldel Plot
-    #  figv, axv = plt.subplots()
-    #  axv.axvline(x=S_dam,
-    #              ls=':', lw=2,
-    #              color='teal',
-    #              label='Max Dam Surface')
-    #  axv.plot(s, vs,
-    #          'r-',
-    #          label='V(S)')
-    #  axv.grid(b=True, which='major', linestyle='-')
-    #  axv.grid(b=False, which='minor', linestyle='--')
-    #  axv.set(xlabel='Estimated Water Surface (ha)',
-    #          ylabel='Modelized Water Volume (hm3)')
-    #  plt.title(damname + " : V=f(S) ",
-    #            #  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
-    #            #  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'),
-    #            fontsize=10)
-    #  # Trick to display in Ha
-    #  axv.xaxis.set_major_formatter(ticks_m2)
-    #  ticks_m3 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/1000000.))
-    #  axv.yaxis.set_major_formatter(ticks_m3)
-    #  plt.minorticks_on()
-    #  plt.legend(prop={'size': 6}, loc='upper left')
-    #  plt.savefig(os.path.splitext(args.outfile)[0]+"_VS.png", dpi=300)
+    # V(S) Moldel Plot
+    figv, axv = plt.subplots()
+    axv.axvline(x=S_dam,
+                ls=':', lw=2,
+                color='teal',
+                label='Max Dam Surface')
+    axv.plot(s, vs,
+            'r-',
+            label='V(S)')
+    axv.grid(b=True, which='major', linestyle='-')
+    axv.grid(b=False, which='minor', linestyle='--')
+    axv.set(xlabel='Estimated Water Surface (ha)',
+            ylabel='Modelized Water Volume (hm3)')
+    plt.title(damname + " : V=f(S) ",
+              #  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
+              #  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'),
+              fontsize=10)
+    # Trick to display in Ha
+    axv.xaxis.set_major_formatter(ticks_m2)
+    ticks_m3 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/1000000.))
+    axv.yaxis.set_major_formatter(ticks_m3)
+    plt.minorticks_on()
+    plt.legend(prop={'size': 6}, loc='upper left')
+    plt.savefig(os.path.splitext(args.outfile)[0]+"_VS.png", dpi=300)
 
 
 
