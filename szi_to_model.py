@@ -70,7 +70,7 @@ def main(arguments):
 
     args = parser.parse_args(arguments)
 
-    print(args)
+    #  print(args)
 
     logging_format = '%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
     if (args.debug is True):
@@ -125,12 +125,12 @@ def main(arguments):
 
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
-    logging.debug("Zi: ")
-    logging.debug(Zi[:])
-    logging.debug("S_Zi: ")
-    logging.debug(S_Zi[:])
+    #  logging.debug("Zi: ")
+    #  logging.debug(Zi[:])
+    #  logging.debug("S_Zi: ")
+    #  logging.debug(S_Zi[:])
     logging.debug("Zi_max: "+ str(Zi[-1]) +" - S(Zi_max): "+ str(S_Zi[-1]))
-    logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
+    #  logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
     logging.info("Z0: "+ str(Zi[0]) +" - S(Z0): "+ str(S_Zi[0]))
 
     # find start_i
@@ -176,11 +176,14 @@ def main(arguments):
 
         logging.debug('i: ' +str(i)
                       + " - Zrange [" +str(Zi[i])+ "; "+ str(Zi[i+10]) +"]"
-                      + " - Slope: "+ str(p[0])
                       + " --> alpha= " +str(alpha)+ " - beta= " +str(beta)
-                      + " with a glogal mae of: " +str(glo_mae)
-                      + " m2 and a local mae of: " +str(loc_mae)
+                      #  + " with a glogal mae of: " +str(glo_mae) +" m2"
+                      + " with a local mae of: " +str(loc_mae)
                       + " m2")
+        logging.debug('i: ' +str(i)
+                      + " - Slope= "+ str(p[0])
+                      + " - z_med= "+ str(median(Zi[i:i+10]))
+                      + " - Sz_med= "+ str(median(S_Zi[i:i+10])))
 
         # Select MEA to be used:
         #  mae = glo_mae
@@ -199,10 +202,10 @@ def main(arguments):
             best_P = p
             best_alpha = alpha
             best_beta = beta
-            logging.debug("i: "+ str(i)
-                          +" - alpha= " +str(alpha)
-                          +" - beta= "  +str(beta)
-                          +" - mae= " +str(mae))
+            #  logging.debug("i: "+ str(i)
+                          #  +" - alpha= " +str(alpha)
+                          #  +" - beta= "  +str(beta)
+                          #  +" - mae= " +str(mae))
 
         i = i+1
 
@@ -224,36 +227,61 @@ def main(arguments):
     found_first=False
     if args.maemode == 'first':
         logging.debug("Reanalizing local mae to find the first local minimum.")
-        prev_mae_id=0
-        next_mae_id=4
-        for e in l_mae[2:]:
-            if (e < l_mae[prev_mae_id]) and (e < l_mae[next_mae_id]):
+        x = range(0, len(l_i)-1)
+        for j in x[2:]:
+            if (l_mae[j] < l_mae[j-2]) and (l_mae[j] < l_mae[j+2]):
                 found_first = True
-                logging.debug("First local minimum found at "+ str(l_z[prev_mae_id+2])
-                              +" (i= "+str(l_i[prev_mae_id+2])+").")
-                best_i = l_i[prev_mae_id+2]
-                best_P = l_P[best_i]
-                best = e
-                best_beta = l_beta[best_i]
-                best_alpha = l_alpha[best_i]
-                logging.debug("i: "+ str(i)
+                logging.debug("First local minimum found at "+ str(l_z[j])
+                              +" (i= "+str(j)+").")
+                best_i = l_i[j]
+                best_P = l_P[j]
+                best = l_mae[j]
+                best_beta = l_beta[j]
+                best_alpha = l_alpha[j]
+                logging.debug("i: "+ str(best_i)
                               +" - alpha= " +str(best_alpha)
                               +" - beta= "  +str(best_beta)
                               +" - mae= " +str(best))
                 break
-            else:
-                prev_mae_id=prev_mae_id+1
-                next_mae_id=next_mae_id+1
         if found_first is False:
             logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
+
+        #  prev_mae_id=0
+        #  next_mae_id=4
+        #  #  for e in l_mae[2:]:
+        #  for e in l_i[2:]:
+        #      if (l_mae[e] < l_mae[e-2]) and (l_mae[e] < l_mae[e+2]):
+        #          found_first = True
+        #          logging.debug("@i= "+str(e)+": "+str(l_mae[e-2])+" > "+str(l_mae[e])+" < "+str(l_mae[e+2]))
+        #          logging.debug("First local minimum found at "+ str(l_z[prev_mae_id+2])
+        #                        +" (i= "+str(l_i[prev_mae_id+2])+").")
+        #          logging.debug("First local minimum found at "+ str(l_z[e])
+        #                        +" (i= "+str(e)+").")
+        #          #  best_i = l_i[prev_mae_id+2]
+        #          best_i = e+start_i-2
+        #          best_P = l_P[best_i]
+        #          #  best = e
+        #          best = l_mae[e]
+        #          best_beta = l_beta[best_i]
+        #          best_alpha = l_alpha[best_i]
+        #          logging.debug("i: "+ str(best_i)
+        #                        +" - alpha= " +str(best_alpha)
+        #                        +" - beta= "  +str(best_beta)
+        #                        +" - mae= " +str(best))
+        #          break
+        #      else:
+        #          prev_mae_id=prev_mae_id+1
+        #          next_mae_id=next_mae_id+1
+        #  if found_first is False:
+        #      logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
 
 
     if found_first is True:
         logging.info("Model updated using first LMAE minimum.")
         logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
                      + " (Computed on the range ["
-                     + str(l_z[prev_mae_id+2]-5)+ "; "+ str(l_z[prev_mae_id+2]+5) +"])"
-                     +" (i= "+str(l_i[best_i])+").")
+                     + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
+                     +" (i= "+str(best_i)+").")
         logging.info(damname
                      +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
                      +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
@@ -284,8 +312,8 @@ def main(arguments):
                color='#ff7f0e',
                marker='p',
                label='Selected S(Zi)')
-    ax.plot(z, reg_abs(z), 'b-')
-    ax.plot(z, reg_best(z), 'g-')
+    #  ax.plot(z, reg_abs(z), 'b-')
+    #  ax.plot(z, reg_best(z), 'g-')
     ax.grid(b=True, which='major', linestyle='-')
     ax.grid(b=False, which='minor', linestyle='--')
     ax.set(xlabel='Virtual Water Surface Elevation (m)',
