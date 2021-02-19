@@ -11,7 +11,7 @@ SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210216"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210217"
 EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 RADIUS=${1:-10000}
 
@@ -93,7 +93,9 @@ for DAMNAME in "${StringArray[@]}"; do
   python3 szi_to_model.py --debug \
     --infile     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
     --daminfo    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+    --zminoffset 10 \
     --zmaxoffset 30 \
+    --maemode    "first" \
     --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
     2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
 
