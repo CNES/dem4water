@@ -161,10 +161,73 @@ def main(arguments):
     l_mae=[]
     l_alpha=[]
     l_beta=[]
-    #TODO: @parameters winsize
+
+    # Shortcut if just enough data
+    data_shortage = False
+    if (i+args.winsize) >= (len(Zi)-1):
+        data_shortage = True
+        logging.warning("Just enough data! Compute unique modelle.")
+        p = np.polyfit(Zi[1:], S_Zi[1:], 1, rcond=None, full=False, w=None, cov=False)
+
+        beta = p[0]*(median(Zi)-Zi[0])/(median(S_Zi)-S_Zi[0])
+        alpha = p[0]*(math.pow(median(Zi)-Zi[0],1-beta))/beta
+
+        mae_sum = 0
+        for z, sz in zip(Zi, S_Zi):
+            s = S_Zi[0] + alpha * math.pow((z - Zi[0]), beta)
+            mae_sum += abs(sz - s)
+        mae = mae_sum / len(Zi)
+
+        logging.debug("Zrange [" +str(Zi[0])+ "; "+ str(Zi[-1]) +"]"
+                      + " --> alpha= " +str(alpha)+ " - beta= " +str(beta)
+                      + " with a local mae of: " +str(mae)
+                      + " m2")
+        logging.debug('i: ' +str(i)
+                      + " - Slope= "+ str(p[0])
+                      + " - z_med= "+ str(median(Zi))
+                      + " - Sz_med= "+ str(median(S_Zi)))
+
+        # Select MEA to be used:
+        best = mae
+        best_P = p
+        best_alpha = alpha
+        best_beta = beta
+
+    # Enough data but not in specified distance to the dam
+    # (maybe estimated dam elevation is false, maybe offsets are to strict)
+    if (median(Zi[i:i+args.winsize]) >= args.zmaxoffset+float(damelev)):
+        data_shortage = True
+        logging.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
+        p = np.polyfit(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize], 1, rcond=None, full=False, w=None, cov=False)
+
+        beta = p[0]*(median(Zi[i:i+args.winsize])-Zi[0])/(median(S_Zi[i:i+args.winsize])-S_Zi[0])
+        alpha = p[0]*(math.pow(median(Zi[i:i+args.winsize])-Zi[0],1-beta))/beta
+
+        mae_sum = 0
+        for z, sz in zip(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize]):
+            s = S_Zi[0] + alpha * math.pow((z - Zi[0]), beta)
+            mae_sum += abs(sz - s)
+        mae = mae_sum / len(Zi[i:i+args.winsize])
+
+        logging.debug('i: ' +str(i)
+                      + " - Zrange [" +str(Zi[i])+ "; "+ str(Zi[i+args.winsize]) +"]"
+                      + " --> alpha= " +str(alpha)+ " - beta= " +str(beta)
+                      + " with a local mae of: " +str(mae)
+                      + " m2")
+        logging.debug('i: ' +str(i)
+                      + " - Slope= "+ str(p[0])
+                      + " - z_med= "+ str(median(Zi[i:i+args.winsize]))
+                      + " - Sz_med= "+ str(median(S_Zi[i:i+args.winsize])))
+
+        best = mae
+        best_i = i
+        best_P = p
+        best_alpha = alpha
+        best_beta = beta
+
     while ((i+args.winsize) < (len(Zi)-1)) and (median(Zi[i:i+args.winsize]) < args.zmaxoffset+float(damelev)):
         logging.debug("len(Zi[i:i+args.winsize]): "+str(len(Zi[i:i+args.winsize])))
-        logging.debug(Zi[i:i+args.winsize])
+        #  logging.debug(Zi[i:i+args.winsize])
         p = np.polyfit(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize], 1, rcond=None, full=False, w=None, cov=False)
         #  P = np.poly1d(p)
 
@@ -242,7 +305,10 @@ def main(arguments):
             x = range(0, len(l_i)-1)
             logging.debug(x)
             for j in x[2:-2]:
-                if (l_mae[j] < l_mae[j-2]) and (l_mae[j] < l_mae[j+2]):
+                if (l_mae[j] < l_mae[j-2] and
+                    l_mae[j] < l_mae[j-1] and
+                    l_mae[j] < l_mae[j+1] and
+                    l_mae[j] < l_mae[j+2]):
                     found_first = True
                     logging.debug("First local minimum found at "+ str(l_z[j])
                                   +" (i= "+str(l_i[j])+").")
@@ -455,8 +521,9 @@ def main(arguments):
                ylabel='Virtual Water Surface (ha)')
     maeax0.label_outer()
     #  maeax0.set_xlim(z[0]-10, z[-1]+10)
-    maeax0.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
-    maeax0.set_ylim(-10, S_Zi[best_i+args.winsize]*1.1)
+    if data_shortage is False:
+        maeax0.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
+        maeax0.set_ylim(-10, S_Zi[best_i+args.winsize]*1.1)
     # Trick to display in Ha
     maeax0.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
@@ -485,7 +552,8 @@ def main(arguments):
     maeax1.set(xlabel='Virtual Water Surface Elevation (m)',
                ylabel='Local MAE (ha)')
     #  maeax1.set_xlim(z[0]-10, z[-1]+10)
-    maeax1.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
+    if data_shortage is False:
+        maeax1.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
     maeax1.set_yscale('log')
     # Trick to display in Ha
     maeax1.yaxis.set_major_formatter(ticks_m2)
