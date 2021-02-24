@@ -43,6 +43,11 @@ def main(arguments):
     parser.add_argument('-d',
                         '--daminfo',
                         help="daminfo.json file")
+    parser.add_argument('-w',
+                        '--winsize',
+                        type=int,
+                        default=10,
+                        help="S(Zi) used for model estimation.")
     parser.add_argument('-z',
                         '--zmaxoffset',
                         type=int,
@@ -125,10 +130,10 @@ def main(arguments):
 
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
-    #  logging.debug("Zi: ")
-    #  logging.debug(Zi[:])
-    #  logging.debug("S_Zi: ")
-    #  logging.debug(S_Zi[:])
+    logging.debug("Zi: ")
+    logging.debug(Zi[:])
+    logging.debug("S_Zi: ")
+    logging.debug(S_Zi[:])
     logging.debug("Zi_max: "+ str(Zi[-1]) +" - S(Zi_max): "+ str(S_Zi[-1]))
     #  logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
     logging.info("Z0: "+ str(Zi[0]) +" - S(Z0): "+ str(S_Zi[0]))
@@ -145,6 +150,7 @@ def main(arguments):
     i=start_i
     best=-10000
     best_i=i
+    best_P=0
     best_alpha=0
     best_beta=0
     l_i=[]
@@ -216,10 +222,10 @@ def main(arguments):
     abs_beta = best_beta
     abs_alpha = best_alpha
 
-    logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
-                 + " (Computed on the range ["
-                 + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
-                 +" (i= "+str(l_i[best_i])+").")
+    #  logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
+                 #  + " (Computed on the range ["
+                 #  + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
+                 #  +" (i= "+str(l_i[best_i])+").")
     logging.info(damname
                  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
                  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
@@ -227,24 +233,30 @@ def main(arguments):
     found_first=False
     if args.maemode == 'first':
         logging.debug("Reanalizing local mae to find the first local minimum.")
-        x = range(0, len(l_i)-1)
-        for j in x[2:]:
-            if (l_mae[j] < l_mae[j-2]) and (l_mae[j] < l_mae[j+2]):
-                found_first = True
-                logging.debug("First local minimum found at "+ str(l_z[j])
-                              +" (i= "+str(j)+").")
-                best_i = l_i[j]
-                best_P = l_P[j]
-                best = l_mae[j]
-                best_beta = l_beta[j]
-                best_alpha = l_alpha[j]
-                logging.debug("i: "+ str(best_i)
-                              +" - alpha= " +str(best_alpha)
-                              +" - beta= "  +str(best_beta)
-                              +" - mae= " +str(best))
-                break
-        if found_first is False:
-            logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
+        logging.debug("len(l_mae): "+str(len(l_mae)))
+        if len(l_i) > 5:
+            x = range(0, len(l_i)-1)
+            logging.debug(x)
+            for j in x[2:-2]:
+                if (l_mae[j] < l_mae[j-2]) and (l_mae[j] < l_mae[j+2]):
+                    found_first = True
+                    logging.debug("First local minimum found at "+ str(l_z[j])
+                                  +" (i= "+str(l_i[j])+").")
+                    best_i = l_i[j]
+                    best_P = l_P[j]
+                    best = l_mae[j]
+                    best_beta = l_beta[j]
+                    best_alpha = l_alpha[j]
+                    logging.debug("i: "+ str(best_i)
+                                  +" - alpha= " +str(best_alpha)
+                                  +" - beta= "  +str(best_beta)
+                                  +" - mae= " +str(best))
+                    break
+            if found_first is False:
+                logging.info("Reanalizing local mae to find the first local minimum --> FAILLED.")
+        else:
+            logging.debug("Reanalizing Impossible, not enough local mae data!")
+
 
         #  prev_mae_id=0
         #  next_mae_id=4
@@ -406,7 +418,9 @@ def main(arguments):
     maeax0.set(xlabel='Virtual Water Surface Elevation (m)',
                ylabel='Virtual Water Surface (ha)')
     maeax0.label_outer()
-    maeax0.set_xlim(z[0]-10, z[-1]+10)
+    #  maeax0.set_xlim(z[0]-10, z[-1]+10)
+    maeax0.set_xlim(z[0]-10, median(Zi[best_i:best_i+10])+10)
+    maeax0.set_ylim(-10, S_Zi[best_i+10]*1.1)
     # Trick to display in Ha
     maeax0.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
@@ -434,7 +448,8 @@ def main(arguments):
     maeax1.grid(b=True, which='minor', linestyle='--')
     maeax1.set(xlabel='Virtual Water Surface Elevation (m)',
                ylabel='Local MAE (ha)')
-    maeax1.set_xlim(z[0]-10, z[-1]+10)
+    #  maeax1.set_xlim(z[0]-10, z[-1]+10)
+    maeax1.set_xlim(z[0]-10, median(Zi[best_i:best_i+10])+10)
     maeax1.set_yscale('log')
     # Trick to display in Ha
     maeax1.yaxis.set_major_formatter(ticks_m2)
