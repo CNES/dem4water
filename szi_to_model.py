@@ -157,6 +157,7 @@ def main(arguments):
     l_z=[]
     l_sz=[]
     l_P=[]
+    l_slope=[]
     l_mae=[]
     l_alpha=[]
     l_beta=[]
@@ -200,6 +201,7 @@ def main(arguments):
         l_z.append(median(Zi[i:i+args.winsize]))
         l_sz.append(median(S_Zi[i:i+args.winsize]))
         l_P.append(p)
+        l_slope.append(p[0])
         l_mae.append(mae)
         l_alpha.append(alpha)
         l_beta.append(beta)
@@ -356,7 +358,12 @@ def main(arguments):
     #  plt.savefig(os.path.splitext(args.outfile)[0]+"_imposed.png", dpi=300)
 
     # Plot Local MAE
-    maefig, maeax = plt.subplots()
+    ms_fig = plt.figure(dpi=300)
+    ms_fig.subplots_adjust(hspace=0)
+    ms_gs = ms_fig.add_gridspec( 2, 1, height_ratios=[1, 1])
+
+    maeax = plt.subplot(ms_gs[0])
+    #  maefig, maeax = plt.subplots()
     maeax.axvline(x=float(damelev),
                   ls='--', lw=1,
                   color='teal',
@@ -374,15 +381,42 @@ def main(arguments):
     maeax.grid(b=False, which='minor', linestyle='--')
     maeax.set(xlabel='Virtual Water Surface Elevation (m)',
               ylabel='Local MAE (ha)')
-    maeax.set_xlim(z[0]-10, z[-1]+10)
+    maeax.set_xlim(z[0], z[-1]+10)
     maeax.set_yscale('log')
+    maeax.label_outer()
     # Trick to display in Ha
     maeax.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
     plt.title(damname+": Local Maximum Absolute Error")
     plt.legend(prop={'size': 6})
+    #  if (args.debug is True):
+        #  plt.savefig(os.path.splitext(args.outfile)[0]+"_mae.png", dpi=300)
+
+    # Plot slope
+    #  slpfig, slpax = plt.subplots()
+    slpax = plt.subplot(ms_gs[1])
+    slpax.axvline(x=float(damelev),
+                  ls='--', lw=1,
+                  color='teal',
+                  label='Dam elevation')
+    slpax.plot(l_z, l_slope,
+               marker='.',
+               color='purple',
+               linestyle='dashed',
+               label='Slope')
+    slpax.grid(b=True, which='major', linestyle='-')
+    slpax.grid(b=False, which='minor', linestyle='--')
+    slpax.set(xlabel='Virtual Water Surface Elevation (m)',
+              ylabel='Local Slope')
+    slpax.set_xlim(z[0], z[-1]+10)
+    #  slpax.set_yscale('log')
+    # Trick to display in Ha
+    slpax.yaxis.set_major_formatter(ticks_m2)
+    plt.minorticks_on()
+    #  plt.title(damname+": Local Slope")
+    #  plt.legend(prop={'size': 6})
     if (args.debug is True):
-        plt.savefig(os.path.splitext(args.outfile)[0]+"_mae.png", dpi=300)
+        plt.savefig(os.path.splitext(args.outfile)[0]+"_slope.png", dpi=300)
 
     # Combined Local MAE / model plot
     fig = plt.figure(dpi=300)
