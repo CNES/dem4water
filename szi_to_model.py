@@ -46,7 +46,7 @@ def main(arguments):
     parser.add_argument('-w',
                         '--winsize',
                         type=int,
-                        default=10,
+                        default=11,
                         help="S(Zi) used for model estimation.")
     parser.add_argument('-z',
                         '--zmaxoffset',
@@ -161,12 +161,14 @@ def main(arguments):
     l_alpha=[]
     l_beta=[]
     #TODO: @parameters winsize
-    while ((i+10) < (len(Zi)-1)) and (median(Zi[i:i+10]) < args.zmaxoffset+float(damelev)):
-        p = np.polyfit(Zi[i:i+10], S_Zi[i:i+10], 1, rcond=None, full=False, w=None, cov=False)
+    while ((i+args.winsize) < (len(Zi)-1)) and (median(Zi[i:i+args.winsize]) < args.zmaxoffset+float(damelev)):
+        logging.debug("len(Zi[i:i+args.winsize]): "+str(len(Zi[i:i+args.winsize])))
+        logging.debug(Zi[i:i+args.winsize])
+        p = np.polyfit(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize], 1, rcond=None, full=False, w=None, cov=False)
         #  P = np.poly1d(p)
 
-        beta = p[0]*(median(Zi[i:i+10])-Zi[0])/(median(S_Zi[i:i+10])-S_Zi[0])
-        alpha = p[0]*(math.pow(median(Zi[i:i+10])-Zi[0],1-beta))/beta
+        beta = p[0]*(median(Zi[i:i+args.winsize])-Zi[0])/(median(S_Zi[i:i+args.winsize])-S_Zi[0])
+        alpha = p[0]*(math.pow(median(Zi[i:i+args.winsize])-Zi[0],1-beta))/beta
 
         mae_sum = 0
         for z, sz in zip(Zi, S_Zi):
@@ -175,28 +177,28 @@ def main(arguments):
         glo_mae = mae_sum / len(Zi)
 
         mae_sum = 0
-        for z, sz in zip(Zi[i:i+10], S_Zi[i:i+10]):
+        for z, sz in zip(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize]):
             s = S_Zi[0] + alpha * math.pow((z - Zi[0]), beta)
             mae_sum += abs(sz - s)
-        loc_mae = mae_sum / len(Zi[i:i+10])
+        loc_mae = mae_sum / len(Zi[i:i+args.winsize])
 
         logging.debug('i: ' +str(i)
-                      + " - Zrange [" +str(Zi[i])+ "; "+ str(Zi[i+10]) +"]"
+                      + " - Zrange [" +str(Zi[i])+ "; "+ str(Zi[i+args.winsize]) +"]"
                       + " --> alpha= " +str(alpha)+ " - beta= " +str(beta)
                       #  + " with a glogal mae of: " +str(glo_mae) +" m2"
                       + " with a local mae of: " +str(loc_mae)
                       + " m2")
         logging.debug('i: ' +str(i)
                       + " - Slope= "+ str(p[0])
-                      + " - z_med= "+ str(median(Zi[i:i+10]))
-                      + " - Sz_med= "+ str(median(S_Zi[i:i+10])))
+                      + " - z_med= "+ str(median(Zi[i:i+args.winsize]))
+                      + " - Sz_med= "+ str(median(S_Zi[i:i+args.winsize])))
 
         # Select MEA to be used:
         #  mae = glo_mae
         mae = loc_mae
         l_i.append(i)
-        l_z.append(median(Zi[i:i+10]))
-        l_sz.append(median(S_Zi[i:i+10]))
+        l_z.append(median(Zi[i:i+args.winsize]))
+        l_sz.append(median(S_Zi[i:i+args.winsize]))
         l_P.append(p)
         l_mae.append(mae)
         l_alpha.append(alpha)
@@ -224,7 +226,7 @@ def main(arguments):
 
     #  logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
                  #  + " (Computed on the range ["
-                 #  + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
+                 #  + str(Zi[best_i])+ "; "+ str(Zi[best_i+args.winsize]) +"])"
                  #  +" (i= "+str(l_i[best_i])+").")
     logging.info(damname
                  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
@@ -292,7 +294,7 @@ def main(arguments):
         logging.info("Model updated using first LMAE minimum.")
         logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
                      + " (Computed on the range ["
-                     + str(Zi[best_i])+ "; "+ str(Zi[best_i+10]) +"])"
+                     + str(Zi[best_i])+ "; "+ str(Zi[best_i+args.winsize]) +"])"
                      +" (i= "+str(best_i)+").")
         logging.info(damname
                      +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
@@ -320,7 +322,7 @@ def main(arguments):
     ax.scatter(Zi[1:], S_Zi[1:],
             marker='.',
             label='S(Zi)')
-    ax.scatter(median(Zi[best_i:best_i+10]), median(S_Zi[best_i:best_i+10]),
+    ax.scatter(median(Zi[best_i:best_i+args.winsize]), median(S_Zi[best_i:best_i+args.winsize]),
                color='#ff7f0e',
                marker='p',
                label='Selected S(Zi)')
@@ -350,7 +352,7 @@ def main(arguments):
     #  ax2.plot(l_z, l_mae,
              #  marker='.',
              #  linestyle='dashed')
-    #  ax2.plot(median(Zi[best_i:best_i+10]), best, 'p', color='#ff7f0e')
+    #  ax2.plot(median(Zi[best_i:best_i+args.winsize]), best, 'p', color='#ff7f0e')
     #  plt.savefig(os.path.splitext(args.outfile)[0]+"_imposed.png", dpi=300)
 
     # Plot Local MAE
@@ -364,7 +366,7 @@ def main(arguments):
                color='purple',
                linestyle='dashed',
                label='MAE')
-    maeax.plot(median(Zi[best_i:best_i+10]), best,
+    maeax.plot(median(Zi[best_i:best_i+args.winsize]), best,
                'p',
                color='#ff7f0e',
                label='min(MAE)')
@@ -403,13 +405,13 @@ def main(arguments):
     maeax0.scatter(Zi, S_Zi,
                    marker='.',
                    label='S(Z_i)')
-    maeax0.plot(Zi[best_i:best_i+10], S_Zi[best_i:best_i+10],
+    maeax0.plot(Zi[best_i:best_i+args.winsize], S_Zi[best_i:best_i+args.winsize],
                 marker='o',
                 ls=':', lw=1,
                 color='yellow',
                 markerfacecolor='blue',
                 label='Selected S(Z_i)')
-    maeax0.plot(median(Zi[best_i:best_i+10]), median(S_Zi[best_i:best_i+10]),
+    maeax0.plot(median(Zi[best_i:best_i+args.winsize]), median(S_Zi[best_i:best_i+args.winsize]),
                 color='#ff7f0e',
                 marker='p',
                 markerfacecolor='#ff7f0e')
@@ -419,8 +421,8 @@ def main(arguments):
                ylabel='Virtual Water Surface (ha)')
     maeax0.label_outer()
     #  maeax0.set_xlim(z[0]-10, z[-1]+10)
-    maeax0.set_xlim(z[0]-10, median(Zi[best_i:best_i+10])+10)
-    maeax0.set_ylim(-10, S_Zi[best_i+10]*1.1)
+    maeax0.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
+    maeax0.set_ylim(-10, S_Zi[best_i+args.winsize]*1.1)
     # Trick to display in Ha
     maeax0.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
@@ -436,11 +438,11 @@ def main(arguments):
                 marker='.',
                 linestyle='dashed',
                 label='MAE')
-    maeax1.plot(median(Zi[best_i:best_i+10]), best,
+    maeax1.plot(median(Zi[best_i:best_i+args.winsize]), best,
                 'p',
                 color='#ff7f0e',
                 label='min(MAE)')
-    maeax1.plot(median(Zi[abs_i:abs_i+10]), abs_mae,
+    maeax1.plot(median(Zi[abs_i:abs_i+args.winsize]), abs_mae,
                 '+',
                 color='black',
                 label='Absolute min(MAE)')
@@ -449,7 +451,7 @@ def main(arguments):
     maeax1.set(xlabel='Virtual Water Surface Elevation (m)',
                ylabel='Local MAE (ha)')
     #  maeax1.set_xlim(z[0]-10, z[-1]+10)
-    maeax1.set_xlim(z[0]-10, median(Zi[best_i:best_i+10])+10)
+    maeax1.set_xlim(z[0]-5, median(Zi[best_i:best_i+args.winsize])+30)
     maeax1.set_yscale('log')
     # Trick to display in Ha
     maeax1.yaxis.set_major_formatter(ticks_m2)
