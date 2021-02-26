@@ -8,7 +8,7 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-DB_PATH="../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
+DB_PATH="${SRC_DIR}/data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
 ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210217"
