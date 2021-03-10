@@ -92,6 +92,10 @@ def main(arguments):
             logging.debug(feature)
             in_w = shape(feature['geometry'])
 
+    try:
+        in_w
+    except NameError:
+        logging.error("Point inside water body for dam "+damname+" is not present in "+args.info+". Can not process.")
 
     drv = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, damname + "_vSurfaces.json")):
