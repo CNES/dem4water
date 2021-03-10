@@ -8,10 +8,10 @@
 # ----
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-DB_PATH="${SRC_DIR}/data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp"
+DB_PATH="${SRC_DIR}/data/DB_v5_KL.geojson"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210217"
+ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210310"
 EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 RADIUS=${1:-10000}
 
@@ -85,7 +85,6 @@ for DAMNAME in "${StringArray[@]}"; do
     --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
     --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
     --level    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
-    --fpoints  "../data/DB_in_points/Retenues-TETIS.shp" \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cut_contourlines.log"
 

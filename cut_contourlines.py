@@ -50,9 +50,6 @@ def main(arguments):
     parser.add_argument('-n',
                         '--name',
                         help="Dam Name")
-    parser.add_argument('-f',
-                        '--fpoints',
-                        help="Points inside the water body for polygon filtering")
     parser.add_argument('-t',
                         '--tmp',
                         help="Temporary directory")
@@ -87,8 +84,14 @@ def main(arguments):
             damname = feature['properties']['damname']
 
         if feature['properties']['name'] == 'PDB':
+            logging.debug(feature)
             pdb = shape(feature['geometry'])
             pdbelev = feature['properties']['elev']
+
+        if feature['properties']['name'] == 'Insider':
+            logging.debug(feature)
+            in_w = shape(feature['geometry'])
+
 
     drv = ogr.GetDriverByName( 'GeoJSON' )
     if os.path.exists(os.path.join(args.out, damname + "_vSurfaces.json")):
@@ -108,50 +111,6 @@ def main(arguments):
         lines = shape(feature['geometry'])
         line = shapely.ops.linemerge(lines)
 
-    # Find the inner point for filtering
-    # Init global srs:
-    geo = osr.SpatialReference();
-    geo.ImportFromEPSG(4326)
-
-    ds = gdal.Open(args.dem, gdal.GA_ReadOnly);
-    carto = osr.SpatialReference(wkt=ds.GetProjection());
-
-    geotocarto = osr.CoordinateTransformation(geo, carto);
-
-    driver = ogr.GetDriverByName("ESRI Shapefile")
-    dataSource = driver.Open(args.fpoints, 0)
-    layer = dataSource.GetLayer()
-
-    clat = 0
-    clon = 0
-    dam_found = False
-
-    for feature in layer:
-        logging.debug(feature.GetField("Nom du bar"))
-        if (feature.GetField("Nom du bar") == args.name):
-            #  geom = feature.GetGeometryRef()
-            #  clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
-            #  clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
-            #  logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
-            clat = float(feature.GetField("Lat. reten"))
-            clon = float(feature.GetField("Long. Rete"))
-            logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
-            dam_found  = True
-            break
-    layer.ResetReading()
-
-    if dam_found is False:
-        logging.error("Dam <"+args.name+ "> not found in input file "+ args.fpoints)
-
-    inp = ogr.Geometry(ogr.wkbPoint)
-    inp.AddPoint(clat, clon)
-    inp.Transform(geotocarto)
-    logging.debug("Coordinates Carto: " + str(inp.GetX())+" - "+str(inp.GetY()))
-    innerp = shapely.wkt.loads(inp.Centroid().ExportToWkt())
-    #  innerp = shape(inp)
-
-
-
     # load GeoJSON file containing contour lines
     with open(args.level) as l:
         jsl = json.load(l)
@@ -166,8 +125,7 @@ def main(arguments):
         max_area = -10000
         max_elev = -10000
         for p in results:
-            if p.contains(innerp):
-            #  if not p.contains(pdb) and (p.area >= max_area) and p.intersects(line):
+            if p.contains(in_w):
                 max_area = p.area
                 max_elev = float(feature['properties']['ID'])
                 found = True

@@ -64,7 +64,7 @@ def main(arguments):
 
     dam_path = args.name.replace(" ", "_")
 
-    driver = ogr.GetDriverByName("ESRI Shapefile")
+    driver = ogr.GetDriverByName("GeoJSON")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
 
@@ -72,13 +72,13 @@ def main(arguments):
     clon = 0
     dam_404 = True
     for feature in layer:
-        logging.debug(feature.GetField("Nom du bar"))
-        if (feature.GetField("Nom du bar") == args.name):
-            #  logging.debug(feature.GetField("Nom du bar"))
+        #  logging.debug(feature.GetField("Name"))
+        if (feature.GetField("Name") == args.name):
+            logging.debug(feature.GetField("Name"))
             dam_404 = False
-            geom = feature.GetGeometryRef()
-            clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
-            clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
+            clat = float(feature.GetField("Lat"))
+            clon = float(feature.GetField("Lon"))
+            logging.debug("Alt from DB: " + str(feature.GetField("Alt")))
             break
     layer.ResetReading()
 

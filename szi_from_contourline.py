@@ -190,48 +190,49 @@ def main(arguments):
     dbg_layer.CreateField( dbg_field_defn )
 
     # Start processing by qualifying the Dam
-    driver = ogr.GetDriverByName("ESRI Shapefile")
+    driver = ogr.GetDriverByName("GeoJSON")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
 
     clat = 0
     clon = 0
     calt = 0
-
+    clat_in = 0
+    clon_in = 0
+    dam_404 = True
     for feature in layer:
-        #  logging.debug(feature.GetField("Nom du bar"))
-        if (feature.GetField("Nom du bar") == args.name):
-            geom = feature.GetGeometryRef()
-            clat = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[1].split(')')[0])
-            clon = float(geom.Centroid().ExportToWkt().split('(')[1].split(' ')[0])
+        #  logging.debug(feature.GetField("Name"))
+        if (feature.GetField("Name") == args.name):
+            logging.debug(feature.GetField("Name"))
+            dam_404 = False
+            clat = float(feature.GetField("Lat"))
+            clon = float(feature.GetField("Lon"))
+            calt = float(feature.GetField("Alt"))
+            clat_in = float(feature.GetField("Lat_in"))
+            clon_in = float(feature.GetField("Lon_in"))
             break
     layer.ResetReading()
 
+    if dam_404 is True:
+        logging.error("404 - Dam Not Found: "+args.name+" is not present in "+args.infile)
+
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
-    altcmd = 'gdallocationinfo -valonly -wgs84 "'+args.dem+'" '+str(clon)+' '+str(clat)
-    print(altcmd)
-    print(os.popen('gdallocationinfo -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
-    calt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
-    #  calt = float(subprocess.check_output(['gdallocationinfo', '-valonly', '-wgs84', str(args.dem), str(clon), str(clat)]))
-    #  print(subprocess.Popen(['gdallocationinfo', '-valonly', '-wgs84', str(args.dem), str(clon), str(clat)]))
-    #  print(os.popen(altcmd).read())
-    #  calt = float(os.popen(altcmd).read())
+
+    calt_from_DB = False
+    if bool(calt):
+        logging.info("Alt from DB: " + str(calt))
+        calt_from_DB = True
+    else:
+        altcmd = 'gdallocationinfo -valonly -wgs84 "'+args.dem+'" '+str(clon)+' '+str(clat)
+        calt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
+        logging.info("Alt from DEM: " + str(calt))
+
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
     dam = ogr.Geometry(ogr.wkbPoint)
     dam.AddPoint(clat, clon)
     dam.Transform(geotocarto)
     logging.debug("Coordinates Carto: " + str(dam.GetX())+" - "+str(dam.GetY()))
-
-    wkt = "POINT ( %f %f )" % ( float(dam.GetX()), float(dam.GetY()) )
-    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-    p = ogr.CreateGeometryFromWkt( wkt )
-    feat.SetGeometryDirectly( p )
-    feat.SetField ( "name", "Dam" )
-    feat.SetField ( "elev", str(calt) )
-    feat.SetField ( "damname", dam_path )
-    dst_layer.CreateFeature( feat )
-    feat.Destroy()
 
     rad_l = []
     alt_l = []
@@ -369,26 +370,61 @@ def main(arguments):
     feat.Destroy()
 
     # Dam elevation from watermap
-    extw = otb.Registry.CreateApplication("Superimpose")
-    extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
-    extw.SetParameterString("inm", args.watermap)
-    extw.Execute()
+    if calt_from_DB is True:
+        logging.info("Alt Extracted from DB.")
+        bml_alt = calt
+    else:
+        logging.info("Alt Estimated from Watermap.")
+        extw = otb.Registry.CreateApplication("Superimpose")
+        extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
+        extw.SetParameterString("inm", args.watermap)
+        extw.Execute()
 
-    bml = otb.Registry.CreateApplication("BandMath")
-    bml.AddImageToParameterInputImageList("il",extw.GetParameterOutputImage("out"));
-    bml.AddImageToParameterInputImageList("il",ext.GetParameterOutputImage("out"));
-    bml.SetParameterString("exp", "( im1b1  > 0.05 ) ? im2b1 : 0")
-    bml.Execute()
+        bml = otb.Registry.CreateApplication("BandMath")
+        bml.AddImageToParameterInputImageList("il",extw.GetParameterOutputImage("out"));
+        bml.AddImageToParameterInputImageList("il",ext.GetParameterOutputImage("out"));
+        bml.SetParameterString("exp", "( im1b1  > 0.05 ) ? im2b1 : 0")
+        bml.Execute()
 
-    np_bml = bml.GetImageAsNumpyArray('out')
-    bml_alt = np.amax(np_bml)
+        np_bml = bml.GetImageAsNumpyArray('out')
+        bml_alt = np.amax(np_bml)
+
     targetelev = bml_alt + args.elevoffset
-
-    logging.info("Estimated dam elevation= "
-                 + str(bml_alt) +"m")
+    if calt_from_DB is True:
+        logging.info("Extracted dam elevation= "
+                     + str(bml_alt) +"m")
+    else:
+        logging.info("Estimated dam elevation= "
+                     + str(bml_alt) +"m")
     logging.info("Target Elevation for cutline search= "
                  + str(targetelev) +"m")
 
+    # Point on dam
+    wkt = "POINT ( %f %f )" % ( float(dam.GetX()), float(dam.GetY()) )
+    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+    p = ogr.CreateGeometryFromWkt( wkt )
+    feat.SetGeometryDirectly( p )
+    feat.SetField ( "name", "Dam" )
+    feat.SetField ( "elev", str(bml_alt) )
+    feat.SetField ( "damname", dam_path )
+    dst_layer.CreateFeature( feat )
+    feat.Destroy()
+
+    # Point inside water body from DB
+    in_w = ogr.Geometry(ogr.wkbPoint)
+    in_w.AddPoint(clat_in, clon_in)
+    in_w.Transform(geotocarto)
+    logging.debug("Coordinates Carto Point Inside Water Body: " + str(in_w.GetX())+" - "+str(in_w.GetY()))
+
+    wkt = "POINT ( %f %f )" % ( float(in_w.GetX()), float(in_w.GetY()) )
+    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+    p = ogr.CreateGeometryFromWkt( wkt )
+    feat.SetGeometryDirectly( p )
+    feat.SetField ( "name", "Insider" )
+    feat.SetField ( "elev", str(0.) )
+    feat.SetField ( "damname", dam_path )
+    dst_layer.CreateFeature( feat )
+    feat.Destroy()
 
     # Search for Dam Line
     #TODO: fix confusion between radius and pdbradius needed here

@@ -47,18 +47,18 @@ if [ -f "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif" ] \
 else
   python3 area_mapping.py \
     --name     "${DAMNAME}" \
-    --infile   "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
+    --infile   "/home/ad/briciera/dem4water/dem4water/data/DB_v5_KL.geojson" \
     --watermap "../data/wmap/wmap.vrt" \
     --dem      "../data/dem/dem.vrt" \
     --radius   "${RADIUS}" \
     --out      "$EXTR_DIR/${DAM}_${RADIUS}" \
-    # --debug
+    --debug
 
 fi
 
 python3 szi_from_contourline.py \
   --name       "${DAMNAME}" \
-  --infile     "../data/DB_Barrages_Fixed_v3/DB_Barrages_Fixed.shp" \
+  --infile     "/home/ad/briciera/dem4water/dem4water/data/DB_v5_KL.geojson" \
   --watermap   "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
   --dem        "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --radius     "${RADIUS}" \
@@ -82,11 +82,11 @@ python3 cut_contourlines.py --debug \
   --info      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
   --cut       "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
   --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
-  --fpoints   "../data/DB_in_points/Retenues-TETIS.shp" \
   --out       "$ROOT_DIR/${DAM}_${RADIUS}"
 
 python3 szi_to_model.py \
   --infile   "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
+  --daminfo  "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
   --outfile  "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
   --debug
 
