@@ -208,8 +208,11 @@ def main(arguments):
             clat = float(feature.GetField("Lat"))
             clon = float(feature.GetField("Lon"))
             calt = float(feature.GetField("Alt"))
-            clat_in = float(feature.GetField("Lat_in"))
-            clon_in = float(feature.GetField("Lon_in"))
+            if bool(feature.GetField("Lat_in")):
+                clat_in = float(feature.GetField("Lat_in"))
+                clon_in = float(feature.GetField("Lon_in"))
+            else:
+                logging.error("Point inside water body for dam "+args.name+" is not present in "+args.infile+". Can not process.")
             break
     layer.ResetReading()
 
@@ -723,12 +726,13 @@ def main(arguments):
                                                                    #  str(int(targetelev+elev_margin)),
                                                                    #  str(args.elevsampling)))
 
-    os.system('./gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s"' % (args.dem,
-                                                                          str(int(pdbalt-elev_margin)),
-                                                                          str(args.elevsampling),
-                                                                          str(int(targetelev+elev_margin)),
-                                                                          contourline_fname))
-                                                                          #  args.out))
+    os.system('./gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s" "%s"' % (args.dem,
+                                                                               str(int(pdbalt-elev_margin)),
+                                                                               str(args.elevsampling),
+                                                                               str(int(targetelev+elev_margin)),
+                                                                               contourline_fname,
+                                                                               args.tmp))
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

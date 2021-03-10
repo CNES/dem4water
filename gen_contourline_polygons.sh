@@ -7,20 +7,21 @@
 # :created: 2021
 # ----
 
+TMP_DIR=${6}
 
 for i in `seq $2 $3 $4`; do
   # echo $i
-  gdal_contour -p -amax ID -fl $i "$1" "__TMP__poly_${i}.json"
-  ogr2ogr -where ID="$i" "__TMP__poly_${i}_FIL.json" "__TMP__poly_${i}.json"
-  rm "__TMP__poly_${i}.json"
+  gdal_contour -p -amax ID -fl $i "$1" "${TMP_DIR}/__TMP__poly_${i}.json"
+  ogr2ogr -where ID="$i" "${TMP_DIR}/__TMP__poly_${i}_FIL.json" "${TMP_DIR}/__TMP__poly_${i}.json"
+  rm "${TMP_DIR}/__TMP__poly_${i}.json"
 done
 
-consolidated_file="./__TMP__consolidated.shp"
+consolidated_file="${TMP_DIR}/__TMP__consolidated.shp"
 if [ -f "$consolidated_file" ]; then
   rm $consolidated_file
 fi
 
-for i in $(find . -name '__TMP__poly_*_FIL.json' | sort -r ); do
+for i in $(find ${TMP_DIR} -name '__TMP__poly_*_FIL.json' | sort -r ); do
   if [ ! -f "$consolidated_file" ]; then
     # echo "new "
     # first file - create the consolidated output file
@@ -32,7 +33,7 @@ for i in $(find . -name '__TMP__poly_*_FIL.json' | sort -r ); do
   fi
 done
 
-ogr2ogr "${5}" "__TMP__consolidated.shp"
+ogr2ogr "${5}" "${consolidated_file}"
 
-rm __TMP__poly_*.json
-rm __TMP__consolidated.*
+rm ${TMP_DIR}/__TMP__poly_*.json
+rm ${TMP_DIR}/__TMP__consolidated.*
