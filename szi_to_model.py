@@ -166,7 +166,7 @@ def main(arguments):
     data_shortage = False
     if (i+args.winsize) >= (len(Zi)-1):
         data_shortage = True
-        logging.warning("Just enough data! Compute unique modelle.")
+        logging.warning("Just enough data! Compute unique model.")
         p = np.polyfit(Zi[1:], S_Zi[1:], 1, rcond=None, full=False, w=None, cov=False)
 
         beta = p[0]*(median(Zi)-Zi[0])/(median(S_Zi)-S_Zi[0])
@@ -198,6 +198,8 @@ def main(arguments):
     if (median(Zi[i:i+args.winsize]) >= args.zmaxoffset+float(damelev)):
         data_shortage = True
         logging.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
+        logging.error("Maybe dam elevation estimation is not correct.")
+        logging.warning("Computing unique model with the first available S(Zi) dataset.")
         p = np.polyfit(Zi[i:i+args.winsize], S_Zi[i:i+args.winsize], 1, rcond=None, full=False, w=None, cov=False)
 
         beta = p[0]*(median(Zi[i:i+args.winsize])-Zi[0])/(median(S_Zi[i:i+args.winsize])-S_Zi[0])
