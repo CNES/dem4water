@@ -449,7 +449,7 @@ def main(arguments):
     r_x, r_y = pixel(dam.GetX(), dam.GetY(), r_ds)
 
     np_r = ext_r.GetImageAsNumpyArray('out')
-    (image_size_x, image_size_y) = np_r.shape
+    (image_size_y, image_size_x) = np_r.shape
     # Disk definition:
     (center_x, center_y) = (r_x, r_y)
     radius = 10
