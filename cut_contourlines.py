@@ -155,6 +155,10 @@ def main(arguments):
     r_elev.append(float(pdbelev))
     r_area.append(0.0)
 
+    # make sure data is sorted by elevation
+    r_elev = np.sort(r_elev)[::-1]
+    r_area = np.sort(r_area)[::-1]
+
     fig, ax = plt.subplots()
     # Trick to display in Ha
     ticks_y = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000.))
