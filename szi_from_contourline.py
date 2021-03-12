@@ -200,6 +200,7 @@ def main(arguments):
     clat_in = 0
     clon_in = 0
     dam_404 = True
+    calt_from_DB = False
     for feature in layer:
         #  logging.debug(feature.GetField("Name"))
         if (feature.GetField("Name") == args.name):
@@ -207,7 +208,11 @@ def main(arguments):
             dam_404 = False
             clat = float(feature.GetField("Lat"))
             clon = float(feature.GetField("Lon"))
-            calt = float(feature.GetField("Alt"))
+            if bool(feature.GetField("Alt")):
+                calt = float(feature.GetField("Alt"))
+                calt_from_DB = True
+            else:
+                logging.warning("Altitude for dam "+args.name+" is not present in "+args.infile+".")
             if bool(feature.GetField("Lat_in")):
                 clat_in = float(feature.GetField("Lat_in"))
                 clon_in = float(feature.GetField("Lon_in"))
@@ -221,10 +226,8 @@ def main(arguments):
 
     logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
 
-    calt_from_DB = False
-    if bool(calt):
+    if calt_from_DB is True:
         logging.info("Alt from DB: " + str(calt))
-        calt_from_DB = True
     else:
         altcmd = 'gdallocationinfo -valonly -wgs84 "'+args.dem+'" '+str(clon)+' '+str(clat)
         calt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
@@ -703,7 +706,7 @@ def main(arguments):
             break
 
     if (stop_side_1 is False) or (stop_side_2 is False):
-        logging.error("Target elevation for cutline extremities ("
+        logging.warning("Target elevation for cutline extremities ("
                       + str(targetelev) +" m) not reached! ["
                       + str(prev1alt) +" m; "
                       + str(prev2alt) +" m]")
