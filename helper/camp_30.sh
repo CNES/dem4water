@@ -24,13 +24,14 @@ echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
 cd $SRC_DIR
 
-declare -a StringArray=('Arrêt-Darré' 'Astarac' 'Gimone'    'Lac d'\''Oô'
-                        'Puydarrieux' 'Miélan'  'Portillon' 'Louet'
-                        'Cap de Long' 'Boues (Sere-Rustaing)')
+declare -a DamDict=( [17]='Arrêt-Darré'  [21]='Astarac' [200]='Gimone'    [999]='Lac d'\''Oô'
+                    [390]='Puydarrieux' [305]='Miélan'  [384]='Portillon' [269]='Louet'
+                     [86]='Cap de Long'  [62]='Boues (Sere-Rustaing)')
 
-for DAMNAME in "${StringArray[@]}"; do
 
-  DAM=${DAMNAME// /_}
+for DAMID in "${!DamDict[@]}"; do
+
+  DAM=${DamDict[$DAMID]// /_}
 
   [ -d "$EXTR_DIR/${DAM}_${RADIUS}" ] || mkdir -p "$EXTR_DIR/${DAM}_${RADIUS}"
   [ -d "$ROOT_DIR/${DAM}_${RADIUS}/tmp" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/tmp"
@@ -42,7 +43,7 @@ for DAMNAME in "${StringArray[@]}"; do
   else
     # python3 area_mapping.py \
     python3 area_mapping.py --debug \
-      --name     "${DAMNAME}" \
+      --id       "${DAMID}" \
       --infile   "${DB_PATH}" \
       --watermap "${WMAP_PATH}" \
       --dem      "${DEM_PATH}" \
@@ -53,7 +54,7 @@ for DAMNAME in "${StringArray[@]}"; do
 
   # python3 szi_from_contourline.py \
   python3 szi_from_contourline.py --debug \
-    --name         "${DAMNAME}" \
+    --id           "${DAMID}" \
     --infile       "${DB_PATH}" \
     --watermap     "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
     --dem          "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
@@ -75,7 +76,7 @@ for DAMNAME in "${StringArray[@]}"; do
 
   # python3 cut_contourlines.py \
   python3 cut_contourlines.py --debug \
-    --name     "${DAMNAME}" \
+    --id       "${DAMID}" \
     --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
     --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
     --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
