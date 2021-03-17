@@ -76,7 +76,6 @@ for DAMID in "${!DamDict[@]}"; do
 
   # python3 cut_contourlines.py \
   python3 cut_contourlines.py --debug \
-    --id       "${DAMID}" \
     --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
     --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
     --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \

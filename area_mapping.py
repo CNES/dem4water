@@ -31,9 +31,8 @@ def main(arguments):
     parser.add_argument('-i',
                         '--infile',
                         help="Input file")
-    parser.add_argument('-n',
-                        '--name',
-                        help="Dam Name")
+    parser.add_argument('--id',
+                        help="Dam ID")
     parser.add_argument('-w',
                         '--watermap',
                         help="Input water map file")
@@ -62,20 +61,21 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting area_mapping.py")
 
-    dam_path = args.name.replace(" ", "_")
-
     driver = ogr.GetDriverByName("GeoJSON")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
 
     clat = 0
     clon = 0
+    dam_name = ""
+    dam_path = ""
     dam_404 = True
     for feature in layer:
-        #  logging.debug(feature.GetField("Name"))
-        if (feature.GetField("Name") == args.name):
-            logging.debug(feature.GetField("Name"))
+        if (str(feature.GetField("ID")) == str(args.id)):
             dam_404 = False
+            logging.debug(feature.GetField("Name"))
+            dam_name = feature.GetField("Name")
+            dam_path = dam_name.replace(" ", "_")
             clat = float(feature.GetField("Lat"))
             clon = float(feature.GetField("Lon"))
             logging.debug("Alt from DB: " + str(feature.GetField("Alt")))
@@ -83,10 +83,10 @@ def main(arguments):
     layer.ResetReading()
 
     if dam_404 is True:
-        logging.error("404 - Dam Not Found: "+args.name+" is not present in "+args.infile)
+        logging.error("404 - Dam Not Found: "+str(args.id)+" is not present in "+args.infile)
 
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
-    logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
+    logging.info("Currently processing: "+ dam_name +"(ID:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
 
     src = osr.SpatialReference();

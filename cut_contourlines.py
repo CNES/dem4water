@@ -47,9 +47,6 @@ def main(arguments):
     parser.add_argument('-d',
                         '--dem',
                         help="Input DEM")
-    parser.add_argument('-n',
-                        '--name',
-                        help="Dam Name")
     parser.add_argument('-t',
                         '--tmp',
                         help="Temporary directory")

@@ -84,9 +84,8 @@ def main(arguments):
     parser.add_argument('-i',
                         '--infile',
                         help="Input file")
-    parser.add_argument('-n',
-                        '--name',
-                        help="Dam Name")
+    parser.add_argument('--id',
+                        help="Dam ID")
     parser.add_argument('-w',
                         '--watermap',
                         help="Input water map file")
@@ -147,8 +146,6 @@ def main(arguments):
     # Silence Mathplotlib related debug messages (font matching)
     logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
-    dam_path = args.name.replace(" ", "_")
-
     # Init global srs:
     geo = osr.SpatialReference();
     geo.ImportFromEPSG(4326)
@@ -158,6 +155,44 @@ def main(arguments):
 
     geotocarto = osr.CoordinateTransformation(geo, carto);
     cartotogeo = osr.CoordinateTransformation(carto, geo)
+
+    # Start processing by qualifying the Dam
+    driver = ogr.GetDriverByName("GeoJSON")
+    dataSource = driver.Open(args.infile, 0)
+    layer = dataSource.GetLayer()
+
+    clat = 0
+    clon = 0
+    calt = 0
+    clat_in = 0
+    clon_in = 0
+    dam_name = ""
+    dam_path = ""
+    dam_404 = True
+    calt_from_DB = False
+    for feature in layer:
+        if (str(feature.GetField("ID")) == str(args.id)):
+            dam_404 = False
+            logging.debug(feature.GetField("Name"))
+            dam_name = feature.GetField("Name")
+            dam_path = dam_name.replace(" ", "_")
+            clat = float(feature.GetField("Lat"))
+            clon = float(feature.GetField("Lon"))
+            if bool(feature.GetField("Alt")):
+                calt = float(feature.GetField("Alt"))
+                calt_from_DB = True
+            else:
+                logging.warning("Altitude for dam "+ dam_name +"(ID:"+str(args.id)+") is not present in "+args.infile+".")
+            if bool(feature.GetField("Lat_in")):
+                clat_in = float(feature.GetField("Lat_in"))
+                clon_in = float(feature.GetField("Lon_in"))
+            else:
+                logging.error("Point inside water body for dam "+ dam_name +"(ID:"+str(args.id)+") is not present in "+args.infile+". Can not process.")
+            break
+    layer.ResetReading()
+
+    if dam_404 is True:
+        logging.error("404 - Dam Not Found: "+ dam_name +"(ID:"+str(args.id)+") is not present in "+args.infile)
 
     # Init output vector data files:
     drv = ogr.GetDriverByName( 'GeoJSON' )
@@ -189,42 +224,7 @@ def main(arguments):
     dbg_field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
     dbg_layer.CreateField( dbg_field_defn )
 
-    # Start processing by qualifying the Dam
-    driver = ogr.GetDriverByName("GeoJSON")
-    dataSource = driver.Open(args.infile, 0)
-    layer = dataSource.GetLayer()
-
-    clat = 0
-    clon = 0
-    calt = 0
-    clat_in = 0
-    clon_in = 0
-    dam_404 = True
-    calt_from_DB = False
-    for feature in layer:
-        #  logging.debug(feature.GetField("Name"))
-        if (feature.GetField("Name") == args.name):
-            logging.debug(feature.GetField("Name"))
-            dam_404 = False
-            clat = float(feature.GetField("Lat"))
-            clon = float(feature.GetField("Lon"))
-            if bool(feature.GetField("Alt")):
-                calt = float(feature.GetField("Alt"))
-                calt_from_DB = True
-            else:
-                logging.warning("Altitude for dam "+args.name+" is not present in "+args.infile+".")
-            if bool(feature.GetField("Lat_in")):
-                clat_in = float(feature.GetField("Lat_in"))
-                clon_in = float(feature.GetField("Lon_in"))
-            else:
-                logging.error("Point inside water body for dam "+args.name+" is not present in "+args.infile+". Can not process.")
-            break
-    layer.ResetReading()
-
-    if dam_404 is True:
-        logging.error("404 - Dam Not Found: "+args.name+" is not present in "+args.infile)
-
-    logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
+    logging.info("Currently processing: "+ dam_name +"(id:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) +"]")
 
     if calt_from_DB is True:
         logging.info("Alt from DB: " + str(calt))
@@ -233,7 +233,7 @@ def main(arguments):
         calt = float(os.popen('gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)).read())
         logging.info("Alt from DEM: " + str(calt))
 
-    logging.info("Currently processing: "+ args.name +" [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
+    logging.info("Currently processing: "+ dam_name +"(id:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
     dam = ogr.Geometry(ogr.wkbPoint)
     dam.AddPoint(clat, clon)
@@ -363,7 +363,7 @@ def main(arguments):
     logging.debug("Coordinates (pixel): " + str(pX)+" - "+str(pY))
     logging.debug("Coordinates (carto): " + str(posX)+" - "+str(posY))
     logging.debug("Coordinates (latlon): " + str(pdb.GetX())+" - "+str(pdb.GetY()))
-    logging.info("PDB detected: "+ args.name +" [pdbLat: "+ str(pdblat) +", pdbLon: "+ str(pdblon) +", pdbAlt: "+ str(pdbalt) +"]")
+    logging.info("PDB detected: "+ dam_name +"(id:"+str(args.id)+") [pdbLat: "+ str(pdblat) +", pdbLon: "+ str(pdblon) +", pdbAlt: "+ str(pdbalt) +"]")
 
     wkt = "POINT ( %f %f )" % ( float(posX), float(posY) )
     feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
