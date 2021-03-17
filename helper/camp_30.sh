@@ -11,7 +11,7 @@ SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="${SRC_DIR}/data/DB_v5_KL.geojson"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
-ROOT_DIR="/home/ad/briciera/scratch/HSV/camp_20210310"
+ROOT_DIR=${2:-"/home/ad/briciera/scratch/HSV/camp_20210315"}
 EXTR_DIR="/home/ad/briciera/scratch/HSV/Extracts"
 RADIUS=${1:-10000}
 

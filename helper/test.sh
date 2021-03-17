@@ -65,7 +65,7 @@ python3 szi_from_contourline.py \
   --pdbstep    5 \
   --pdbradius  500 \
   --elevoffset 60 \
-  --elevsampling 1 \
+  --elevsampling 5 \
   --tmp        "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out        "$ROOT_DIR/${DAM}_${RADIUS}" \
   --debug
@@ -81,7 +81,7 @@ python3 cut_contourlines.py --debug \
   --dem       "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
   --info      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
   --cut       "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
-  --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
+  --level     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@5m.json" \
   --out       "$ROOT_DIR/${DAM}_${RADIUS}"
 
 python3 szi_to_model.py \

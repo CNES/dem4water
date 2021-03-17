@@ -3,8 +3,9 @@
 #PBS -l select=1:ncpus=12:mem=32000mb
 #PBS -l walltime=10:00:00
 
+DATE="20210311"
 
 cd /home/ad/briciera/dem4water/dem4water
-time helper/camp.sh 2>&1 | tee full.log
-time helper/camp_30.sh 2>&1 | tee full_30.log
-./helper/pkg_results.sh ~/scratch/HSV/camp_20210217 ~/scratch/HSV/export_20210310
+time helper/camp.sh 10000 "/home/ad/briciera/scratch/HSV/camp_${DATE}" 2>&1 | tee full.log
+time helper/camp_30.sh 10000 "/home/ad/briciera/scratch/HSV/camp_${DATE}" 2>&1 | tee full_30.log
+./helper/pkg_results.sh ~/scratch/HSV/camp_${DATE} ~/scratch/HSV/export_${DATE}
