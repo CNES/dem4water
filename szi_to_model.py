@@ -303,27 +303,63 @@ def main(arguments):
     if args.maemode == 'first':
         logging.debug("Reanalizing local mae to find the first local minimum.")
         logging.debug("len(l_mae): "+str(len(l_mae)))
-        if len(l_i) > 5:
-            x = range(0, len(l_i)-1)
-            logging.debug(x)
-            for j in x[2:-2]:
-                if (l_mae[j] < l_mae[j-2] and
-                    l_mae[j] < l_mae[j-1] and
-                    l_mae[j] < l_mae[j+1] and
-                    l_mae[j] < l_mae[j+2]):
-                    found_first = True
-                    logging.debug("First local minimum found at "+ str(l_z[j])
-                                  +" (i= "+str(l_i[j])+").")
-                    best_i = l_i[j]
-                    best_P = l_P[j]
-                    best = l_mae[j]
-                    best_beta = l_beta[j]
-                    best_alpha = l_alpha[j]
-                    logging.debug("i: "+ str(best_i)
-                                  +" - alpha= " +str(best_alpha)
-                                  +" - beta= "  +str(best_beta)
-                                  +" - mae= " +str(best))
-                    break
+        if len(l_i) > 4:
+            if (l_mae[0] < l_mae[1] and
+                l_mae[0] < l_mae[2]):
+
+                found_first = True
+                logging.debug("First local minimum found at "+ str(l_z[0])
+                              +" (i= "+str(l_i[0])+").")
+                best_i = l_i[0]
+                best_P = l_P[0]
+                best = l_mae[0]
+                best_beta = l_beta[0]
+                best_alpha = l_alpha[0]
+                logging.debug("i: "+ str(best_i)
+                              +" - alpha= " +str(best_alpha)
+                              +" - beta= "  +str(best_beta)
+                              +" - mae= " +str(best))
+
+            elif (l_mae[1] < l_mae[0] and
+                  l_mae[1] < l_mae[2] and
+                  l_mae[1] < l_mae[3]):
+
+                found_first = True
+                logging.debug("First local minimum found at "+ str(l_z[1])
+                              +" (i= "+str(l_i[1])+").")
+                best_i = l_i[1]
+                best_P = l_P[1]
+                best = l_mae[1]
+                best_beta = l_beta[1]
+                best_alpha = l_alpha[1]
+                logging.debug("i: "+ str(best_i)
+                              +" - alpha= " +str(best_alpha)
+                              +" - beta= "  +str(best_beta)
+                              +" - mae= " +str(best))
+
+            else:
+                x = range(0, len(l_i)-1)
+                logging.debug(x)
+                for j in x[2:-2]:
+                    if (l_mae[j] < l_mae[j-2] and
+                        l_mae[j] < l_mae[j-1] and
+                        l_mae[j] < l_mae[j+1] and
+                        l_mae[j] < l_mae[j+2]):
+
+                        found_first = True
+                        logging.debug("First local minimum found at "+ str(l_z[j])
+                                      +" (i= "+str(l_i[j])+").")
+                        best_i = l_i[j]
+                        best_P = l_P[j]
+                        best = l_mae[j]
+                        best_beta = l_beta[j]
+                        best_alpha = l_alpha[j]
+                        logging.debug("i: "+ str(best_i)
+                                      +" - alpha= " +str(best_alpha)
+                                      +" - beta= "  +str(best_beta)
+                                      +" - mae= " +str(best))
+                        break
+
             if found_first is False:
                 logging.info("Reanalizing local mae to find the first local minimum --> FAILLED.")
         else:
