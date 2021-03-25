@@ -464,7 +464,7 @@ def main(arguments):
     # Plot Local MAE
     ms_fig = plt.figure(dpi=300)
     ms_fig.subplots_adjust(hspace=0)
-    ms_gs = ms_fig.add_gridspec( 2, 1, height_ratios=[1, 1])
+    ms_gs = ms_fig.add_gridspec( 3, 1, height_ratios=[1, 1, 1])
 
     maeax = plt.subplot(ms_gs[0])
     #  maefig, maeax = plt.subplots()
@@ -519,6 +519,25 @@ def main(arguments):
     plt.minorticks_on()
     #  plt.title(damname+": Local Slope")
     #  plt.legend(prop={'size': 6})
+    dslpax = plt.subplot(ms_gs[2])
+    ds = np.diff(l_slope) / np.diff(l_z)
+    dz = (np.array(l_z)[:-1] + np.array(l_z)[1:]) / 2
+    print(ds)
+    print(dz)
+    dslpax.plot(dz, ds,
+               marker='.',
+               color='blue',
+               label='dSlope')
+    dslpax.grid(b=True, which='major', linestyle='-')
+    dslpax.grid(b=False, which='minor', linestyle='--')
+    dslpax.set(xlabel='Virtual Water Surface Elevation (m)',
+              ylabel='Local Slope Derivative')
+    dslpax.set_xlim(z[0], z[-1]+10)
+    #  slpax.set_yscale('log')
+    # Trick to display in Ha
+    dslpax.yaxis.set_major_formatter(ticks_m2)
+    plt.minorticks_on()
+
     if (args.debug is True):
         plt.savefig(os.path.splitext(args.outfile)[0]+"_slope.png", dpi=300)
 
