@@ -57,11 +57,14 @@ def main(arguments):
                         type=int,
                         default=10,
                         help="Elevation offset from dam elevation used for starting optimal model search")
-    list_of_mode = ["absolute", "first"]
+    list_of_mode = ["absolute", "first", "hybrid"]
     parser.add_argument('-m',
                         '--maemode',
                         default='absolute',
                         choices=list_of_mode)
+    parser.add_argument('--dslopethresh',
+                        default=1000,
+                        help="Threshold used to identify slope breaks in hybrid model selection")
     parser.add_argument('-o',
                         '--outfile',
                         help="Output file")
@@ -291,10 +294,11 @@ def main(arguments):
     abs_beta = best_beta
     abs_alpha = best_alpha
 
-    #  logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
-                 #  + " (Computed on the range ["
-                 #  + str(Zi[best_i])+ "; "+ str(Zi[best_i+args.winsize]) +"])"
-                 #  +" (i= "+str(l_i[best_i])+").")
+    logging.debug("Best Abs")
+    logging.debug("i: "+ str(best_i)
+                  +" - alpha= " +str(best_alpha)
+                  +" - beta= "  +str(best_beta)
+                  +" - mae= " +str(best))
     logging.info(damname
                  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
                  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
@@ -395,6 +399,74 @@ def main(arguments):
         #  if found_first is False:
         #      logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
 
+    elif args.maemode == 'hybrid' and data_shortage is False:
+        # first find absolute min at z > damelev > damelev+offset
+        logging.debug("Reanalizing local mae to find the optimal local minimum.")
+        best=-10000
+        x = range(0, len(l_i)-1)
+        for j in x:
+            #  logging.debug("j: "+ str(j)
+                          #  +" - l_z[j]: "+ str(l_z[j]))
+            if (l_z[j] <= args.zmaxoffset+float(damelev) and
+                l_z[j] >= float(damelev) and
+                ((best == -10000) or (l_mae[j] < best))):
+
+                best_j = j
+                best_z = l_z[j]
+                best_i = l_i[j]
+                best_P = l_P[j]
+                best = l_mae[j]
+                best_beta = l_beta[j]
+                best_alpha = l_alpha[j]
+
+                logging.debug("j: "+ str(best_j)
+                              +" - alpha= " +str(best_alpha)
+                              +" - beta= "  +str(best_beta)
+                              +" - mae= " +str(best)
+                              +"@" +str(best_z)+"m")
+
+        logging.info("Hybrid pass #1 => i: "+ str(best_i)
+                      +" - alpha= " +str(best_alpha)
+                      +" - beta= "  +str(best_beta)
+                      +" - mae= " +str(best)
+                      +"@" +str(best_z)+"m")
+
+        # then refine with a local lmae minima for smaller Zs
+        # and until the slope "breaks"
+        x = range(0, best_j-1)
+        ds = np.diff(l_slope) / np.diff(l_z)
+        for k in x[::-1]:
+            if (l_z[k] >= float(damelev)-args.zminoffset and
+                    abs(ds[k]) < args.dslopethresh): # and
+                #  (l_mae[k] < best)):
+                logging.debug("k: %s - lmae[k]: %s - l_z[k]: %s - ds[k]: %s",
+                              str(k),
+                              str(l_mae[k]),
+                              str(l_z[k]),
+                              str(ds[k]))
+                best_z = l_z[k]
+                best_i = l_i[k]
+                best_P = l_P[k]
+                best = l_mae[k]
+                best_beta = l_beta[k]
+                best_alpha = l_alpha[k]
+
+        logging.info("Hybrid pass #2 => i: "+ str(best_i)
+                      +" - alpha= " +str(best_alpha)
+                      +" - beta= "  +str(best_beta)
+                      +" - mae= " +str(best)
+                      +"@" +str(best_z)+"m")
+
+        logging.info("Model updated using hybrid optimal model selection.")
+        logging.info('alpha= ' +str(best_alpha)+ " - beta= " +str(best_beta)
+                     + " (Computed on the range ["
+                     + str(Zi[best_i])+ "; "+ str(Zi[best_i+args.winsize]) +"])"
+                     +" (i= "+str(best_i)+").")
+        logging.info(damname
+                     +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
+                     +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'))
+
+
 
     if found_first is True:
         logging.info("Model updated using first LMAE minimum.")
@@ -478,9 +550,13 @@ def main(arguments):
                linestyle='dashed',
                label='MAE')
     maeax.plot(median(Zi[best_i:best_i+args.winsize]), best,
-               'p',
-               color='#ff7f0e',
-               label='min(MAE)')
+                'p',
+                color='#ff7f0e',
+                label='Selected min(MAE)')
+    maeax.plot(median(Zi[abs_i:abs_i+args.winsize]), abs_mae,
+                '+',
+                color='black',
+                label='Absolute min(MAE)')
     maeax.grid(b=True, which='major', linestyle='-')
     maeax.grid(b=False, which='minor', linestyle='--')
     maeax.set(xlabel='Virtual Water Surface Elevation (m)',
@@ -515,15 +591,13 @@ def main(arguments):
     slpax.set_xlim(z[0], z[-1]+10)
     #  slpax.set_yscale('log')
     # Trick to display in Ha
-    slpax.yaxis.set_major_formatter(ticks_m2)
+    #  slpax.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
     #  plt.title(damname+": Local Slope")
     #  plt.legend(prop={'size': 6})
     dslpax = plt.subplot(ms_gs[2])
     ds = np.diff(l_slope) / np.diff(l_z)
     dz = (np.array(l_z)[:-1] + np.array(l_z)[1:]) / 2
-    print(ds)
-    print(dz)
     dslpax.plot(dz, ds,
                marker='.',
                color='blue',
@@ -535,7 +609,7 @@ def main(arguments):
     dslpax.set_xlim(z[0], z[-1]+10)
     #  slpax.set_yscale('log')
     # Trick to display in Ha
-    dslpax.yaxis.set_major_formatter(ticks_m2)
+    #  dslpax.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
 
     if (args.debug is True):
@@ -599,7 +673,7 @@ def main(arguments):
     maeax1.plot(median(Zi[best_i:best_i+args.winsize]), best,
                 'p',
                 color='#ff7f0e',
-                label='min(MAE)')
+                label='Selected MAE')
     maeax1.plot(median(Zi[abs_i:abs_i+args.winsize]), abs_mae,
                 '+',
                 color='black',
