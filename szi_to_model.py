@@ -450,6 +450,8 @@ def main(arguments):
                 best = l_mae[k]
                 best_beta = l_beta[k]
                 best_alpha = l_alpha[k]
+            else:
+                break
 
         logging.info("Hybrid pass #2 => i: "+ str(best_i)
                       +" - alpha= " +str(best_alpha)
@@ -584,6 +586,10 @@ def main(arguments):
                color='purple',
                linestyle='dashed',
                label='Slope')
+    slpax.plot(median(Zi[best_i:best_i+args.winsize]), best_P[0],
+                'p',
+                color='#ff7f0e',
+                label='Selected min(MAE)')
     slpax.grid(b=True, which='major', linestyle='-')
     slpax.grid(b=False, which='minor', linestyle='--')
     slpax.set(xlabel='Virtual Water Surface Elevation (m)',
@@ -598,6 +604,10 @@ def main(arguments):
     dslpax = plt.subplot(ms_gs[2])
     ds = np.diff(l_slope) / np.diff(l_z)
     dz = (np.array(l_z)[:-1] + np.array(l_z)[1:]) / 2
+    dslpax.axvline(x=float(damelev),
+                   ls='--', lw=1,
+                   color='teal',
+                   label='Dam elevation')
     dslpax.plot(dz, ds,
                marker='.',
                color='blue',
