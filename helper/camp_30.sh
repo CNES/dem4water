@@ -93,4 +93,10 @@ for DAMID in "${!DamDict[@]}"; do
     --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
     2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
 
+  python3 val_report.py --debug \
+    -i "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.json" \
+    -r "${GT_PATH}" \
+    -o "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_report.json" \
+    2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/val_report.log"
+
 done

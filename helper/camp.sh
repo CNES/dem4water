@@ -9,6 +9,7 @@
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="${SRC_DIR}/data/DB_v5_KL.geojson"
+GT_PATH="${SRC_DIR}/data/validation_DB.json"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap.vrt"
 ROOT_DIR=${2:-"/home/ad/briciera/scratch/HSV/camp_20210315"}
@@ -96,5 +97,11 @@ for DAMID in "${!DamDict[@]}"; do
     --maemode    "first" \
     --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png" \
     2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/szi_to_model.log"
+
+  python3 val_report.py --debug \
+    -i "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.json" \
+    -r "${GT_PATH}" \
+    -o "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_report.json" \
+    2>&1 | tee   "$ROOT_DIR/${DAM}_${RADIUS}/log/val_report.log"
 
 done
