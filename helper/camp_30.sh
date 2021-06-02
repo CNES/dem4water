@@ -9,6 +9,7 @@
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
 DB_PATH="${SRC_DIR}/data/DB_v5_KL.geojson"
+GT_PATH="${SRC_DIR}/data/GroundTruth_DB.json"
 DEM_PATH="../data/dem/dem.vrt"
 WMAP_PATH="../data/wmap/wmap_30.vrt"
 ROOT_DIR=${2:-"/home/ad/briciera/scratch/HSV/camp_20210315"}
