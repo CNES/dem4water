@@ -175,6 +175,7 @@ def main(arguments):
             dam_404 = False
             logging.debug(feature.GetField("Name"))
             dam_name = feature.GetField("Name")
+            dam_id = feature.GetField("ID")
             dam_path = dam_name.replace(" ", "_")
             clat = float(feature.GetField("Lat"))
             clon = float(feature.GetField("Lon"))
@@ -202,9 +203,11 @@ def main(arguments):
     dst_layer = dst_ds.CreateLayer('', srs=carto , \
                                    geom_type=ogr.wkbPoint )
     field_defn=ogr.FieldDefn( 'name', ogr.OFTString )
+    field_defnID=ogr.FieldDefn( 'ID', ogr.OFTInteger64 )
     field_defnelev=ogr.FieldDefn( 'elev', ogr.OFTString )
     field_defndam=ogr.FieldDefn( 'damname', ogr.OFTString )
     dst_layer.CreateField( field_defn )
+    dst_layer.CreateField( field_defnID )
     dst_layer.CreateField( field_defnelev )
     dst_layer.CreateField( field_defndam )
 
@@ -372,6 +375,7 @@ def main(arguments):
     feat.SetField ( "name", "PDB" )
     feat.SetField ( "elev", str(pdbalt) )
     feat.SetField ( "damname", dam_path )
+    feat.SetField ( "ID", dam_id )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
@@ -413,6 +417,7 @@ def main(arguments):
     feat.SetField ( "name", "Dam" )
     feat.SetField ( "elev", str(bml_alt) )
     feat.SetField ( "damname", dam_path )
+    feat.SetField ( "ID", dam_id )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 
@@ -429,6 +434,7 @@ def main(arguments):
     feat.SetField ( "name", "Insider" )
     feat.SetField ( "elev", str(0.) )
     feat.SetField ( "damname", dam_path )
+    feat.SetField ( "ID", dam_id )
     dst_layer.CreateFeature( feat )
     feat.Destroy()
 

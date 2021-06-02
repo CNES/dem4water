@@ -87,6 +87,7 @@ def main(arguments):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logging_format)
     logging.info("Starting szi_to_model.py")
 
+
     # load GeoJSON file containing info
     with open(args.daminfo) as i:
         jsi = json.load(i)
@@ -96,6 +97,9 @@ def main(arguments):
             dam = shape(feature['geometry'])
             damname = feature['properties']['damname']
             damelev = feature['properties']['elev']
+            dam_id = feature['properties']['ID']
+        if feature['properties']['name'] == 'PDB':
+            pdbelev = feature['properties']['elev']
 
 
     data = np.loadtxt(args.infile)
@@ -742,6 +746,21 @@ def main(arguments):
     plt.legend(prop={'size': 6}, loc='upper left')
     plt.savefig(os.path.splitext(args.outfile)[0]+"_VS.png", dpi=300)
 
+    model_json = {
+        'ID': dam_id,
+        'Name': damname,
+        'Elevation': damelev,
+        'Model': {
+            'Z0': Zi[0],
+            'S0': S_Zi[0],
+            'V0': 0.0,
+            'alpha': best_alpha,
+            'beta': best_beta
+        }
+    }
+
+    with open(os.path.splitext(args.outfile)[0]+".json", "w") as write_file:
+        json.dump(model_json, write_file)
 
 
 if __name__ == '__main__':
