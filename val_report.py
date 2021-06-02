@@ -79,6 +79,7 @@ def main(arguments):
     ref_V0=ref_db[str(model["ID"])]["Model"]["V0"]
     ref_alpha=ref_db[str(model["ID"])]["Model"]["alpha"]
     ref_beta=ref_db[str(model["ID"])]["Model"]["beta"]
+    ref_Zmax=ref_db[str(model["ID"])]["Model"]["Zmax"]
 
     logging.info("Reference for "+damname+": S(Z) = "+format(ref_S0, '.2F')
                  +" + "+format(ref_alpha, '.3E')
@@ -90,13 +91,13 @@ def main(arguments):
     z = range(z_min, int(float(damelev)*1.1))
     z_mod = range(int(float(Z0)), int(float(damelev)*1.1))
     z_ref = range(int(float(ref_Z0)), int(float(damelev)*1.1))
-    # TODO fix damelev with ZMAX
     S_dam = S0 + alpha * math.pow((float(damelev) - Z0), beta)
     s = range(0, math.ceil(S_dam)+10000,10000)
 
     Sz_model_scatter = []
     Sz_ref_scatter = []
     s_m_max = S0 + alpha * math.pow((float(damelev) - Z0), beta)
+    # TODO fix damelev with ZMAX when available
     s_r_max = ref_S0 + ref_alpha * math.pow((float(damelev) - ref_Z0), ref_beta)
     for h in z:
         s_m = S0 + alpha * math.pow((h - Z0), beta)
@@ -117,14 +118,16 @@ def main(arguments):
         v_m = V0 + math.pow(((a-S0)/alpha), 1/beta) * (S0 + ((a-S0) / (beta + 1.)))
         Vs_model_scatter.append(v_m)
         Tx_model_scatter.append(v_m/v_m_max)
-        s_m_norm.append(a/v_m_max)
+        s_m_norm.append(a/s_m_max)
 
         #  v_r = ref_V0 + math.pow(((a*10000-ref_S0*10000)/ref_alpha), 1/ref_beta) * (ref_S0*10000 + ((a*10000-ref_S0*10000) / (ref_beta + 1.)))
         v_r = ref_V0 + math.pow(((a/10000-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((a/10000-ref_S0) / (ref_beta + 1.)))
         Vs_ref_scatter.append(v_r*10000)
         Tx_ref_scatter.append(v_r/v_r_max)
-        s_r_norm.append(a/(v_r_max*10000))
+        s_r_norm.append(a/(s_r_max*10000))
 
+    print(damelev)
+    print(ref_Zmax)
     print(s_m_max)
     print(s_r_max*10000)
     print(v_m_max)
@@ -162,6 +165,14 @@ def main(arguments):
     Sz_comp.plot(z, Sz_model_scatter,
             'g-',
             label='S(z)_model')
+    Sz_comp.axvline(x=float(ref_Zmax),
+                    ls=':', lw=2,
+                    color='red',
+                    label='Reference Max Dam Z')
+    Sz_comp.axvline(x=float(damelev),
+                    ls=':', lw=2,
+                    color='green',
+                    label='Model Max Dam Z')
     Sz_comp.grid(b=True, which='major', linestyle='-')
     Sz_comp.grid(b=False, which='minor', linestyle='--')
     Sz_comp.set(xlabel='z (m)',
@@ -202,6 +213,14 @@ def main(arguments):
     Vs_comp.plot(s, Vs_model_scatter,
             'g-',
             label='V(S)_model')
+    Vs_comp.axvline(x=s_r_max*10000,
+                    ls=':', lw=2,
+                    color='red',
+                    label='Reference Max S')
+    Vs_comp.axvline(x=s_m_max,
+                    ls=':', lw=2,
+                    color='green',
+                    label='Model Max Dam S')
     Vs_comp.grid(b=True, which='major', linestyle='-')
     Vs_comp.grid(b=False, which='minor', linestyle='--')
     Vs_comp.set(xlabel='S(m2)',
@@ -244,7 +263,7 @@ def main(arguments):
             label='Tx_model')
     Tx_comp.grid(b=True, which='major', linestyle='-')
     Tx_comp.grid(b=False, which='minor', linestyle='--')
-    Tx_comp.set(xlabel='S(m2)',
+    Tx_comp.set(xlabel='S/Smax (%)',
            ylabel='Tx (%)')
     # Trick to display in Ha
     #  Vs_comp.xaxis.set_major_formatter(ticks_m2)
