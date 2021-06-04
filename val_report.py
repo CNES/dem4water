@@ -75,8 +75,8 @@ def main(arguments):
                  +" ) ^ "+ format(beta, '.3E'))
 
     ref_Z0=ref_db[str(model["ID"])]["Model"]["Z0"]
-    ref_S0=ref_db[str(model["ID"])]["Model"]["S0"]
-    ref_V0=ref_db[str(model["ID"])]["Model"]["V0"]
+    ref_S0=ref_db[str(model["ID"])]["Model"]["S0"]  # original values in Ha in DB
+    ref_V0=ref_db[str(model["ID"])]["Model"]["V0"]  # original values in Hm3 in DB
     ref_alpha=ref_db[str(model["ID"])]["Model"]["alpha"]
     ref_beta=ref_db[str(model["ID"])]["Model"]["beta"]
     ref_Zmax=ref_db[str(model["ID"])]["Model"]["Zmax"]
@@ -86,52 +86,54 @@ def main(arguments):
                  +" * ( Z - "+format(ref_Z0, '.2F')
                  +" ) ^ "+ format(ref_beta, '.3E'))
 
+    print(damelev)
+    print(ref_Zmax)
+
     # Figures:
     z_min = max(int(float(Z0)), int(float(ref_Z0)))
     z = range(z_min, int(float(damelev)*1.1))
     z_mod = range(int(float(Z0)), int(float(damelev)*1.1))
-    z_ref = range(int(float(ref_Z0)), int(float(damelev)*1.1))
-    S_dam = S0 + alpha * math.pow((float(damelev) - Z0), beta)
-    s = range(0, math.ceil(S_dam)+10000,10000)
+    #  z_ref = range(int(float(ref_Z0)), int(float(damelev)*1.1))
+    #  s_m_Zmax = S0 + alpha * math.pow((float(damelev) - Z0), beta)
+    s_m_Zmax = S0 + alpha * math.pow((float(ref_Zmax) - Z0), beta)
+    s_r_Zmax_ha = ref_S0 + ref_alpha * math.pow((float(ref_Zmax) - ref_Z0), ref_beta)
+    s_r_Zmax_m2 = 10000 * s_r_Zmax_ha
+    s = range(0, math.ceil(s_r_Zmax_m2)+10000,10000)
 
     Sz_model_scatter = []
     Sz_ref_scatter = []
-    s_m_max = S0 + alpha * math.pow((float(damelev) - Z0), beta)
-    # TODO fix damelev with ZMAX when available
-    s_r_max = ref_S0 + ref_alpha * math.pow((float(damelev) - ref_Z0), ref_beta)
     for h in z:
         s_m = S0 + alpha * math.pow((h - Z0), beta)
         Sz_model_scatter.append(s_m)
 
         s_r = ref_S0 + ref_alpha * math.pow((h - ref_Z0), ref_beta)
-        Sz_ref_scatter.append(s_r*10000)
+        Sz_ref_scatter.append(s_r*10000)   # To m2
+
+    print(s_m_Zmax)
+    print(s_r_Zmax_m2)
 
     Vs_model_scatter = []
     Vs_ref_scatter = []
-    v_m_max = V0 + math.pow(((s_m_max-S0)/alpha), 1/beta) * (S0 + ((s_m_max-S0) / (beta + 1.)))
-    v_r_max = ref_V0 + math.pow(((s_r_max-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((s_r_max-ref_S0) / (ref_beta + 1.)))
+    v_m_Zmax = V0 + math.pow(((s_r_Zmax_m2-S0)/alpha), 1/beta) * (S0 + ((s_r_Zmax_m2-S0) / (beta + 1.)))
+    v_r_Zmax = ref_V0 + math.pow(((s_r_Zmax_ha-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((s_r_Zmax_ha-ref_S0) / (ref_beta + 1.)))
     Tx_model_scatter = []
     Tx_ref_scatter = []
-    s_m_norm = []
-    s_r_norm = []
+    #  s_m_norm = []
+    #  s_r_norm = []
     for a in s:
         v_m = V0 + math.pow(((a-S0)/alpha), 1/beta) * (S0 + ((a-S0) / (beta + 1.)))
         Vs_model_scatter.append(v_m)
-        Tx_model_scatter.append(v_m/v_m_max)
-        s_m_norm.append(a/s_m_max)
+        Tx_model_scatter.append(v_m/v_m_Zmax)
+        #  s_m_norm.append(a/s_m_max)
 
         #  v_r = ref_V0 + math.pow(((a*10000-ref_S0*10000)/ref_alpha), 1/ref_beta) * (ref_S0*10000 + ((a*10000-ref_S0*10000) / (ref_beta + 1.)))
         v_r = ref_V0 + math.pow(((a/10000-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((a/10000-ref_S0) / (ref_beta + 1.)))
         Vs_ref_scatter.append(v_r*10000)
-        Tx_ref_scatter.append(v_r/v_r_max)
-        s_r_norm.append(a/(s_r_max*10000))
+        Tx_ref_scatter.append(v_r/v_r_Zmax)
+        #  s_r_norm.append(a/(s_r_max*10000))
 
-    print(damelev)
-    print(ref_Zmax)
-    print(s_m_max)
-    print(s_r_max*10000)
-    print(v_m_max)
-    print(v_r_max*10000)
+    print(v_m_Zmax)
+    print(v_r_Zmax*10000)
     #  print(s)
     #  print(Vs_model_scatter)
     #  print(Vs_ref_scatter)
@@ -150,8 +152,9 @@ def main(arguments):
                label='S(z)_model = f(S(z)_reference)')
     Sz.grid(b=True, which='major', linestyle='-')
     Sz.grid(b=False, which='minor', linestyle='--')
-    Sz.set(xlabel='S(z)_reference (ha)',
-           ylabel='S(z)_model (ha)')
+    Sz.set_xlabel('S(z)_reference (ha)', fontsize=6)
+    Sz.set_ylabel('S(z)_model (ha)', fontsize=6)
+    Sz.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in Ha
     Sz.xaxis.set_major_formatter(ticks_m2)
     Sz.yaxis.set_major_formatter(ticks_m2)
@@ -175,8 +178,9 @@ def main(arguments):
                     label='Model Max Dam Z')
     Sz_comp.grid(b=True, which='major', linestyle='-')
     Sz_comp.grid(b=False, which='minor', linestyle='--')
-    Sz_comp.set(xlabel='z (m)',
-                ylabel='S(z) (ha)')
+    Sz_comp.set_xlabel('z (m)', fontsize=6)
+    Sz_comp.set_ylabel('S(z) (ha)', fontsize=6)
+    Sz_comp.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in Ha
     Sz_comp.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
@@ -198,11 +202,12 @@ def main(arguments):
                label='V(S)_model = f(V(S)_reference)')
     Vs.grid(b=True, which='major', linestyle='-')
     Vs.grid(b=False, which='minor', linestyle='--')
-    Vs.set(xlabel='V(S)_reference (hm3) ',
-           ylabel='V(S)_model (hm3)')
+    Vs.set_xlabel('V(S)_reference (hm3)', fontsize=6)
+    Vs.set_ylabel('V(S)_model (hm3)', fontsize=6)
+    Vs.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in hm3
-    #  Sz.xaxis.set_major_formatter(ticks_m3)
-    #  Sz.yaxis.set_major_formatter(ticks_m3)
+    Vs.xaxis.set_major_formatter(ticks_m3)
+    Vs.yaxis.set_major_formatter(ticks_m3)
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
 
@@ -213,21 +218,18 @@ def main(arguments):
     Vs_comp.plot(s, Vs_model_scatter,
             'g-',
             label='V(S)_model')
-    Vs_comp.axvline(x=s_r_max*10000,
+    Vs_comp.axvline(x=s_r_Zmax_m2,
                     ls=':', lw=2,
                     color='red',
-                    label='Reference Max S')
-    Vs_comp.axvline(x=s_m_max,
-                    ls=':', lw=2,
-                    color='green',
-                    label='Model Max Dam S')
+                    label='S(Zmax_ref)')
     Vs_comp.grid(b=True, which='major', linestyle='-')
     Vs_comp.grid(b=False, which='minor', linestyle='--')
-    Vs_comp.set(xlabel='S(m2)',
-           ylabel='V(S) (hm3)')
+    Vs_comp.set_xlabel('S (ha)', fontsize=6)
+    Vs_comp.set_ylabel('V(S) (hm3)', fontsize=6)
+    Vs_comp.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in Ha
-    #  Vs_comp.xaxis.set_major_formatter(ticks_m2)
-    #  Vs_comp.yaxis.set_major_formatter(ticks_m3)
+    Vs_comp.xaxis.set_major_formatter(ticks_m2)
+    Vs_comp.yaxis.set_major_formatter(ticks_m3)
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
 
@@ -243,35 +245,38 @@ def main(arguments):
     Tx.plot(Tx_ref_scatter, Tx_ref_scatter,
             'r-')
     Tx.scatter(Tx_ref_scatter, Tx_model_scatter,
-               label='Tx_model = f(Tx_reference)')
+               label='Tx(S)_model = f(Tx(S)_reference)')
     Tx.grid(b=True, which='major', linestyle='-')
     Tx.grid(b=False, which='minor', linestyle='--')
-    Tx.set(xlabel='Tx_reference (%) ',
-           ylabel='Tx_model (%)')
-    # Trick to display in hm3
-    #  Sz.xaxis.set_major_formatter(ticks_m3)
-    #  Sz.yaxis.set_major_formatter(ticks_m3)
+    Tx.set_xlabel('Tx(S)_reference (%)', fontsize=6)
+    Tx.set_ylabel('Tx(S)_model (%)', fontsize=6)
+    Tx.tick_params(axis='both', which='major', labelsize=6)
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
 
     Tx_comp = plt.subplot(gt[1])
-    Tx_comp.plot(s_r_norm, Tx_ref_scatter,
+    Tx_comp.plot(s, Tx_ref_scatter,
             'r-',
-            label='Tx_reference')
-    Tx_comp.plot(s_m_norm, Tx_model_scatter,
+            label='Tx(S)_reference')
+    Tx_comp.plot(s, Tx_model_scatter,
             'g-',
-            label='Tx_model')
+            label='Tx(S)_model')
+    Tx_comp.axvline(x=s_r_Zmax_m2,
+                    ls=':', lw=2,
+                    color='red',
+                    label='S(Zmax_ref)')
     Tx_comp.grid(b=True, which='major', linestyle='-')
     Tx_comp.grid(b=False, which='minor', linestyle='--')
-    Tx_comp.set(xlabel='S/Smax (%)',
-           ylabel='Tx (%)')
+    Tx_comp.set_xlabel('S (ha)', fontsize=6)
+    Tx_comp.set_ylabel('Tx(S) (%)', fontsize=6)
+    Tx_comp.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in Ha
-    #  Vs_comp.xaxis.set_major_formatter(ticks_m2)
-    #  Vs_comp.yaxis.set_major_formatter(ticks_m3)
+    Tx_comp.xaxis.set_major_formatter(ticks_m2)
+    Tx_comp.set_ylim(-0.1, 1.1)
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
 
-    plt.suptitle(damname + ": Tx",
+    plt.suptitle(damname + ": Tx(S)",
                  fontsize=10)
     plt.savefig(os.path.splitext(args.outfile)[0]+"_Tx.png", dpi=300)
 
