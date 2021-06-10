@@ -17,6 +17,7 @@ import json
 import math
 import logging
 import argparse
+import statistics
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import matplotlib.gridspec as gridspec
@@ -61,6 +62,7 @@ def main(arguments):
     with open(args.reffile) as r:
         ref_db = json.load(r)
 
+    damid=model["ID"]
     damname=model["Name"]
     damelev=model["Elevation"]
     Z0=model["Model"]["Z0"]
@@ -80,6 +82,9 @@ def main(arguments):
     ref_alpha=ref_db[str(model["ID"])]["Model"]["alpha"]
     ref_beta=ref_db[str(model["ID"])]["Model"]["beta"]
     ref_Zmax=ref_db[str(model["ID"])]["Model"]["Zmax"]
+    ref_Zmin=ref_db[str(model["ID"])]["Model"]["Zmin"]
+    ref_Z25=ref_Zmin + 0.25 * (ref_Zmax - ref_Zmin)
+    ref_Z75=ref_Zmin + 0.75 * (ref_Zmax - ref_Zmin)
 
     logging.info("Reference for "+damname+": S(Z) = "+format(ref_S0, '.2F')
                  +" + "+format(ref_alpha, '.3E')
@@ -98,16 +103,33 @@ def main(arguments):
     s_m_Zmax = S0 + alpha * math.pow((float(ref_Zmax) - Z0), beta)
     s_r_Zmax_ha = ref_S0 + ref_alpha * math.pow((float(ref_Zmax) - ref_Z0), ref_beta)
     s_r_Zmax_m2 = 10000 * s_r_Zmax_ha
+    s_r_Zmin_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Zmin) - ref_Z0), ref_beta)) * 10000
+    s_r_Z25_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Z25) - ref_Z0), ref_beta)) * 10000
+    s_r_Z75_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Z75) - ref_Z0), ref_beta)) * 10000
+
     s = range(0, math.ceil(s_r_Zmax_m2)+10000,10000)
 
     Sz_model_scatter = []
     Sz_ref_scatter = []
+    Szg = []
+    Szh = []
+    Szm = []
+    Szl = []
     for h in z:
         s_m = S0 + alpha * math.pow((h - Z0), beta)
         Sz_model_scatter.append(s_m)
 
         s_r = ref_S0 + ref_alpha * math.pow((h - ref_Z0), ref_beta)
         Sz_ref_scatter.append(s_r*10000)   # To m2
+
+        if s_r != 0 and h >= ref_Zmin:
+            Szg.append((s_r*10000-s_m)/(s_r*10000))
+            if h >= ref_Z75:
+                Szh.append((s_r*10000-s_m)/(s_r*10000))
+            elif h >= ref_Z25:
+                Szm.append((s_r*10000-s_m)/(s_r*10000))
+            else:
+                Szl.append((s_r*10000-s_m)/(s_r*10000))
 
     print(s_m_Zmax)
     print(s_r_Zmax_m2)
@@ -118,6 +140,14 @@ def main(arguments):
     v_r_Zmax = ref_V0 + math.pow(((s_r_Zmax_ha-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((s_r_Zmax_ha-ref_S0) / (ref_beta + 1.)))
     Tx_model_scatter = []
     Tx_ref_scatter = []
+    Vsg = []
+    Vsh = []
+    Vsm = []
+    Vsl = []
+    Tsg = []
+    Tsh = []
+    Tsm = []
+    Tsl = []
     #  s_m_norm = []
     #  s_r_norm = []
     for a in s:
@@ -132,11 +162,22 @@ def main(arguments):
         Tx_ref_scatter.append(v_r/v_r_Zmax)
         #  s_r_norm.append(a/(s_r_max*10000))
 
+        if v_r != 0 and a >= s_r_Zmin_m2:
+            Vsg.append((v_r*10000-v_m)/(v_r*10000))
+            Tsg.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
+            if a >= s_r_Z75_m2:
+                Vsh.append((v_r*10000-v_m)/(v_r*10000))
+                Tsh.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
+            if a >= s_r_Z25_m2:
+                Vsm.append((v_r*10000-v_m)/(v_r*10000))
+                Tsm.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
+            else:
+                Vsl.append((v_r*10000-v_m)/(v_r*10000))
+                Tsl.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
+
     print(v_m_Zmax)
     print(v_r_Zmax*10000)
-    #  print(s)
-    #  print(Vs_model_scatter)
-    #  print(Vs_ref_scatter)
+
 
     ticks_m2 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000.))
     ticks_m3 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/1000000.))
@@ -279,6 +320,82 @@ def main(arguments):
     plt.suptitle(damname + ": Tx(S)",
                  fontsize=10)
     plt.savefig(os.path.splitext(args.outfile)[0]+"_Tx.png", dpi=300)
+
+
+    results_json = {
+        'ID': damid,
+        'Name': damname,
+        'Zmin': ref_Zmin,
+        'Z_25': ref_Z25,
+        'Z_75': ref_Z75,
+        'Zmax': ref_Zmax,
+        'Smin': s_r_Zmin_m2,
+        'S_25': s_r_Z25_m2,
+        'S_75': s_r_Z75_m2,
+        'Smax': s_r_Zmax_m2,
+        'S(z)_quality': {
+            'glob' : {
+                'mean' : statistics.mean(Szg),
+                'stdev' : statistics.stdev(Szg)
+            },
+            'high' : {
+                'mean' : statistics.mean(Szh),
+                'stdev' : statistics.stdev(Szh)
+            },
+            'mid' : {
+                'mean' : statistics.mean(Szm),
+                'stdev' : statistics.stdev(Szm)
+            },
+            'low' : {
+                'mean' : statistics.mean(Szl),
+                'stdev' : statistics.stdev(Szl)
+            }
+        },
+        'V(S)_quality': {
+            'glob' : {
+                'mean' : statistics.mean(Vsg),
+                'stdev' : statistics.stdev(Vsg)
+            },
+            'high' : {
+                'mean' : statistics.mean(Vsh),
+                'stdev' : statistics.stdev(Vsh)
+            },
+            'mid' : {
+                'mean' : statistics.mean(Vsm),
+                'stdev' : statistics.stdev(Vsm)
+            },
+            'low' : {
+                'mean' : statistics.mean(Vsl),
+                'stdev' : statistics.stdev(Vsl)
+            }
+        },
+        'Tx(S)_quality': {
+            'glob' : {
+                'mean' : statistics.mean(Tsg),
+                'stdev' : statistics.stdev(Tsg)
+            },
+            'high' : {
+                'mean' : statistics.mean(Tsh),
+                'stdev' : statistics.stdev(Tsh)
+            },
+            'mid' : {
+                'mean' : statistics.mean(Tsm),
+                'stdev' : statistics.stdev(Tsm)
+            },
+            'low' : {
+                'mean' : statistics.mean(Tsl),
+                'stdev' : statistics.stdev(Tsl)
+            }
+        },
+        'PDB' : {
+            'Z0_mod' : Z0,
+            'Z0_ref' : ref_Z0,
+            'Err_norm' : (Z0 - ref_Z0) / (ref_Zmax - ref_Zmin)
+        }
+    }
+
+    with open(os.path.splitext(args.outfile)[0]+".json", "w") as write_file:
+        json.dump(results_json, write_file, indent=4)
 
 
 if __name__ == '__main__':
