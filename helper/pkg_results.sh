@@ -28,8 +28,9 @@ cd ${CAMP_DIR}
 find . \
   -name    '*_daminfo.json' \
   -o -name '*_cutline.json' \
-  -o -name '*_model.json' \
   -o -name '*_vSurfaces.json' \
+  -o -name '*_model.json' \
+  -o -name '*_report.json' \
   -o -name '*.png' \
   -o -name '*.dat' \
   -o -name '*.log' \
