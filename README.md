@@ -1,5 +1,107 @@
 # dem4water
 
+## Strategy
+
+1. Area description
+
+  + Dam localization
+  + Local DEM extraction
+  + Local watermap extraction
+
+2. S(Z_i)
+
+  + Contour lines and dam cutline generation
+  + Virtual surface estimation
+
+
+3. S(Z)
+
+  + Outlier filtering
+  + Model Fitting: determine alpha, beta et Z_0
+
+## Prise en main
+
+The main script used to run the chain is [camp.sh](helper/camp.sh) that shows how the application are linked as well as how to process a dam  set. Using the script require adapting the input definition section as well as the dam list.
+The script [camp.sh](helper/camp.sh) run a whole campaign and is in charge of setting the right environment and dependencies.
+Each application embbed a documentation that can be accessed using --help.
+
+## Examples
+
+The following examples are directly extracted from [camp.sh](helper/camp.sh)
+
+### area_mapping
+
+This application extract area specific data from the input watermap and DEM.
+
+``` sh
+python3 area_mapping.py --debug \
+  --id       "${DAMID}" \
+  --infile   "${DB_PATH}" \
+  --watermap "${WMAP_PATH}" \
+  --dem      "${DEM_PATH}" \
+  --radius   "$RADIUS" \
+  --out      "$EXTR_DIR/${DAM}_${RADIUS}"
+```
+
+### szi_from_contourline
+
+This application detects the dam bottom to derive Z0 as well as the dam cut line. It also extract the contour lines from the DEM.
+
+```sh
+python3 szi_from_contourline.py --debug \
+  --id           "${DAMID}" \
+  --infile       "${DB_PATH}" \
+  --watermap     "$EXTR_DIR/${DAM}_${RADIUS}/wmap_extract-$DAM.tif" \
+  --dem          "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --radius       "$RADIUS" \
+  --pdbstep      5 \
+  --pdbradius    500 \
+  --elevsampling 1 \
+  --elevoffset   60 \
+  --tmp          "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
+  --out          "$ROOT_DIR/${DAM}_${RADIUS}"
+```
+
+### cut_contourlines
+
+Using the dam cutting line as well as the contour lines, this application estimates the virtual surfaces and the associated S(Zi).
+
+```sh
+python3 cut_contourlines.py --debug \
+  --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
+  --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+  --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
+  --level    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
+  --out      "$ROOT_DIR/${DAM}_${RADIUS}"
+```
+
+### szi_to_model
+
+This application compute the model parameters based on the best S(Zi) subset.
+
+```sh
+python3 szi_to_model.py --debug \
+  --infile     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_SZi.dat" \
+  --daminfo    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
+  --zminoffset 10 \
+  --zmaxoffset 30 \
+  --maemode    "first" \
+  --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png"
+```
+
+### val_report
+
+This application compares the estimated model to a ground truth model to evaluate its quality.
+
+```sh
+python3 val_report.py --debug \
+  -i "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.json" \
+  -r "${GT_PATH}" \
+  -o "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_report.json"
+```
+
+# dem4water [FR]
+
 ## Approche
 
 1. Caractérisation de la zone
