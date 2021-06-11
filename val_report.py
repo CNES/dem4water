@@ -303,11 +303,11 @@ def main(arguments):
     Tx.plot(Tx_ref_scatter, Tx_ref_scatter,
             'r-')
     Tx.scatter(Tx_ref_scatter, Tx_model_scatter,
-               label='Tx(S)_model = f(Tx(S)_reference)')
+               label='Vr(S)_model = f(Vr(S)_reference)')
     Tx.grid(b=True, which='major', linestyle='-')
     Tx.grid(b=False, which='minor', linestyle='--')
-    Tx.set_xlabel('Tx(S)_reference (%)', fontsize=6)
-    Tx.set_ylabel('Tx(S)_model (%)', fontsize=6)
+    Tx.set_xlabel('Vr(S)_reference (%)', fontsize=6)
+    Tx.set_ylabel('Vr(S)_model (%)', fontsize=6)
     Tx.tick_params(axis='both', which='major', labelsize=6)
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
@@ -315,10 +315,10 @@ def main(arguments):
     Tx_comp = plt.subplot(gt[1])
     Tx_comp.plot(s, Tx_ref_scatter,
             'r-',
-            label='Tx(S)_reference')
+            label='Vr(S)_reference')
     Tx_comp.plot(s, Tx_model_scatter,
             'g-',
-            label='Tx(S)_model')
+            label='Vr(S)_model')
     Tx_comp.axvline(x=s_r_Zmax_m2,
                     ls=':', lw=2,
                     color='red',
@@ -326,7 +326,7 @@ def main(arguments):
     Tx_comp.grid(b=True, which='major', linestyle='-')
     Tx_comp.grid(b=False, which='minor', linestyle='--')
     Tx_comp.set_xlabel('S (ha)', fontsize=6)
-    Tx_comp.set_ylabel('Tx(S) (%)', fontsize=6)
+    Tx_comp.set_ylabel('Vr(S) (%)', fontsize=6)
     Tx_comp.tick_params(axis='both', which='major', labelsize=6)
     # Trick to display in Ha
     Tx_comp.xaxis.set_major_formatter(ticks_m2)
@@ -334,9 +334,9 @@ def main(arguments):
     plt.minorticks_on()
     plt.legend(prop={'size': 6}, loc='upper left')
 
-    plt.suptitle(damname + ": Tx(S)",
+    plt.suptitle(damname + ": Volume Rate",
                  fontsize=10)
-    plt.savefig(os.path.splitext(args.outfile)[0]+"_Tx.png", dpi=300)
+    plt.savefig(os.path.splitext(args.outfile)[0]+"_VolumeRate.png", dpi=300)
 
 
     results_json = {
@@ -386,7 +386,7 @@ def main(arguments):
                 'stdev' : secured_stdev(Vsl)
             }
         },
-        'Tx(S)_quality': {
+        'Vr(S)_quality': {
             'glob' : {
                 'mean' : secured_mean(Tsg),
                 'stdev' : secured_stdev(Tsg)
@@ -404,10 +404,10 @@ def main(arguments):
                 'stdev' : secured_stdev(Tsl)
             }
         },
-        'PDB' : {
+        'Dam_bottom_estimation' : {
             'Z0_mod' : Z0,
             'Z0_ref' : ref_Z0,
-            'Err_norm' : (Z0 - ref_Z0) / (ref_Zmax - ref_Zmin)
+            'Dam_bottom_error' : abs(Z0 - ref_Z0)
         }
     }
 
