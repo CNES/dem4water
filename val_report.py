@@ -23,6 +23,23 @@ import matplotlib.ticker as ticker
 import matplotlib.gridspec as gridspec
 
 
+
+def secured_mean(a):
+    try:
+        result = statistics.mean(a)
+    except:
+        return 'NaN'
+
+    return result
+
+def secured_stdev(a):
+    try:
+        result = statistics.stdev(a)
+    except:
+        return 'NaN'
+
+    return result
+
 def main(arguments):
 
     parser = argparse.ArgumentParser(
@@ -335,56 +352,56 @@ def main(arguments):
         'Smax': s_r_Zmax_m2,
         'S(z)_quality': {
             'glob' : {
-                'mean' : statistics.mean(Szg),
-                'stdev' : statistics.stdev(Szg)
+                'mean' : secured_mean(Szg),
+                'stdev' : secured_stdev(Szg)
             },
             'high' : {
-                'mean' : statistics.mean(Szh),
-                'stdev' : statistics.stdev(Szh)
+                'mean' : secured_mean(Szh),
+                'stdev' : secured_stdev(Szh)
             },
             'mid' : {
-                'mean' : statistics.mean(Szm),
-                'stdev' : statistics.stdev(Szm)
+                'mean' : secured_mean(Szm),
+                'stdev' : secured_stdev(Szm)
             },
             'low' : {
-                'mean' : statistics.mean(Szl),
-                'stdev' : statistics.stdev(Szl)
+                'mean' : secured_mean(Szl),
+                'stdev' : secured_stdev(Szl)
             }
         },
         'V(S)_quality': {
             'glob' : {
-                'mean' : statistics.mean(Vsg),
-                'stdev' : statistics.stdev(Vsg)
+                'mean' : secured_mean(Vsg),
+                'stdev' : secured_stdev(Vsg)
             },
             'high' : {
-                'mean' : statistics.mean(Vsh),
-                'stdev' : statistics.stdev(Vsh)
+                'mean' : secured_mean(Vsh),
+                'stdev' : secured_stdev(Vsh)
             },
             'mid' : {
-                'mean' : statistics.mean(Vsm),
-                'stdev' : statistics.stdev(Vsm)
+                'mean' : secured_mean(Vsm),
+                'stdev' : secured_stdev(Vsm)
             },
             'low' : {
-                'mean' : statistics.mean(Vsl),
-                'stdev' : statistics.stdev(Vsl)
+                'mean' : secured_mean(Vsl),
+                'stdev' : secured_stdev(Vsl)
             }
         },
         'Tx(S)_quality': {
             'glob' : {
-                'mean' : statistics.mean(Tsg),
-                'stdev' : statistics.stdev(Tsg)
+                'mean' : secured_mean(Tsg),
+                'stdev' : secured_stdev(Tsg)
             },
             'high' : {
-                'mean' : statistics.mean(Tsh),
-                'stdev' : statistics.stdev(Tsh)
+                'mean' : secured_mean(Tsh),
+                'stdev' : secured_stdev(Tsh)
             },
             'mid' : {
-                'mean' : statistics.mean(Tsm),
-                'stdev' : statistics.stdev(Tsm)
+                'mean' : secured_mean(Tsm),
+                'stdev' : secured_stdev(Tsm)
             },
             'low' : {
-                'mean' : statistics.mean(Tsl),
-                'stdev' : statistics.stdev(Tsl)
+                'mean' : secured_mean(Tsl),
+                'stdev' : secured_stdev(Tsl)
             }
         },
         'PDB' : {
