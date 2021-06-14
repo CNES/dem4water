@@ -1,8 +1,10 @@
 # dem4water
 
-## Strategy
+## Description
 
-1. Area description
+The aim of dem4water is to estimate reservoir parametric laws relating water elevation (Z), surface area (S) and volume (V) from a digital elevation model (DEM). The estimation is divided in several steps:
+
+1. Area characterization
 
   + Dam localization
   + Local DEM extraction
@@ -19,9 +21,9 @@
   + Outlier filtering
   + Model Fitting: determine alpha, beta et Z_0
 
-## Prise en main
+## Execution
 
-The main script used to run the chain is [camp.sh](helper/camp.sh) that shows how the application are linked as well as how to process a dam  set. Using the script require adapting the input definition section as well as the dam list.
+The main script used to run the chain is [camp.sh](helper/camp.sh), gathering all steps together to process a list of dams. Using the script requires adapting the input definition section (first part of camp.sh file) as well as the dam list.
 The script [camp.sh](helper/camp.sh) run a whole campaign and is in charge of setting the right environment and dependencies.
 Each application embbed a documentation that can be accessed using --help.
 
@@ -29,7 +31,7 @@ Each application embbed a documentation that can be accessed using --help.
 
 The following examples are directly extracted from [camp.sh](helper/camp.sh)
 
-### area_mapping
+### Step 1 - area_mapping
 
 This application extract area specific data from the input watermap and DEM.
 
@@ -43,7 +45,7 @@ python3 area_mapping.py --debug \
   --out      "$EXTR_DIR/${DAM}_${RADIUS}"
 ```
 
-### szi_from_contourline
+### Step 2 - szi_from_contourline
 
 This application detects the dam bottom to derive Z0 as well as the dam cut line. It also extract the contour lines from the DEM.
 
@@ -62,7 +64,7 @@ python3 szi_from_contourline.py --debug \
   --out          "$ROOT_DIR/${DAM}_${RADIUS}"
 ```
 
-### cut_contourlines
+### Step 3 - cut_contourlines
 
 Using the dam cutting line as well as the contour lines, this application estimates the virtual surfaces and the associated S(Zi).
 
@@ -75,9 +77,9 @@ python3 cut_contourlines.py --debug \
   --out      "$ROOT_DIR/${DAM}_${RADIUS}"
 ```
 
-### szi_to_model
+### Step 4 - szi_to_model
 
-This application compute the model parameters based on the best S(Zi) subset.
+This application computes model parameters based on the best S(Zi) subset.
 
 ```sh
 python3 szi_to_model.py --debug \
@@ -89,7 +91,7 @@ python3 szi_to_model.py --debug \
   --outfile    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_model.png"
 ```
 
-### val_report
+### Step 5 - val_report
 
 This application compares the estimated model to a ground truth model to evaluate its quality.
 
