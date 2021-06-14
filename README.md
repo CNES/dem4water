@@ -2,24 +2,7 @@
 
 ## Description
 
-The aim of dem4water is to estimate reservoir parametric laws relating water elevation (Z), surface area (S) and volume (V) from a digital elevation model (DEM). The estimation is divided in several steps:
-
-1. Area characterization
-
-  + Dam localization
-  + Local DEM extraction
-  + Local watermap extraction
-
-2. S(Z_i)
-
-  + Contour lines and dam cutline generation
-  + Virtual surface estimation
-
-
-3. S(Z)
-
-  + Outlier filtering
-  + Model Fitting: determine alpha, beta et Z_0
+The aim of dem4water is to estimate reservoir parametric laws (relating water elevation (Z), surface area (S) and volume (V)) from a digital elevation model (DEM). The estimation is divided in several steps:
 
 ## Execution
 
@@ -33,7 +16,7 @@ The following examples are directly extracted from [camp.sh](helper/camp.sh)
 
 ### Step 1 - area_mapping
 
-This application extract area specific data from the input watermap and DEM.
+This application extracts area specific data from the input watermap and DEM.
 
 ``` sh
 python3 area_mapping.py --debug \
