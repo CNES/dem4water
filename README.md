@@ -2,7 +2,7 @@
 
 ## Description
 
-The aim of dem4water is to estimate reservoir parametric laws (relating water elevation (Z), surface area (S) and volume (V)) from a digital elevation model (DEM). The estimation is divided in several steps:
+The aim of dem4water is to estimate water elevation (Z), surface area (S) and volume (V) relationships of reservoirs. It uses as input a digital elevation model (DEM) acquired after the reservoir construction and an water occurrence map (watermap). 
 
 ## Execution
 
@@ -16,7 +16,7 @@ The following examples are directly extracted from [camp.sh](helper/camp.sh)
 
 ### Step 1 - area_mapping
 
-This application extracts area specific data from the input watermap and DEM.
+This application extracts area specific data from the input watermap and DEM.   Then, it uses the water map and concentric cercles on the DEM to identify upstream/downstream areas (= orthogonal to flow direction) and the dam bottom location. 
 
 ``` sh
 python3 area_mapping.py --debug \
@@ -30,7 +30,7 @@ python3 area_mapping.py --debug \
 
 ### Step 2 - szi_from_contourline
 
-This application detects the dam bottom to derive Z0 as well as the dam cut line. It also extract the contour lines from the DEM.
+This application uses the dam bottom location to derive Z0 as well as the dam cut line (imaginary line cutting the valley on the dam position). It also extracts the contour lines from the DEM.
 
 ```sh
 python3 szi_from_contourline.py --debug \
@@ -62,7 +62,7 @@ python3 cut_contourlines.py --debug \
 
 ### Step 4 - szi_to_model
 
-This application computes model parameters based on the best S(Zi) subset.
+This application computes model parameters of the bathymetric relationship based on the best S(Zi) subset.
 
 ```sh
 python3 szi_to_model.py --debug \
@@ -89,19 +89,19 @@ python3 val_report.py --debug \
 
 ## Approche
 
-1. Caractérisation de la zone
+1. Caractérisation de la zone (step 1)
 
   + Hypotèse : localisation de l'ouvrage
   + Cercles concentriques pour identification [amont/aval] / ouvrage (= transverse à la direction d'écoulement)
   + [amont/aval] + carte d'occurence d'eau -> amont / aval -> localisation pied du barage -> Z_0
 
-2. S(Z_i)
+2. S(Z_i)  (step 2 et 3)
 
   + Génération des courbes de niveau intersectées par la transverse à la direction d'écoulement (~ ouvrage)
   + 2ème méthode _Analyse locale du MNT au sein du masque polygone fourni_ sur la base du masque d'occurrence (from SurfWater)
 
 
-3. S(Z)
+3. S(Z)    (step 4)
 
   + Suppressions des outliers
   + Fit du modèle: détermination de alpha, beta et Z_0
