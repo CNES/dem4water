@@ -71,14 +71,14 @@ def main(arguments):
     dam_path = ""
     dam_404 = True
     for feature in layer:
-        if (str(feature.GetField("ID")) == str(args.id)):
+        if (str(int(feature.GetField("ID"))) == str(args.id)):
             dam_404 = False
-            logging.debug(feature.GetField("Name"))
-            dam_name = feature.GetField("Name")
+            logging.debug(feature.GetField("DAM_NAME"))
+            dam_name = feature.GetField("DAM_NAME")
             dam_path = dam_name.replace(" ", "_")
-            clat = float(feature.GetField("Lat"))
-            clon = float(feature.GetField("Lon"))
-            logging.debug("Alt from DB: " + str(feature.GetField("Alt")))
+            clat = float(feature.GetField("LAT_DD"))
+            clon = float(feature.GetField("LONG_DD"))
+            logging.debug("Height of dam in meters: " + str(feature.GetField("DAM_LVL_M")))
             break
     layer.ResetReading()
 
@@ -88,14 +88,17 @@ def main(arguments):
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
     logging.info("Currently processing: "+ dam_name +"(ID:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
+    src = osr.SpatialReference()
 
-    src = osr.SpatialReference();
+    src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
     src.ImportFromEPSG(4326)
     ds = gdal.Open(args.watermap, gdal.GA_ReadOnly);
     dst = osr.SpatialReference(wkt=ds.GetProjection());
     ct = osr.CoordinateTransformation(src, dst);
     point = ogr.Geometry(ogr.wkbPoint)
-    point.AddPoint(clat, clon)
+    #point.AddPoint(clat, clon)
+    point.AddPoint(clon, clat)
     point.Transform(ct)
     logging.debug("Coordinates: " + str(point.GetX())+" - "+str(point.GetY()))
 
@@ -122,7 +125,6 @@ def main(arguments):
     app.SetParameterString("inm", args.dem)
     app.SetParameterString("out", os.path.join(args.out, "dem_extract-"+dam_path+".tif"))
     app.ExecuteAndWriteOutput()
-
 
     # Search dam bottom
     extw_bt = otb.Registry.CreateApplication("ExtractROI")

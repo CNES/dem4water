@@ -171,22 +171,22 @@ def main(arguments):
     dam_404 = True
     calt_from_DB = False
     for feature in layer:
-        if (str(feature.GetField("ID")) == str(args.id)):
+        if (str(int(feature.GetField("ID"))) == str(args.id)):
             dam_404 = False
-            logging.debug(feature.GetField("Name"))
-            dam_name = feature.GetField("Name")
-            dam_id = feature.GetField("ID")
+            logging.debug(feature.GetField("DAM_NAME"))
+            dam_name = feature.GetField("DAM_NAME")
+            dam_id = int(feature.GetField("ID"))
             dam_path = dam_name.replace(" ", "_")
-            clat = float(feature.GetField("Lat"))
-            clon = float(feature.GetField("Lon"))
-            if bool(feature.GetField("Alt")):
-                calt = float(feature.GetField("Alt"))
+            clat = float(feature.GetField("LAT_DD"))
+            clon = float(feature.GetField("LONG_DD"))
+            if bool(feature.GetField("DAM_LVL_M")):
+                calt = float(feature.GetField("DAM_LVL_M"))
                 calt_from_DB = True
             else:
                 logging.warning("Altitude for dam "+ dam_name +"(ID:"+str(args.id)+") is not present in "+args.infile+".")
-            if bool(feature.GetField("Lat_in")):
-                clat_in = float(feature.GetField("Lat_in"))
-                clon_in = float(feature.GetField("Lon_in"))
+            if bool(feature.GetField("LAT_WW")):
+                clat_in = float(feature.GetField("LAT_WW"))
+                clon_in = float(feature.GetField("LONG_WW"))
             else:
                 logging.error("Point inside water body for dam "+ dam_name +"(ID:"+str(args.id)+") is not present in "+args.infile+". Can not process.")
             break
@@ -727,6 +727,7 @@ def main(arguments):
     contourline_fname = os.path.join(args.out, dam_path
                                      +"_contourlines@" + str(args.elevsampling) +"m.json")
     elev_margin = 3*args.elevsampling
+
     if os.path.exists(contourline_fname):
         os.remove(contourline_fname)
     #  os.system('gdal_contour -a elev "%s" "%s" -fl {%s..%s..%s}' % (args.dem,
@@ -742,6 +743,7 @@ def main(arguments):
                                                                                contourline_fname,
                                                                                args.tmp))
 
+    print("End SZI_FROM_CONTOURLINE")
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
