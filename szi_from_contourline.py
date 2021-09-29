@@ -170,8 +170,17 @@ def main(arguments):
     dam_path = ""
     dam_404 = True
     calt_from_DB = False
+    radius = args.radius
+
     for feature in layer:
         if (str(int(feature.GetField("ID"))) == str(args.id)):
+            # Compute radius
+            if radius == "":
+                geom = feature.GetGeometryRef()
+                bbox=geom.GetEnvelope()
+                radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
+                logging.info("=> RADIUS :", radius)
+
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
@@ -442,16 +451,16 @@ def main(arguments):
     #TODO: fix confusion between radius and pdbradius needed here
     ext_r = otb.Registry.CreateApplication("ExtractROI")
     ext_r.SetParameterString("in", args.dem)
-    ext_r.SetParameterString("out", os.path.join(args.tmp, "extract@"+str(args.radius)+"mFromDam.tif"))
+    ext_r.SetParameterString("out", os.path.join(args.tmp, "extract@"+str(radius)+"mFromDam.tif"))
     ext_r.SetParameterString("mode","radius")
     ext_r.SetParameterString("mode.radius.unitr", "phy")
-    ext_r.SetParameterFloat("mode.radius.r", args.radius)
+    ext_r.SetParameterFloat("mode.radius.r", radius)
     ext_r.SetParameterString("mode.radius.unitc", "phy")
     ext_r.SetParameterFloat("mode.radius.cx", dam.GetX())
     ext_r.SetParameterFloat("mode.radius.cy", dam.GetY())
     ext_r.ExecuteAndWriteOutput()
 
-    r_ds = gdal.Open(os.path.join(args.tmp, "extract@"+str(args.radius)+"mFromDam.tif"), gdal.GA_ReadOnly);
+    r_ds = gdal.Open(os.path.join(args.tmp, "extract@"+str(radius)+"mFromDam.tif"), gdal.GA_ReadOnly);
     r_x, r_y = pixel(dam.GetX(), dam.GetY(), r_ds)
 
     np_r = ext_r.GetImageAsNumpyArray('out')

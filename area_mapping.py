@@ -20,6 +20,7 @@ from osgeo import osr
 from osgeo import gdal
 import numpy as np
 import otbApplication as otb
+from utils import distance
 
 
 def main(arguments):
@@ -64,14 +65,23 @@ def main(arguments):
     driver = ogr.GetDriverByName("GeoJSON")
     dataSource = driver.Open(args.infile, 0)
     layer = dataSource.GetLayer()
-
     clat = 0
     clon = 0
     dam_name = ""
     dam_path = ""
     dam_404 = True
+    radius = args.radius
+
     for feature in layer:
+
         if (str(int(feature.GetField("ID"))) == str(args.id)):
+            # Compute radius
+            if radius == "":
+                geom = feature.GetGeometryRef()
+                bbox=geom.GetEnvelope()
+                radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
+                logging.info("=> RADIUS :", radius)
+
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
@@ -84,7 +94,7 @@ def main(arguments):
 
     if dam_404 is True:
         logging.error("404 - Dam Not Found: "+str(args.id)+" is not present in "+args.infile)
-
+    #logging.info("Currently processing: "+ dam_name +"(ID:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) "]")
     calt = float(os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' % (args.dem, clon, clat)).read())
     logging.info("Currently processing: "+ dam_name +"(ID:"+str(args.id)+") [Lat: "+ str(clat) +", Lon: "+ str(clon) +", Alt: "+ str(calt) +"]")
 
@@ -106,7 +116,7 @@ def main(arguments):
     extw.SetParameterString("in", args.watermap)
     extw.SetParameterString("mode","radius")
     extw.SetParameterString("mode.radius.unitr", "phy")
-    extw.SetParameterFloat("mode.radius.r", float(args.radius))
+    extw.SetParameterFloat("mode.radius.r", float(radius))
     extw.SetParameterString("mode.radius.unitc", "phy")
     extw.SetParameterFloat("mode.radius.cx", point.GetX())
     extw.SetParameterFloat("mode.radius.cy", point.GetY())
