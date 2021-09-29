@@ -80,7 +80,7 @@ def main(arguments):
                 geom = feature.GetGeometryRef()
                 bbox=geom.GetEnvelope()
                 radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
-                logging.info("=> RADIUS :", radius)
+                logging.info("=> RADIUS : {}".format(radius))
 
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))

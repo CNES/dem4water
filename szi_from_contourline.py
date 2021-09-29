@@ -25,6 +25,7 @@ import otbApplication as otb
 import matplotlib.pyplot as plt
 import itertools
 from math import sqrt,ceil
+from utils import distance
 
 
 def nderiv(y,x):
@@ -94,7 +95,6 @@ def main(arguments):
                         help="Input DEM")
     parser.add_argument('-r',
                         '--radius',
-                        type=int,
                         default=5000,
                         help="Extract radius (m)")
     parser.add_argument('-s',
@@ -179,7 +179,7 @@ def main(arguments):
                 geom = feature.GetGeometryRef()
                 bbox=geom.GetEnvelope()
                 radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
-                logging.info("=> RADIUS :", radius)
+                logging.info("=> RADIUS : {}".format(radius))
 
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
