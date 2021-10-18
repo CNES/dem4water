@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#PBS -l select=1:ncpus=12:mem=60000MB:os=rh7
-#PBS -l walltime=30:00:00
+#PBS -l select=1:ncpus=6:mem=30000MB:os=rh7
+#PBS -l walltime=20:00:00
 
 echo 'Usage : qsub -v WD=$PWD,DAM=dame_name,DAM_ID=dam_id,DB_PATH=database,DEM_PATH=dem,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
                       compute_hsv.pbs'

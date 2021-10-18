@@ -10,6 +10,13 @@ The main script used to run the chain is [camp.sh](helper/camp.sh), gathering al
 The script [camp.sh](helper/camp.sh) run a whole campaign and is in charge of setting the right environment and dependencies.
 Each application embbed a documentation that can be accessed using --help.
 
+It's also possible to use qsub in order to parallelize by dam process :
+
+   python3 run_processors.py dams_list dams_db dem_path wmap_path out_dir chain_dir
+
+A list file of dams (dam_id,dame_name) is required.
+
+
 ## Examples
 
 The following examples are directly extracted from [camp.sh](helper/camp.sh)
