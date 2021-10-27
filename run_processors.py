@@ -83,7 +83,7 @@ def mk_dir(path):
 
 if __name__ == "__main__":
     """
-    Usage : python run_processors.py dams_list dams_db dem_path wmap_path out_dir chain_dir
+    Usage : python run_processors.py dams_list dams_db dem_path wmap_path chain_dir out_dir
     """
 
     parser = argparse.ArgumentParser(
@@ -94,8 +94,8 @@ if __name__ == "__main__":
     parser.add_argument('dams_db',type=str, help='Dams database path')
     parser.add_argument('dem_path',type=str, help='DEM path')
     parser.add_argument('wmap_path',type=str, help='surfwater map path')
-    parser.add_argument('out_dir',type=str, help='HSV directory')
     parser.add_argument('chain_dir',type=str, help='dem4water chain directory')
+    parser.add_argument('out_dir',type=str, help='HSV directory')
 
     args = parser.parse_args()
 
@@ -125,11 +125,12 @@ if __name__ == "__main__":
                              + " -v WD=" + args.chain_dir
                              + ",DAM=" + dame_name
                              + ",DAM_ID="+ cle
+                             + ",ID_FIELD="+ "ID_SWOT"
                              + ",DB_PATH="+ args.dams_db
                              + ",DEM_PATH="+ args.dem_path
                              + ",WMAP_PATH="+ args.wmap_path
                              + ",ROOT_DIR="+ args.out_dir
-                             + " -l walltime=30:00:00"
+                             + " -l walltime=20:00:00"
                              + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
                              + " -o " + os.path.join(log_dir, "compute_hsv_" + cle + "_out.log")
                              + " -e " + os.path.join(log_dir, "compute_hsv_" + cle + "_err.log")

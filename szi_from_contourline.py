@@ -87,6 +87,8 @@ def main(arguments):
                         help="Input file")
     parser.add_argument('--id',
                         help="Dam ID")
+    parser.add_argument('--id_db',
+                        help="Dam id field in database")
     parser.add_argument('-w',
                         '--watermap',
                         help="Input water map file")
@@ -173,7 +175,7 @@ def main(arguments):
     radius = args.radius
 
     for feature in layer:
-        if (str(int(feature.GetField("ID"))) == str(args.id)):
+        if (str(int(feature.GetField(str(args.id_db)))) == str(args.id)):
             # Compute radius
             if radius == "":
                 geom = feature.GetGeometryRef()
@@ -184,7 +186,7 @@ def main(arguments):
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
-            dam_id = int(feature.GetField("ID"))
+            dam_id = int(feature.GetField(str(args.id_db)))
             dam_path = dam_name.replace(" ", "_")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))

@@ -34,6 +34,8 @@ def main(arguments):
                         help="Input file")
     parser.add_argument('--id',
                         help="Dam ID")
+    parser.add_argument('--id_db',
+                        help="Dam id field in database")
     parser.add_argument('-w',
                         '--watermap',
                         help="Input water map file")
@@ -74,7 +76,7 @@ def main(arguments):
 
     for feature in layer:
 
-        if (str(int(feature.GetField("ID"))) == str(args.id)):
+        if (str(int(feature.GetField(str(args.id_db)))) == str(args.id)):
             # Compute radius
             if radius == "":
                 geom = feature.GetGeometryRef()

@@ -3,7 +3,7 @@
 #PBS -l select=1:ncpus=6:mem=30000MB:os=rh7
 #PBS -l walltime=20:00:00
 
-echo 'Usage : qsub -v WD=$PWD,DAM=dame_name,DAM_ID=dam_id,DB_PATH=database,DEM_PATH=dem,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
+echo 'Usage : qsub -v WD=$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
                       compute_hsv.pbs'
 cd $WD
 
@@ -21,6 +21,7 @@ export OTB_LOGGER_LEVEL=CRITICAL
 
 echo "== DAM : $DAM"
 echo "== DAM ID : $DAM_ID"
+echo "== ID FIELD: $ID_FIELD"
 echo "== BD : $DB_PATH"
 echo "== WMAP : $WMAP_PATH"
 echo "== DEM : $DEM_PATH"
@@ -38,6 +39,7 @@ else
    echo "== AREA_MAPPING =="
    python3 area_mapping.py --debug       \
            --id       "${DAM_ID}"        \
+           --id_db    "${ID_FIELD}"      \
            --infile   "${DB_PATH}"       \
            --watermap "${WMAP_PATH}"     \
            --dem      "${DEM_PATH}"      \
@@ -49,6 +51,7 @@ fi
 echo "== SZI_FROM_CONTOURLINE =="
 python3 szi_from_contourline.py --debug                         \
         --id           "${DAM_ID}"                              \
+        --id_db        "${ID_FIELD}"                            \
         --infile       "${DB_PATH}"                             \
         --watermap     "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
         --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"  \
