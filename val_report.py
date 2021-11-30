@@ -48,13 +48,13 @@ def main(arguments):
 
     parser.add_argument('-i',
                         '--infile',
-                        help="dam_model.json file")
+                        help="dam_model.json file in SI units")
     parser.add_argument('-r',
                         '--reffile',
-                        help="validation_DB.json file")
+                        help="validation_DB.json file in SI units")
     parser.add_argument('-o',
                         '--outfile',
-                        help="Repport.png file")
+                        help="Report.png file")
     parser.add_argument('--debug',
                         action='store_true',
                         help='Activate Debug Mode')
@@ -79,6 +79,9 @@ def main(arguments):
     with open(args.reffile) as r:
         ref_db = json.load(r)
 
+    print("\ninfile =", args.infile)
+    print("reffile =", args.reffile)
+
     damid=model["ID"]
     damname=model["Name"]
     damelev=model["Elevation"]
@@ -88,14 +91,21 @@ def main(arguments):
     alpha=model["Model"]["alpha"]
     beta=model["Model"]["beta"]
 
+    print("\ndamelev =", damelev)
+    print("Z0 =", Z0)
+    print("S0 =", S0)
+    print("V0 =", V0)
+    print("alpha =", alpha)
+    print("beta =", beta)
+
     logging.info("Model for "+damname+": S(Z) = "+format(S0, '.2F')
                  +" + "+format(alpha, '.3E')
                  +" * ( Z - "+format(Z0, '.2F')
                  +" ) ^ "+ format(beta, '.3E'))
 
     ref_Z0=ref_db[str(model["ID"])]["Model"]["Z0"]
-    ref_S0=ref_db[str(model["ID"])]["Model"]["S0"]  # original values in Ha in DB
-    ref_V0=ref_db[str(model["ID"])]["Model"]["V0"]  # original values in Hm3 in DB
+    ref_S0=ref_db[str(model["ID"])]["Model"]["S0"]  # original values in m2 in DB
+    ref_V0=ref_db[str(model["ID"])]["Model"]["V0"]  # original values in m3 in DB
     ref_alpha=ref_db[str(model["ID"])]["Model"]["alpha"]
     ref_beta=ref_db[str(model["ID"])]["Model"]["beta"]
     ref_Zmax=ref_db[str(model["ID"])]["Model"]["Zmax"]
@@ -103,26 +113,32 @@ def main(arguments):
     ref_Z25=ref_Zmin + 0.25 * (ref_Zmax - ref_Zmin)
     ref_Z75=ref_Zmin + 0.75 * (ref_Zmax - ref_Zmin)
 
+    print("\nref_Z0 =", ref_Z0)
+    print("ref_S0 =", ref_S0)
+    print("ref_V0 =", ref_V0)
+    print("ref_alpha =", ref_alpha)
+    print("ref_beta =", ref_beta)
+
     logging.info("Reference for "+damname+": S(Z) = "+format(ref_S0, '.2F')
                  +" + "+format(ref_alpha, '.3E')
                  +" * ( Z - "+format(ref_Z0, '.2F')
                  +" ) ^ "+ format(ref_beta, '.3E'))
 
-    print(damelev)
-    print(ref_Zmax)
+    print("\ndamelev  =", damelev)
+    print("ref_Zmax =", ref_Zmax)
 
     # Figures:
     z_min = max(int(float(Z0)), int(float(ref_Z0)))
     z = range(z_min, int(float(damelev)*1.1))
-    z_mod = range(int(float(Z0)), int(float(damelev)*1.1))
+
     #  z_ref = range(int(float(ref_Z0)), int(float(damelev)*1.1))
     #  s_m_Zmax = S0 + alpha * math.pow((float(damelev) - Z0), beta)
     s_m_Zmax = S0 + alpha * math.pow((float(ref_Zmax) - Z0), beta)
-    s_r_Zmax_ha = ref_S0 + ref_alpha * math.pow((float(ref_Zmax) - ref_Z0), ref_beta)
-    s_r_Zmax_m2 = 10000 * s_r_Zmax_ha
-    s_r_Zmin_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Zmin) - ref_Z0), ref_beta)) * 10000
-    s_r_Z25_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Z25) - ref_Z0), ref_beta)) * 10000
-    s_r_Z75_m2 = (ref_S0 + ref_alpha * math.pow((float(ref_Z75) - ref_Z0), ref_beta)) * 10000
+
+    s_r_Zmax_m2 = ref_S0 + ref_alpha * math.pow((float(ref_Zmax) - ref_Z0), ref_beta)
+    s_r_Zmin_m2 = ref_S0 + ref_alpha * math.pow((float(ref_Zmin) - ref_Z0), ref_beta)
+    s_r_Z25_m2 = ref_S0 + ref_alpha * math.pow((float(ref_Z25) - ref_Z0), ref_beta)
+    s_r_Z75_m2 = ref_S0 + ref_alpha * math.pow((float(ref_Z75) - ref_Z0), ref_beta)
 
     s = range(0, math.ceil(s_r_Zmax_m2)+10000,10000)
 
@@ -133,28 +149,33 @@ def main(arguments):
     Szm = []
     Szl = []
     for h in z:
-        s_m = S0 + alpha * math.pow((h - Z0), beta)
+        s_m = S0 + alpha * math.pow((h - int(Z0)), beta)
         Sz_model_scatter.append(s_m)
-
-        s_r = ref_S0 + ref_alpha * math.pow((h - ref_Z0), ref_beta)
-        Sz_ref_scatter.append(s_r*10000)   # To m2
+        s_r = ref_S0 + ref_alpha * math.pow((h - int(ref_Z0)), ref_beta)
+        Sz_ref_scatter.append(s_r)   #  m2
 
         if s_r != 0 and h >= ref_Zmin:
-            Szg.append((s_r*10000-s_m)/(s_r*10000))
+            Szg.append((s_r-s_m)/(s_r))
             if h >= ref_Z75:
-                Szh.append((s_r*10000-s_m)/(s_r*10000))
+                Szh.append((s_r-s_m)/(s_r))
             elif h >= ref_Z25:
-                Szm.append((s_r*10000-s_m)/(s_r*10000))
+                Szm.append((s_r-s_m)/(s_r))
             else:
-                Szl.append((s_r*10000-s_m)/(s_r*10000))
+                Szl.append((s_r-s_m)/(s_r))
 
-    print(s_m_Zmax)
-    print(s_r_Zmax_m2)
+
+    print("\n== s_m =",s_m)
+    print("== s_r =",s_r)
+
+    print("\n== Zmax model =",s_m_Zmax)
+    print("== Zmax ref   =", s_r_Zmax_m2)
 
     Vs_model_scatter = []
     Vs_ref_scatter = []
+
     v_m_Zmax = V0 + math.pow(((s_r_Zmax_m2-S0)/alpha), 1/beta) * (S0 + ((s_r_Zmax_m2-S0) / (beta + 1.)))
-    v_r_Zmax = ref_V0 + math.pow(((s_r_Zmax_ha-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((s_r_Zmax_ha-ref_S0) / (ref_beta + 1.)))
+    v_r_Zmax = ref_V0 + math.pow(((s_r_Zmax_m2-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((s_r_Zmax_m2-ref_S0) / (ref_beta + 1.)))
+
     Tx_model_scatter = []
     Tx_ref_scatter = []
     Vsg = []
@@ -174,27 +195,27 @@ def main(arguments):
         #  s_m_norm.append(a/s_m_max)
 
         #  v_r = ref_V0 + math.pow(((a*10000-ref_S0*10000)/ref_alpha), 1/ref_beta) * (ref_S0*10000 + ((a*10000-ref_S0*10000) / (ref_beta + 1.)))
-        v_r = ref_V0 + math.pow(((a/10000-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((a/10000-ref_S0) / (ref_beta + 1.)))
-        Vs_ref_scatter.append(v_r*10000)
-        Tx_ref_scatter.append(v_r/v_r_Zmax)
+        v_r = ref_V0 + math.pow(((a-ref_S0)/ref_alpha), 1/ref_beta) * (ref_S0 + ((a-ref_S0) / (ref_beta + 1.)))
+        Vs_ref_scatter.append(v_r)
+        Tx_ref_scatter.append(v_r/(v_r_Zmax))
+
         #  s_r_norm.append(a/(s_r_max*10000))
 
         if v_r != 0 and a >= s_r_Zmin_m2:
-            Vsg.append((v_r*10000-v_m)/(v_r*10000))
+            Vsg.append((v_r-v_m)/(v_r))
             Tsg.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
             if a >= s_r_Z75_m2:
-                Vsh.append((v_r*10000-v_m)/(v_r*10000))
+                Vsh.append((v_r-v_m)/(v_r))
                 Tsh.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
             if a >= s_r_Z25_m2:
-                Vsm.append((v_r*10000-v_m)/(v_r*10000))
+                Vsm.append((v_r-v_m)/(v_r))
                 Tsm.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
             else:
-                Vsl.append((v_r*10000-v_m)/(v_r*10000))
+                Vsl.append((v_r-v_m)/(v_r))
                 Tsl.append(((v_r/v_r_Zmax)-(v_m/v_m_Zmax))/(v_r/v_r_Zmax))
 
-    print(v_m_Zmax)
-    print(v_r_Zmax*10000)
-
+    print("\n== v_m_Zmax =",v_m_Zmax)
+    print("== v_r_Zmax =",v_r_Zmax)
 
     ticks_m2 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000.))
     ticks_m3 = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/1000000.))
