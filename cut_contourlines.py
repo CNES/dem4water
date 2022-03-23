@@ -104,7 +104,30 @@ def main(arguments):
         jsc = json.load(c)
     for feature in jsc["features"]:
         lines = shape(feature["geometry"])
-        line = shapely.ops.linemerge(lines)
+        logging.debug(len(lines.geoms))
+        lines = shapely.ops.linemerge(lines)
+        logging.debug(len(lines.geoms))
+
+    if lines.geom_type == "MultiLineString":
+        outcoords = [list(i.coords) for i in lines]
+        line = shapely.geometry.LineString(
+            [i for sublist in outcoords for i in sublist]
+        )
+        line = shapely.geometry.LineString(sorted(line.coords))
+    else:
+        line = lines
+
+    logging.debug(line.geom_type)
+    logging.debug(line.length)
+    logging.debug(line.is_simple)
+
+    if args.debug is True:
+        with open(os.path.join(args.out, "smplified_cutline.json"), "w") as outfile:
+            json.dump(shapely.geometry.mapping(line), outfile)
+
+    #  dbg_ring = LinearRing(list(line.coords))
+    #  if not dbg_ring.is_simple:
+    #      logging.warning("The cutline is probably intersecting itself: Loop Detected!")
 
     # load GeoJSON file containing contour lines
     with open(args.level) as lvl:
