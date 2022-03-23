@@ -91,7 +91,7 @@ python3 szi_to_model.py --debug                             \
         --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 
-if [ -f $"REF_MODEL" ] ; then
+if [ -f "$REF_MODEL" ] ; then
 echo "== VAL_REPORT =="
    python3 val_report.py --debug                    \
            -i "$CAMP_DIR/${DAM}/${DAM}_model.json"  \
