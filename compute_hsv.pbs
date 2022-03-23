@@ -100,4 +100,3 @@ echo "== VAL_REPORT =="
    2>&1 | tee "$CAMP_DIR/${DAM}/log/val_report.log"
 fi
 echo "== End DEM4WATER =="
-
