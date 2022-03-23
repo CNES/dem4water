@@ -11,7 +11,7 @@ CAMP_DIR=${1}
 EXPO_DIR=${2}
 
 # Extract JSONs
-cd ${CAMP_DIR}
+cd "${CAMP_DIR}" || exit
 
 # find . \
   # -name '*.png' \
@@ -37,9 +37,9 @@ find . \
   | cpio -pdm "${EXPO_DIR}"
 
 # Archive
-cd ${EXPO_DIR}
+cd "${EXPO_DIR}" || exit
 zip -v -r "${EXPO_DIR}.zip" "."
 
 # Clean the mess
-cd $HOME
-rm -rf ${EXPO_DIR}
+cd "$HOME" || exit
+rm -rf "${EXPO_DIR}"

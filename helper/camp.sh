@@ -23,7 +23,7 @@ export OTB_LOGGER_LEVEL=CRITICAL
 echo "OTB_MAX_RAM_HINT: $OTB_MAX_RAM_HINT"
 echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
-cd $SRC_DIR
+cd $SRC_DIR || exit
 
 declare -a DamDict=(   [3]='Agly'        [109]='Charpal'        [25]='Aussoue'      [213]='Grande Patures'
                       [32]='Balerme'      [83]='Cammazes'      [177]='Filhet'       [367]='Pla de Soulcem'

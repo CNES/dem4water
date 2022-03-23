@@ -9,10 +9,9 @@
 
 
 SRC_DIR="/home/ad/briciera/dem4water/dem4water"
-ROOT_DIR="/home/ad/briciera/scratch/HSV"
 
 
-cd $SRC_DIR
+cd $SRC_DIR || exit
 export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
 module load otb/7.2-python3.7.2

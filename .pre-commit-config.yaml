@@ -1,4 +1,5 @@
 # .pre-commit-config.yaml
+exclude: '^data/'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -20,3 +21,7 @@ repos:
     rev: 3.9.2
     hooks:
       - id: flake8
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.8.0.3
+    hooks:
+      - id: shellcheck

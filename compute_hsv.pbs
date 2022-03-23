@@ -3,9 +3,9 @@
 #PBS -l select=1:ncpus=6:mem=30000MB:os=rh7
 #PBS -l walltime=30:00:00
 
-echo 'Usage : qsub -v WD=$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
-                      compute_hsv.pbs'
-cd $WD
+echo "Usage : qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
+                      compute_hsv.pbs"
+cd $"WD" || exit
 
 # Set environnement
 module purge
@@ -91,7 +91,7 @@ python3 szi_to_model.py --debug                             \
         --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 
-if [ -f $REF_MODEL ] ; then
+if [ -f $"REF_MODEL" ] ; then
 echo "== VAL_REPORT =="
    python3 val_report.py --debug                    \
            -i "$CAMP_DIR/${DAM}/${DAM}_model.json"  \

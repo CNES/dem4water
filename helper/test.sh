@@ -23,7 +23,7 @@ echo "OTB_MAX_RAM_HINT: $OTB_MAX_RAM_HINT"
 echo "OTB_LOGGER_LEVEL: $OTB_LOGGER_LEVEL"
 
 
-cd $SRC_DIR
+cd $SRC_DIR || exit
 
 [ -d "$EXTR_DIR/${DAM}_${RADIUS}" ] || mkdir -p "$EXTR_DIR/${DAM}_${RADIUS}"
 [ -d "$ROOT_DIR/${DAM}_${RADIUS}/tmp" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/tmp"
