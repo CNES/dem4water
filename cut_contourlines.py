@@ -21,7 +21,7 @@ import shapely
 import shapely.wkt
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
-from shapely.ops import split
+from shapely.ops import polygonize, split, unary_union
 
 
 def main(arguments):
@@ -108,26 +108,34 @@ def main(arguments):
         lines = shapely.ops.linemerge(lines)
         logging.debug(len(lines.geoms))
 
+    # Fixing linemerge not merging every part of MultiLineString
     if lines.geom_type == "MultiLineString":
         outcoords = [list(i.coords) for i in lines]
         line = shapely.geometry.LineString(
             [i for sublist in outcoords for i in sublist]
         )
-        line = shapely.geometry.LineString(sorted(line.coords))
+        line = shapely.geometry.LineString(line.coords)
     else:
         line = lines
 
-    logging.debug(line.geom_type)
-    logging.debug(line.length)
-    logging.debug(line.is_simple)
+    # Working around looping LineString
+    if not line.is_simple:
+        logging.debug(line.length)
+
+        poly = list(polygonize(unary_union(line)))
+        logging.debug("Loop detected in cutline. Looping complexity: " + str(len(poly)))
+
+        line = shapely.geometry.LineString(sorted(line.coords))
+        logging.debug(line.length)
+
+        if line.is_simple:
+            logging.info("A loop was detected in cutline. It has been simplified.")
 
     if args.debug is True:
-        with open(os.path.join(args.out, "smplified_cutline.json"), "w") as outfile:
-            json.dump(shapely.geometry.mapping(line), outfile)
-
-    #  dbg_ring = LinearRing(list(line.coords))
-    #  if not dbg_ring.is_simple:
-    #      logging.warning("The cutline is probably intersecting itself: Loop Detected!")
+        dbg_simplified_cutline = shapely.geometry.mapping(line)
+        dbg_simplified_cutline["crs"] = jsc["crs"]
+        with open(os.path.join(args.out, "simplified_cutline.geojson"), "w") as outfile:
+            json.dump(dbg_simplified_cutline, outfile)
 
     # load GeoJSON file containing contour lines
     with open(args.level) as lvl:
