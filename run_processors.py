@@ -1,24 +1,23 @@
 #!/usr/bin/python
 #  -*- coding: utf-8 -*-
-'''
+"""
 :author: Gaël Nicolas
 :organization: CS SI
 :copyright: 2021 CS. All rights reserved.
 :license: see LICENSE file
 :created: 2021
-'''
+"""
 
-import os
-import sys
 import argparse
 import logging
-import time
+import os
 import subprocess
-
+import sys
+import time
 
 
 def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
-    """ Run qsub processings.
+    """Run qsub processings.
 
     :param cmd_list : the commands to run
     :type cmd_list : str
@@ -35,18 +34,24 @@ def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
     nb_cmd = len(cmd_list)
     start = time.time()
     pids = []
-    stdout_param = open(stdoutfile, 'a')
-    stderr_param = open(stderrfile, 'a')
+    stdout_param = open(stdoutfile, "a")
+    stderr_param = open(stderrfile, "a")
 
     logging.info("Running :  {} {}".format(title, cmd_list))
 
     while len(cmd_list) > 0 or len(pids) > 0:
         if (len(pids) < int(nb_procs)) and (len(cmd_list) > 0):
-            pids.append([subprocess.Popen(cmd_list[0],
-                                          stdout=stdout_param,
-                                          stderr=stderr_param,
-                                          shell=True),
-                         cmd_list[0]])
+            pids.append(
+                [
+                    subprocess.Popen(
+                        cmd_list[0],
+                        stdout=stdout_param,
+                        stderr=stderr_param,
+                        shell=True,
+                    ),
+                    cmd_list[0],
+                ]
+            )
             cmd_list.remove(cmd_list[0])
 
         for i, pid in enumerate(pids):
@@ -59,8 +64,12 @@ def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
                 break
             if status == 0:
                 del pids[i]
-                print(title + "... " + str(int((nb_cmd - (len(cmd_list) \
-                                     + len(pids))) * 100. / nb_cmd)) + "%")
+                print(
+                    title
+                    + "... "
+                    + str(int((nb_cmd - (len(cmd_list) + len(pids))) * 100.0 / nb_cmd))
+                    + "%"
+                )
                 time.sleep(0.2)
                 break
     end = time.time()
@@ -69,16 +78,15 @@ def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
 
 
 def mk_dir(path):
-    ''' Test existance and create a directorie.
+    """Test existance and create a directorie.
 
-     :param path: SW input directory
-     :type path : str
-    '''
+    :param path: SW input directory
+    :type path : str
+    """
     if os.path.exists(path):
         logging.warning("!! Directory {} already exist".format(path))
     else:
         os.makedirs(path, mode=0o755)
-
 
 
 if __name__ == "__main__":
@@ -87,16 +95,16 @@ if __name__ == "__main__":
     """
 
     parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
-    parser.add_argument('dams_list',type=str, help='Dams list')
-    parser.add_argument('dams_db',type=str, help='Dams database path')
-    parser.add_argument('dem_path',type=str, help='DEM path')
-    parser.add_argument('ref_model',type=str, help='Reference model path')
-    parser.add_argument('wmap_path',type=str, help='surfwater map path')
-    parser.add_argument('chain_dir',type=str, help='dem4water chain directory')
-    parser.add_argument('out_dir',type=str, help='HSV directory')
+    parser.add_argument("dams_list", type=str, help="Dams list")
+    parser.add_argument("dams_db", type=str, help="Dams database path")
+    parser.add_argument("dem_path", type=str, help="DEM path")
+    parser.add_argument("ref_model", type=str, help="Reference model path")
+    parser.add_argument("wmap_path", type=str, help="surfwater map path")
+    parser.add_argument("chain_dir", type=str, help="dem4water chain directory")
+    parser.add_argument("out_dir", type=str, help="HSV directory")
 
     args = parser.parse_args()
 
@@ -104,15 +112,15 @@ if __name__ == "__main__":
 
     # Create output directories
     mk_dir(args.out_dir)
-    log_dir = os.path.join(args.out_dir, 'log')
+    log_dir = os.path.join(args.out_dir, "log")
     mk_dir(log_dir)
 
     # Dams name and id
-    dams_dict={}
-    with open(args.dams_list, 'r') as file_name:
+    dams_dict = {}
+    with open(args.dams_list, "r") as file_name:
         dams_to_process = file_name.readlines()
     for dam in dams_to_process:
-            dams_dict[dam.split(',')[0]] = dam.split(',')[1].rstrip()
+        dams_dict[dam.split(",")[0]] = dam.split(",")[1].rstrip()
 
     # ======================#
     # Processor compute_hsv #
@@ -122,24 +130,40 @@ if __name__ == "__main__":
 
         dame_name = dams_dict[cle].replace(" ", "_")
         cmd_compute_hsv = []
-        cmd_compute_hsv.append(str("qsub -W umask=117"
-                             + " -v WD=" + args.chain_dir
-                             + ",DAM=" + dame_name
-                             + ",DAM_ID="+ cle
-                             + ",ID_FIELD="+ "ID_SWOT"
-                             + ",DB_PATH="+ args.dams_db
-                             + ",DEM_PATH="+ args.dem_path
-                             + ",REF_MODEL="+ args.ref_model
-                             + ",WMAP_PATH="+ args.wmap_path
-                             + ",ROOT_DIR="+ args.out_dir
-                             + " -l walltime=30:00:00"
-                             + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
-                             + " -o " + os.path.join(log_dir, "compute_hsv_" + cle + "_out.log")
-                             + " -e " + os.path.join(log_dir, "compute_hsv_" + cle + "_err.log")
-                             + " compute_hsv.pbs"))
+        cmd_compute_hsv.append(
+            str(
+                "qsub -W umask=117"
+                + " -v WD="
+                + args.chain_dir
+                + ",DAM="
+                + dame_name
+                + ",DAM_ID="
+                + cle
+                + ",ID_FIELD="
+                + "ID_SWOT"
+                + ",DB_PATH="
+                + args.dams_db
+                + ",DEM_PATH="
+                + args.dem_path
+                + ",REF_MODEL="
+                + args.ref_model
+                + ",WMAP_PATH="
+                + args.wmap_path
+                + ",ROOT_DIR="
+                + args.out_dir
+                + " -l walltime=30:00:00"
+                + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
+                + " -o "
+                + os.path.join(log_dir, "compute_hsv_" + cle + "_out.log")
+                + " -e "
+                + os.path.join(log_dir, "compute_hsv_" + cle + "_err.log")
+                + " compute_hsv.pbs"
+            )
+        )
 
-        run_processing(cmd_compute_hsv,
-                       os.path.join(log_dir, "qsub_dem4water_out.log"),
-                       os.path.join(log_dir, "qsub_dem4water_err.log"),
-                       title = "qsub_dem4water")
-
+        run_processing(
+            cmd_compute_hsv,
+            os.path.join(log_dir, "qsub_dem4water_out.log"),
+            os.path.join(log_dir, "qsub_dem4water_err.log"),
+            title="qsub_dem4water",
+        )

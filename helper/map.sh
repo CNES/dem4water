@@ -15,7 +15,7 @@ RADIUS=7500
 
 [ -d "$ROOT_DIR/${DAM}_${RADIUS}/tmp" ] || mkdir -p "$ROOT_DIR/${DAM}_${RADIUS}/tmp"
 
-cd $SRC_DIR
+cd $SRC_DIR || exit
 export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
 module load otb/7.2-python3.7.2
