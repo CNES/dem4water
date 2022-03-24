@@ -4,6 +4,18 @@
 
 The aim of dem4water is to estimate water surface elevation (Z), surface area (S) and volume (V) relationships of reservoirs. It uses as input a digital elevation model (DEM) acquired after the reservoir construction and a water occurrence map (watermap).
 
+## Contributing
+
+The project rely on [pre-commit](https://pre-commit.com/) to apply a given set of coding rules and formating to insure a certain level of code quality.
+
+```bash
+cd dem4water.git
+python3 -m pip install --user pre-commit
+pre-commit install
+```
+
+Pre-commit checks will then be performed at each commit to insure code formating and quality.
+
 ## Execution
 
 The main script used to run the chain is [camp.sh](helper/camp.sh), gathering all steps together to process a list of dams. Using the script requires adapting the input definition section (first part of camp.sh file) as well as the dam list.
