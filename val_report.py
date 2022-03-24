@@ -106,6 +106,16 @@ def main(arguments):
         + format(beta, ".3E")
     )
 
+    if str(model["ID"]) not in ref_db:
+        logging.error(
+            "No reference model available for "
+            + str(model["ID"])
+            + " in reference DB. Aborting report generation."
+        )
+        sys.exit(
+            "No reference model available for " + str(model["ID"]) + " in reference DB."
+        )
+
     ref_Z0 = ref_db[str(model["ID"])]["Model"]["Z0"]
     ref_S0 = ref_db[str(model["ID"])]["Model"]["S0"]  # original values in m2 in DB
     ref_V0 = ref_db[str(model["ID"])]["Model"]["V0"]  # original values in m3 in DB
