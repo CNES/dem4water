@@ -76,7 +76,7 @@ def points_in_circle(circle, arr):
             yield arr[i][j]
 
 
-def main(arguments):  # noqa: C901  #FIXME
+def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_from_contourline.py
     Measure, for a given range of Z_i, the theorical water surface associated for the dem.
     """

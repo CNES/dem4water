@@ -22,7 +22,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 
 
-def main(arguments):  # noqa: C901  #FIXME
+def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_to_model.py
     Prototype scrip allowing to derive a HSV model from a set of S(Z_i) values.
     The first value of the set should be S_0 = S(Z_0) = 0 with Z_0 the altitude of dam bottom
