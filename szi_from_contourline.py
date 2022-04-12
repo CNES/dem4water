@@ -373,11 +373,21 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     "@radius= " + str(rad_pdb) + "m: local min = " + str(alt_pdb)
                 )
                 break
+            else:
+                logging.debug(
+                    "@radius= "
+                    + str(rad_pdb)
+                    + "m: elev = "
+                    + str(alt_pdb)
+                    + "m: delev = "
+                    + str(i_d)
+                )
 
     fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
 
     if found_pdb is False:
         logging.error("404 - PDB not Found")
+        sys.exit("PDB search failed for dam " + dam_name + ". Aborting.")
 
     # Retrieve PDB coordinates
     ext = otb.Registry.CreateApplication("ExtractROI")
