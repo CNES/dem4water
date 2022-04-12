@@ -682,6 +682,22 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             + format(best_beta, ".3E")
         )
 
+    model_json = {
+        "ID": dam_id,
+        "Name": damname,
+        "Elevation": damelev,
+        "Model": {
+            "Z0": Zi[0],
+            "S0": S_Zi[0],
+            "V0": 0.0,
+            "alpha": best_alpha,
+            "beta": best_beta,
+        },
+    }
+
+    with open(os.path.splitext(args.outfile)[0] + ".json", "w") as write_file:
+        json.dump(model_json, write_file)
+
     z = range(int(Zi[0]) + 1, int(Zi[-1:]))
     sz = []
     abs_sz = []
@@ -945,22 +961,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     plt.minorticks_on()
     plt.legend(prop={"size": 6}, loc="upper left")
     plt.savefig(os.path.splitext(args.outfile)[0] + "_VS.png", dpi=300)
-
-    model_json = {
-        "ID": dam_id,
-        "Name": damname,
-        "Elevation": damelev,
-        "Model": {
-            "Z0": Zi[0],
-            "S0": S_Zi[0],
-            "V0": 0.0,
-            "alpha": best_alpha,
-            "beta": best_beta,
-        },
-    }
-
-    with open(os.path.splitext(args.outfile)[0] + ".json", "w") as write_file:
-        json.dump(model_json, write_file)
 
 
 if __name__ == "__main__":
