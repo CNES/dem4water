@@ -73,10 +73,20 @@ python3 cutline_score.py --debug                            \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
 
 echo "== CUT_CONTOURLINES =="
+# Allow using a user-provided cutline
+# UP cutline should be located in $$EXTR_DIR/${DAM}/
+# and named ${DAM}_cutline_custom.json"
+if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
+  CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
+  echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+else
+  CUTLINE_FILE="$ROOT_DIR/${DAM}/${DAM}_cutline.json"
+fi
+
 python3 cut_contourlines.py --debug                               \
+        --cut      "$CUTLINE_FILE"                                \
         --dem      "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
         --info     "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
-        --cut      "$CAMP_DIR/${DAM}/${DAM}_cutline.json"         \
         --level    "$CAMP_DIR/${DAM}/${DAM}_contourlines@1m.json" \
         --out      "$CAMP_DIR/${DAM}"                             \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
