@@ -106,7 +106,6 @@ def main(arguments):
         lines = shape(feature["geometry"])
         logging.debug(len(lines.geoms))
         lines = shapely.ops.linemerge(lines)
-        logging.debug(len(lines.geoms))
 
     # Fixing linemerge not merging every part of MultiLineString
     if lines.geom_type == "MultiLineString":
