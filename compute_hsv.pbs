@@ -80,7 +80,7 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
   CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
   echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
 else
-  CUTLINE_FILE="$ROOT_DIR/${DAM}/${DAM}_cutline.json"
+  CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 fi
 
 python3 cut_contourlines.py --debug                               \
