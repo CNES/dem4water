@@ -23,12 +23,13 @@ The script [camp.sh](helper/camp.sh) run a whole campaign and is in charge of se
 Each application embbed a documentation that can be accessed using --help.
 
 It's also possible to use qsub in order to parallelize by dam process :
+
 ```
 python3 run_processors.py dams_list dams_db dem_path wmap_path out_dir chain_dir
 
 ```
-where "dam_list" is a csv like file containing "dam_id,dam_name" on each line.
 
+where "dam_list" is a csv like file containing "dam_id,dam_name" on each line.
 
 ## Examples
 
@@ -38,7 +39,7 @@ The following examples are directly extracted from [camp.sh](helper/camp.sh)
 
 This application extracts area specific data from the input watermap and DEM. Then, it uses the water map and concentric cercles on the DEM to identify upstream/downstream areas (= orthogonal to flow direction) and the dam bottom location. Radius defines the cropping window size around the dam location used for the following steps and it is expressed in meters.
 
-``` sh
+```sh
 python3 area_mapping.py --debug \
   --id       "${DAMID}" \
   --infile   "${DB_PATH}" \

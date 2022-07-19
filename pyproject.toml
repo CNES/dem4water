@@ -1,2 +1,21 @@
 [tool.isort]
 profile = "black"
+
+[tool.poetry]
+name = "dem4water"
+version = "0.1.0"
+description = "The aim of dem4water is to estimate water surface elevation (Z), surface area (S) and volume (V) relationships of water reservoirs."
+authors = ["Aurelien Bricier <aurelien.bricier@csgroup.eu>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+black = "^22.6.0"
+pre-commit = "^2.20.0"
+isort = "^5.10.1"
+flake8 = "^4.0.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
