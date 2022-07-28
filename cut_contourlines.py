@@ -78,26 +78,25 @@ def main(arguments):
             logging.debug(feature)
             pdbin = shape(feature["geometry"])
 
-
             pdb = ogr.Geometry(ogr.wkbPoint)
-            pdb.AddPoint(float(pdbin.x), float(pdnin.y))
+            pdb.AddPoint(float(pdbin.x), float(pdbin.y))
             pdb.Transform(cartotogeo)
             pdblat = pdb.GetX()
             pdblon = pdb.GetY()
             pdbelev = float(
                 os.popen(
-                    'gdallocationin(fo -valonly -wgs84 "%s" %s %s' % (args.dem, pdblon, pdblat)
+                    'gdallocationin(fo -valonly -wgs84 "%s" %s %s'
+                    % (args.dem, pdblon, pdblat)
                 ).read()
             )
 
-            logging.debug("Coordinates (carto): " + str(ipdbin.x) + " - " + str(pdbin.y))
+            logging.debug("Coordinates (carto): " + str(pdbin.x) + " - " + str(pdbin.y))
             logging.debug("Coordinates (latlon): " + str(pdblat) + " - " + str(pdblon))
             logging.info(
                 "PDB detected: "
-                + dam_name
-                + "(id:"
+                + "id: "
                 + str(damname)
-                + ") [pdbLat: "
+                + " [pdbLat: "
                 + str(pdblat)
                 + ", pdbLon: "
                 + str(pdblon)
