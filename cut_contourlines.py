@@ -57,8 +57,13 @@ def main(arguments):
     # Silence Mathplotlib related debug messages (font matching)
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
+    geo = osr.SpatialReference()
+    geo.ImportFromEPSG(4326)
+
     ds = gdal.Open(args.dem, gdal.GA_ReadOnly)
     carto = osr.SpatialReference(wkt=ds.GetProjection())
+
+    cartotogeo = osr.CoordinateTransformation(carto, geo)
 
     # load GeoJSON file containing info
     with open(args.info) as i:
@@ -71,8 +76,35 @@ def main(arguments):
 
         if feature["properties"]["name"] == "PDB":
             logging.debug(feature)
-            # pdb = shape(feature["geometry"])
-            pdbelev = feature["properties"]["elev"]
+            pdbin = shape(feature["geometry"])
+
+
+            pdb = ogr.Geometry(ogr.wkbPoint)
+            pdb.AddPoint(float(pdbin.x), float(pdnin.y))
+            pdb.Transform(cartotogeo)
+            pdblat = pdb.GetX()
+            pdblon = pdb.GetY()
+            pdbelev = float(
+                os.popen(
+                    'gdallocationin(fo -valonly -wgs84 "%s" %s %s' % (args.dem, pdblon, pdblat)
+                ).read()
+            )
+
+            logging.debug("Coordinates (carto): " + str(ipdbin.x) + " - " + str(pdbin.y))
+            logging.debug("Coordinates (latlon): " + str(pdblat) + " - " + str(pdblon))
+            logging.info(
+                "PDB detected: "
+                + dam_name
+                + "(id:"
+                + str(damname)
+                + ") [pdbLat: "
+                + str(pdblat)
+                + ", pdbLon: "
+                + str(pdblon)
+                + ", pdbAlt: "
+                + str(pdbelev)
+                + "]"
+            )
 
         if feature["properties"]["name"] == "Insider":
             logging.debug(feature)
