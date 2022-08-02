@@ -85,7 +85,7 @@ def main(arguments):
             pdblon = pdb.GetY()
             pdbelev = float(
                 os.popen(
-                    'gdallocationin(fo -valonly -wgs84 "%s" %s %s'
+                    'gdallocationinfo -valonly -wgs84 "%s" %s %s'
                     % (args.dem, pdblon, pdblat)
                 ).read()
             )
@@ -94,8 +94,6 @@ def main(arguments):
             logging.debug("Coordinates (latlon): " + str(pdblat) + " - " + str(pdblon))
             logging.info(
                 "PDB detected: "
-                + "id: "
-                + str(damname)
                 + " [pdbLat: "
                 + str(pdblat)
                 + ", pdbLon: "
