@@ -114,12 +114,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=50,
         help="Elevation offset target for the cutline wrt the estimated dam elevation",
     )
-    parser.add_argument(
-        "--elevsampling",
-        type=int,
-        default=1,
-        help="Elevation sampling step for contour lines generation.",
-    )
     parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
@@ -890,32 +884,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     outFeature = ogr.Feature(featureDefn)
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
-
-    # Generate relevant contourlines
-    contourline_fname = os.path.join(
-        args.out, dam_path + "_contourlines@" + str(args.elevsampling) + "m.json"
-    )
-    elev_margin = 3 * args.elevsampling
-
-    if os.path.exists(contourline_fname):
-        os.remove(contourline_fname)
-    #  os.system('gdal_contour -a elev "%s" "%s" -fl {%s..%s..%s}' % (args.dem,
-    #  contourline_fname,
-    #  str(int(pdbalt-elev_margin)),
-    #  str(int(targetelev+elev_margin)),
-    #  str(args.elevsampling)))
-
-    os.system(
-        './gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s" "%s"'
-        % (
-            args.dem,
-            str(int(pdbalt - elev_margin)),
-            str(args.elevsampling),
-            str(int(targetelev + elev_margin)),
-            contourline_fname,
-            args.tmp,
-        )
-    )
 
     print("End SZI_FROM_CONTOURLINE")
 
