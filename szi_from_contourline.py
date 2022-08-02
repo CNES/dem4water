@@ -335,7 +335,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.info("Target Elevation for cutline search= " + str(targetelev) + "m")
 
     # BEGIN:
-    if args.info is not None:
+    if args.info is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
