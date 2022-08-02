@@ -9,6 +9,7 @@
 
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -18,6 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import otbApplication as otb
 from osgeo import gdal, ogr, osr
+from shapely.geometry import shape
 
 from utils import distance
 
@@ -120,6 +122,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1,
         help="Elevation sampling step for contour lines generation.",
     )
+    parser.add_argument("--info", help="Optional user-defined daminfo.json file")
+
     parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
@@ -223,20 +227,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         )
 
     # Init output vector data files:
-    drv = ogr.GetDriverByName("GeoJSON")
-    if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
-        os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
-    dst_ds = drv.CreateDataSource(os.path.join(args.out, dam_path + "_daminfo.json"))
-    dst_layer = dst_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPoint)
-    field_defn = ogr.FieldDefn("name", ogr.OFTString)
-    field_defnID = ogr.FieldDefn("ID", ogr.OFTInteger64)
-    field_defnelev = ogr.FieldDefn("elev", ogr.OFTString)
-    field_defndam = ogr.FieldDefn("damname", ogr.OFTString)
-    dst_layer.CreateField(field_defn)
-    dst_layer.CreateField(field_defnID)
-    dst_layer.CreateField(field_defnelev)
-    dst_layer.CreateField(field_defndam)
-
     shpDriver = ogr.GetDriverByName("GeoJSON")
     if os.path.exists(os.path.join(args.out, dam_path + "_cutline.json")):
         shpDriver.DeleteDataSource(os.path.join(args.out, dam_path + "_cutline.json"))
@@ -306,174 +296,23 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     dam.Transform(geotocarto)
     logging.debug("Coordinates Carto: " + str(dam.GetX()) + " - " + str(dam.GetY()))
 
-    rad_l = []
-    alt_l = []
-    for r in range(args.pdbradius, 1, -1 * args.pdbstep):
-        ext_l = otb.Registry.CreateApplication("ExtractROI")
-        ext_l.SetParameterString("in", args.dem)
-        ext_l.SetParameterString("mode", "radius")
-        ext_l.SetParameterString("mode.radius.unitr", "phy")
-        ext_l.SetParameterFloat("mode.radius.r", r)
-        ext_l.SetParameterString("mode.radius.unitc", "phy")
-        ext_l.SetParameterFloat("mode.radius.cx", dam.GetX())
-        ext_l.SetParameterFloat("mode.radius.cy", dam.GetY())
-        ext_l.Execute()
-
-        np_ext_l = ext_l.GetImageAsNumpyArray("out")
-        ext_l_alt = np.amin(np_ext_l)
-
-        rad_l.append(r)
-        alt_l.append(ext_l_alt)
-
-        #  logging.debug("@radius= "
-        #  + str(r)
-        #  +"m: local min = "
-        #  + str(ext_l_alt))
-
-    d = nderiv(alt_l, rad_l)
-
-    fig, axs = plt.subplots(2)
-    axs[0].plot(rad_l, alt_l, "r")
-    axs[0].set(xlabel="Search Area to the Dam (m)", ylabel="Minimum Elevation")
-    axs[0].label_outer()
-    axs[1].plot(rad_l, abs(d), "b")
-    axs[1].set(xlabel="Search Area to the Dam (m)", ylabel="d(Minimum Elevation)")
-    axs[1].label_outer()
-
-    found_pdb = False
-    rad_pdb = 0
-    alt_pdb = 0
-
-    # TODO: @param 0.15
-    for i_r, i_a, i_d in zip(rad_l, alt_l, d):
-        #  print(i_r, i_a, i_d)
-        if abs(i_d) > 0.15:
-            found_pdb = True
-            rad_pdb = i_r
-            alt_pdb = i_a
-            fig.suptitle("PDB profile (1st pass detection)")
-            axs[0].plot(rad_pdb, alt_pdb, "x")
-            axs[1].plot(rad_pdb, abs(i_d), "x")
-            break
-
-    if found_pdb is True:
-        logging.debug("@radius= " + str(rad_pdb) + "m: local min = " + str(alt_pdb))
-    else:
-        for i_r, i_a, i_d in zip(rad_l, alt_l, d):
-            #  print(i_r, i_a, i_d)
-            if abs(i_d) > 0.10:
-                found_pdb = True
-                rad_pdb = i_r
-                alt_pdb = i_a
-                fig.suptitle("PDB profile (2nd pass detection)")
-                axs[0].plot(rad_pdb, alt_pdb, "x")
-                axs[1].plot(rad_pdb, abs(i_d), "x")
-                logging.warning("PDB found during 2nd pass - It may not be reliable")
-                logging.debug(
-                    "@radius= " + str(rad_pdb) + "m: local min = " + str(alt_pdb)
-                )
-                break
-            else:
-                logging.debug(
-                    "@radius= "
-                    + str(rad_pdb)
-                    + "m: elev = "
-                    + str(alt_pdb)
-                    + "m: delev = "
-                    + str(i_d)
-                )
-
-    fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
-
-    if found_pdb is False:
-        logging.error("404 - PDB not Found")
-        sys.exit("PDB search failed for dam " + dam_name + ". Aborting.")
-
-    # Retrieve PDB coordinates
-    ext = otb.Registry.CreateApplication("ExtractROI")
-    ext.SetParameterString("in", args.dem)
-    ext.SetParameterString("out", os.path.join(args.out, "dem_pdb.tif"))
-    ext.SetParameterString("mode", "radius")
-    ext.SetParameterString("mode.radius.unitr", "phy")
-    ext.SetParameterFloat("mode.radius.r", rad_pdb)
-    ext.SetParameterString("mode.radius.unitc", "phy")
-    ext.SetParameterFloat("mode.radius.cx", dam.GetX())
-    ext.SetParameterFloat("mode.radius.cy", dam.GetY())
-    ext.ExecuteAndWriteOutput()
-
-    np_ext = ext.GetImageAsNumpyArray("out")
-    indices = np.where(np_ext == [alt_pdb])
-    # TODO: if multiple pdb detected
-    if len(indices[0]) > 1:
-        logging.warning(
-            "Absolute minimum is not unique on the current area!["
-            + str(len(indices[0]))
-            + "]"
-        )
-    #  print("Indices Length: "+str(len(indices[0])))
-    #  print("X: "+str(indices[1][0]))
-    #  print("Y: "+str(indices[0][0]))
-
-    ds = gdal.Open(os.path.join(args.out, "dem_pdb.tif"))
-    #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
-    #  xoffset, px_w, rot1, yoffset, rot2, px_h = ds.GetGeoTransform()
-    #  print(ds.GetGeoTransform())
-
-    #  posX = px_w * indices[1][0] + rot1 * indices[0][0] + xoffset
-    #  posY = rot2 * indices[1][0] + px_h * indices[0][0] + yoffset
-
-    # shift to the center of the pixel
-    #  posX += px_w / 2.0
-    #  posY += px_h / 2.0
-
-    posX, posY = coord(indices[1][0], indices[0][0], ds)
-    pX, pY = pixel(posX, posY, ds)
-
-    pdb = ogr.Geometry(ogr.wkbPoint)
-    pdb.AddPoint(float(posX), float(posY))
-    pdb.Transform(cartotogeo)
-    pdblat = pdb.GetX()
-    pdblon = pdb.GetY()
-
-    pdbalt = float(
-        os.popen(
-            'gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, pdblon, pdblat)
-        ).read()
-    )
-    logging.debug("Coordinates (pixel): " + str(pX) + " - " + str(pY))
-    logging.debug("Coordinates (carto): " + str(posX) + " - " + str(posY))
-    logging.debug("Coordinates (latlon): " + str(pdb.GetX()) + " - " + str(pdb.GetY()))
-    logging.info(
-        "PDB detected: "
-        + dam_name
-        + "(id:"
-        + str(args.id)
-        + ") [pdbLat: "
-        + str(pdblat)
-        + ", pdbLon: "
-        + str(pdblon)
-        + ", pdbAlt: "
-        + str(pdbalt)
-        + "]"
-    )
-
-    wkt = "POINT ( %f %f )" % (float(posX), float(posY))
-    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-    p = ogr.CreateGeometryFromWkt(wkt)
-    feat.SetGeometryDirectly(p)
-    feat.SetField("name", "PDB")
-    feat.SetField("elev", "")
-    feat.SetField("damname", dam_path)
-    feat.SetField("ID", dam_id)
-    dst_layer.CreateFeature(feat)
-    feat.Destroy()
-
     # Dam elevation from watermap
     if calt_from_DB is True:
         logging.info("Alt Extracted from DB.")
         bml_alt = calt
     else:
         logging.info("Alt Estimated from Watermap.")
+        ext = otb.Registry.CreateApplication("ExtractROI")
+        ext.SetParameterString("in", args.dem)
+        ext.SetParameterString("out", os.path.join(args.out, "dem_pdb.tif"))
+        ext.SetParameterString("mode", "radius")
+        ext.SetParameterString("mode.radius.unitr", "phy")
+        ext.SetParameterFloat("mode.radius.r", args.pdbradius)
+        ext.SetParameterString("mode.radius.unitc", "phy")
+        ext.SetParameterFloat("mode.radius.cx", dam.GetX())
+        ext.SetParameterFloat("mode.radius.cy", dam.GetY())
+        ext.ExecuteAndWriteOutput()
+
         extw = otb.Registry.CreateApplication("Superimpose")
         extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
         extw.SetParameterString("inm", args.watermap)
@@ -495,39 +334,267 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         logging.info("Estimated dam elevation= " + str(bml_alt) + "m")
     logging.info("Target Elevation for cutline search= " + str(targetelev) + "m")
 
-    # Point on dam
-    wkt = "POINT ( %f %f )" % (float(dam.GetX()), float(dam.GetY()))
-    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-    p = ogr.CreateGeometryFromWkt(wkt)
-    feat.SetGeometryDirectly(p)
-    feat.SetField("name", "Dam")
-    feat.SetField("elev", str(bml_alt))
-    feat.SetField("damname", dam_path)
-    feat.SetField("ID", dam_id)
-    dst_layer.CreateFeature(feat)
-    feat.Destroy()
+    # BEGIN:
+    if args.info is not None:
+        drv = ogr.GetDriverByName("GeoJSON")
+        if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
+            os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
+        dst_ds = drv.CreateDataSource(
+            os.path.join(args.out, dam_path + "_daminfo.json")
+        )
+        dst_layer = dst_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPoint)
+        field_defn = ogr.FieldDefn("name", ogr.OFTString)
+        field_defnID = ogr.FieldDefn("ID", ogr.OFTInteger64)
+        field_defnelev = ogr.FieldDefn("elev", ogr.OFTString)
+        field_defndam = ogr.FieldDefn("damname", ogr.OFTString)
+        dst_layer.CreateField(field_defn)
+        dst_layer.CreateField(field_defnID)
+        dst_layer.CreateField(field_defnelev)
+        dst_layer.CreateField(field_defndam)
 
-    # Point inside water body from DB
-    in_w = ogr.Geometry(ogr.wkbPoint)
-    in_w.AddPoint(clat_in, clon_in)
-    in_w.Transform(geotocarto)
-    logging.debug(
-        "Coordinates Carto Point Inside Water Body: "
-        + str(in_w.GetX())
-        + " - "
-        + str(in_w.GetY())
-    )
+        rad_l = []
+        alt_l = []
+        for r in range(args.pdbradius, 1, -1 * args.pdbstep):
+            ext_l = otb.Registry.CreateApplication("ExtractROI")
+            ext_l.SetParameterString("in", args.dem)
+            ext_l.SetParameterString("mode", "radius")
+            ext_l.SetParameterString("mode.radius.unitr", "phy")
+            ext_l.SetParameterFloat("mode.radius.r", r)
+            ext_l.SetParameterString("mode.radius.unitc", "phy")
+            ext_l.SetParameterFloat("mode.radius.cx", dam.GetX())
+            ext_l.SetParameterFloat("mode.radius.cy", dam.GetY())
+            ext_l.Execute()
 
-    wkt = "POINT ( %f %f )" % (float(in_w.GetX()), float(in_w.GetY()))
-    feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
-    p = ogr.CreateGeometryFromWkt(wkt)
-    feat.SetGeometryDirectly(p)
-    feat.SetField("name", "Insider")
-    feat.SetField("elev", "")
-    feat.SetField("damname", dam_path)
-    feat.SetField("ID", dam_id)
-    dst_layer.CreateFeature(feat)
-    feat.Destroy()
+            np_ext_l = ext_l.GetImageAsNumpyArray("out")
+            ext_l_alt = np.amin(np_ext_l)
+
+            rad_l.append(r)
+            alt_l.append(ext_l_alt)
+
+        d = nderiv(alt_l, rad_l)
+
+        fig, axs = plt.subplots(2)
+        axs[0].plot(rad_l, alt_l, "r")
+        axs[0].set(xlabel="Search Area to the Dam (m)", ylabel="Minimum Elevation")
+        axs[0].label_outer()
+        axs[1].plot(rad_l, abs(d), "b")
+        axs[1].set(xlabel="Search Area to the Dam (m)", ylabel="d(Minimum Elevation)")
+        axs[1].label_outer()
+
+        found_pdb = False
+        rad_pdb = 0
+        alt_pdb = 0
+
+        # TODO: @param 0.15
+        for i_r, i_a, i_d in zip(rad_l, alt_l, d):
+            #  print(i_r, i_a, i_d)
+            if abs(i_d) > 0.15:
+                found_pdb = True
+                rad_pdb = i_r
+                alt_pdb = i_a
+                fig.suptitle("PDB profile (1st pass detection)")
+                axs[0].plot(rad_pdb, alt_pdb, "x")
+                axs[1].plot(rad_pdb, abs(i_d), "x")
+                break
+
+        if found_pdb is True:
+            logging.debug("@radius= " + str(rad_pdb) + "m: local min = " + str(alt_pdb))
+        else:
+            for i_r, i_a, i_d in zip(rad_l, alt_l, d):
+                #  print(i_r, i_a, i_d)
+                if abs(i_d) > 0.10:
+                    found_pdb = True
+                    rad_pdb = i_r
+                    alt_pdb = i_a
+                    fig.suptitle("PDB profile (2nd pass detection)")
+                    axs[0].plot(rad_pdb, alt_pdb, "x")
+                    axs[1].plot(rad_pdb, abs(i_d), "x")
+                    logging.warning(
+                        "PDB found during 2nd pass - It may not be reliable"
+                    )
+                    logging.debug(
+                        "@radius= " + str(rad_pdb) + "m: local min = " + str(alt_pdb)
+                    )
+                    break
+                else:
+                    logging.debug(
+                        "@radius= "
+                        + str(rad_pdb)
+                        + "m: elev = "
+                        + str(alt_pdb)
+                        + "m: delev = "
+                        + str(i_d)
+                    )
+
+        fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
+
+        if found_pdb is False:
+            logging.error("404 - PDB not Found")
+            sys.exit("PDB search failed for dam " + dam_name + ". Aborting.")
+
+        # Retrieve PDB coordinates
+        ext = otb.Registry.CreateApplication("ExtractROI")
+        ext.SetParameterString("in", args.dem)
+        ext.SetParameterString("out", os.path.join(args.out, "dem_pdb.tif"))
+        ext.SetParameterString("mode", "radius")
+        ext.SetParameterString("mode.radius.unitr", "phy")
+        ext.SetParameterFloat("mode.radius.r", rad_pdb)
+        ext.SetParameterString("mode.radius.unitc", "phy")
+        ext.SetParameterFloat("mode.radius.cx", dam.GetX())
+        ext.SetParameterFloat("mode.radius.cy", dam.GetY())
+        ext.ExecuteAndWriteOutput()
+
+        np_ext = ext.GetImageAsNumpyArray("out")
+        indices = np.where(np_ext == [alt_pdb])
+        # TODO: if multiple pdb detected
+        if len(indices[0]) > 1:
+            logging.warning(
+                "Absolute minimum is not unique on the current area!["
+                + str(len(indices[0]))
+                + "]"
+            )
+        #  print("Indices Length: "+str(len(indices[0])))
+        #  print("X: "+str(indices[1][0]))
+        #  print("Y: "+str(indices[0][0]))
+
+        ds = gdal.Open(os.path.join(args.out, "dem_pdb.tif"))
+        #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
+        #  xoffset, px_w, rot1, yoffset, rot2, px_h = ds.GetGeoTransform()
+        #  print(ds.GetGeoTransform())
+
+        #  posX = px_w * indices[1][0] + rot1 * indices[0][0] + xoffset
+        #  posY = rot2 * indices[1][0] + px_h * indices[0][0] + yoffset
+
+        # shift to the center of the pixel
+        #  posX += px_w / 2.0
+        #  posY += px_h / 2.0
+
+        posX, posY = coord(indices[1][0], indices[0][0], ds)
+        pX, pY = pixel(posX, posY, ds)
+
+        pdb = ogr.Geometry(ogr.wkbPoint)
+        pdb.AddPoint(float(posX), float(posY))
+        pdb.Transform(cartotogeo)
+        pdblat = pdb.GetX()
+        pdblon = pdb.GetY()
+
+        pdbalt = float(
+            os.popen(
+                'gdallocationinfo -valonly -wgs84 "%s" %s %s'
+                % (args.dem, pdblon, pdblat)
+            ).read()
+        )
+        logging.debug("Coordinates (pixel): " + str(pX) + " - " + str(pY))
+        logging.debug("Coordinates (carto): " + str(posX) + " - " + str(posY))
+        logging.debug(
+            "Coordinates (latlon): " + str(pdb.GetX()) + " - " + str(pdb.GetY())
+        )
+        logging.info(
+            "PDB detected: "
+            + dam_name
+            + "(id:"
+            + str(args.id)
+            + ") [pdbLat: "
+            + str(pdblat)
+            + ", pdbLon: "
+            + str(pdblon)
+            + ", pdbAlt: "
+            + str(pdbalt)
+            + "]"
+        )
+
+        wkt = "POINT ( %f %f )" % (float(posX), float(posY))
+        feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+        p = ogr.CreateGeometryFromWkt(wkt)
+        feat.SetGeometryDirectly(p)
+        feat.SetField("name", "PDB")
+        feat.SetField("elev", "")
+        feat.SetField("damname", dam_path)
+        feat.SetField("ID", dam_id)
+        dst_layer.CreateFeature(feat)
+        feat.Destroy()
+
+        # Point on dam
+        wkt = "POINT ( %f %f )" % (float(dam.GetX()), float(dam.GetY()))
+        feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+        p = ogr.CreateGeometryFromWkt(wkt)
+        feat.SetGeometryDirectly(p)
+        feat.SetField("name", "Dam")
+        feat.SetField("elev", str(bml_alt))
+        feat.SetField("damname", dam_path)
+        feat.SetField("ID", dam_id)
+        dst_layer.CreateFeature(feat)
+        feat.Destroy()
+
+        # Point inside water body from DB
+        in_w = ogr.Geometry(ogr.wkbPoint)
+        in_w.AddPoint(clat_in, clon_in)
+        in_w.Transform(geotocarto)
+        logging.debug(
+            "Coordinates Carto Point Inside Water Body: "
+            + str(in_w.GetX())
+            + " - "
+            + str(in_w.GetY())
+        )
+
+        wkt = "POINT ( %f %f )" % (float(in_w.GetX()), float(in_w.GetY()))
+        feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
+        p = ogr.CreateGeometryFromWkt(wkt)
+        feat.SetGeometryDirectly(p)
+        feat.SetField("name", "Insider")
+        feat.SetField("elev", "")
+        feat.SetField("damname", dam_path)
+        feat.SetField("ID", dam_id)
+        dst_layer.CreateFeature(feat)
+        feat.Destroy()
+    # END
+    else:
+        # User-defined daminfo.json was provided
+        logging.info("User-defined daminfo.json has been provided.")
+        with open(args.info) as i:
+            jsi = json.load(i)
+        for feature in jsi["features"]:
+            if feature["properties"]["name"] == "Dam":
+                logging.debug(feature)
+                bml_alt = float(feature["properties"]["elev"])
+                logging.info("Dam elevation extracted from user provided daminfo.json")
+                logging.info("Extracted dam elevation= " + str(bml_alt) + "m")
+                logging.info(
+                    "Target Elevation for cutline search= " + str(targetelev) + "m"
+                )
+
+            if feature["properties"]["name"] == "PDB":
+                logging.debug(feature)
+                pdbin = shape(feature["geometry"])
+
+                pdb = ogr.Geometry(ogr.wkbPoint)
+                pdb.AddPoint(float(pdbin.x), float(pdbin.y))
+                pdb.Transform(cartotogeo)
+                pdblat = pdb.GetX()
+                pdblon = pdb.GetY()
+                pdbalt = float(
+                    os.popen(
+                        'gdallocationinfo -valonly -wgs84 "%s" %s %s'
+                        % (args.dem, pdblon, pdblat)
+                    ).read()
+                )
+
+                logging.debug(
+                    "Coordinates (carto): " + str(pdbin.x) + " - " + str(pdbin.y)
+                )
+                logging.debug(
+                    "Coordinates (latlon): " + str(pdblat) + " - " + str(pdblon)
+                )
+                logging.info(
+                    "PDB extracted from user provided daminfo.json: "
+                    + " [pdbLat: "
+                    + str(pdblat)
+                    + ", pdbLon: "
+                    + str(pdblon)
+                    + ", pdbAlt: "
+                    + str(pdbalt)
+                    + "]"
+                )
 
     # Search for Dam Line
     # TODO: fix confusion between radius and pdbradius needed here
