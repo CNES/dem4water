@@ -184,6 +184,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             json.dump(dbg_simplified_cutline, outfile)
 
     if args.level is None:
+        logging.debug("No contour line provided, generating to cache.")
         # Generate contour lines from DEM
         contourline_fname = os.path.join(
             args.cache,
@@ -212,6 +213,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     else:
         # If provided, load GeoJSON file containing contour lines
+        logging.debug("Using provided contour line file.")
         with open(args.level) as lvl:
             jsl = json.load(lvl)
 
