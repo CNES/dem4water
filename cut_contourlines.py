@@ -158,7 +158,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         # Generate contour lines from DEM
         contourline_fname = os.path.join(
             args.cache,
-            dam_path,
             dam_path + "_contourlines@" + str(args.elevsampling) + "m.json",
         )
         elev_margin = 3 * args.elevsampling
