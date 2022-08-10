@@ -66,7 +66,6 @@ for DAMID in "${!DamDict[@]}"; do
     --radius       "$RADIUS" \
     --pdbstep      5 \
     --pdbradius    500 \
-    --elevsampling 1 \
     --elevoffset   60 \
     --tmp          "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
     --out          "$ROOT_DIR/${DAM}_${RADIUS}" \
@@ -84,7 +83,9 @@ for DAMID in "${!DamDict[@]}"; do
     --dem      "$EXTR_DIR/${DAM}_${RADIUS}/dem_extract-$DAM.tif"  \
     --info     "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_daminfo.json" \
     --cut      "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_cutline.json" \
-    --level    "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_contourlines@1m.json" \
+    --elevsampling 1 \
+    --elevoffset   60 \
+    --tmp      "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
     --out      "$ROOT_DIR/${DAM}_${RADIUS}" \
     2>&1 | tee "$ROOT_DIR/${DAM}_${RADIUS}/log/cut_contourlines.log"
 
