@@ -8,14 +8,14 @@
 
 ### Example Project
 
-<!-- If possible,provide a command line sample that triggers the bug and the revision/version used. If you are using an older version, this 
+<!-- If possible,provide a command line sample that triggers the bug and the revision/version used. If you are using an older version, this
 will also determine whether the bug is fixed in a more recent version. -->
 
-### What is the current *bug* behavior?
+### What is the current _bug_ behavior?
 
 <!-- Describe what actually happens. -->
 
-### What is the expected *correct* behavior?
+### What is the expected _correct_ behavior?
 
 <!-- Describe what you should see instead. -->
 
@@ -29,4 +29,3 @@ will also determine whether the bug is fixed in a more recent version. -->
 <!-- If you can, link to the line of code that might be responsible for the problem. -->
 
 /label ~"type::bug"
-
