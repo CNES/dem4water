@@ -162,7 +162,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             + " - dam_path: "
             + dam_path
             + " - args.elevsampling: "
-            + args.elevsampling
+            + str(args.elevsampling)
         )
         contourline_fname = os.path.join(
             args.cache,
