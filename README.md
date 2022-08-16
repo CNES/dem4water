@@ -62,7 +62,6 @@ python3 szi_from_contourline.py --debug \
   --radius       "$RADIUS" \
   --pdbstep      5 \
   --pdbradius    500 \
-  --elevsampling 1 \
   --elevoffset   60 \
   --tmp          "$ROOT_DIR/${DAM}_${RADIUS}/tmp" \
   --out          "$ROOT_DIR/${DAM}_${RADIUS}"
