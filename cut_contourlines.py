@@ -186,10 +186,19 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     if args.level is None:
         logging.debug("No contour line provided, generating to cache.")
         # Generate contour lines from DEM
+        logging.debug(
+            "args.cache: "
+            + args.cache
+            + " - dam_path: "
+            + dam_path
+            + " - args.elevsampling: "
+            + args.elevsampling
+        )
         contourline_fname = os.path.join(
             args.cache,
             dam_path + "_contourlines@" + str(args.elevsampling) + "m.json",
         )
+        logging.debug("contourline_fname: " + contourline_fname)
         elev_margin = 3 * args.elevsampling
         target_elev = dam_elev + args.elevoffset
 

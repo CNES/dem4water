@@ -101,6 +101,7 @@ else
     --elevsampling 1                                              \
     --elevoffset   60                                             \
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
+    --cache        "$EXTR_DIR/${DAM}"                             \
     --out          "$CAMP_DIR/${DAM}"                             \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
 fi
