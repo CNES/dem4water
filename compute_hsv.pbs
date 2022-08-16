@@ -59,7 +59,6 @@ python3 szi_from_contourline.py --debug                         \
         --radius       "$RADIUS"                                \
         --pdbstep      5                                        \
         --pdbradius    500                                      \
-        --elevsampling 1                                        \
         --elevoffset   60                                       \
         --tmp          "$CAMP_DIR/${DAM}/tmp"                   \
         --out          "$CAMP_DIR/${DAM}"                       \
@@ -83,13 +82,29 @@ else
   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 fi
 
-python3 cut_contourlines.py --debug                               \
-        --cut      "$CUTLINE_FILE"                                \
-        --dem      "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
-        --info     "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
-        --level    "$CAMP_DIR/${DAM}/${DAM}_contourlines@1m.json" \
-        --out      "$CAMP_DIR/${DAM}"                             \
+if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
+  echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
+  python3 cut_contourlines.py --debug                                   \
+    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
+    --cut          "$CUTLINE_FILE"                                \
+    --level        "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" \
+    --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
+    --out          "$CAMP_DIR/${DAM}"                             \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
+else
+  echo "= No cached contour line file, generating it"
+  python3 cut_contourlines.py --debug                             \
+    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
+    --cut          "$CUTLINE_FILE"                                \
+    --elevsampling 1                                              \
+    --elevoffset   60                                             \
+    --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
+    --cache        "$EXTR_DIR/${DAM}"                             \
+    --out          "$CAMP_DIR/${DAM}"                             \
+    2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
+fi
 
 echo "== SZI_TO_MODEL =="
 python3 szi_to_model.py --debug                             \

@@ -24,7 +24,7 @@ from shapely.geometry import shape
 from shapely.ops import polygonize, split, unary_union
 
 
-def main(arguments):
+def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """cut_contourliness.py
     Cut contour lines based on the cutline to estimate the virtual water surface.
     """
@@ -33,9 +33,25 @@ def main(arguments):
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("-i", "--info", help="daminfo.json file")
-    parser.add_argument("-c", "--cut", help="cutline.json file")
-    parser.add_argument("-l", "--level", help="contournline.json file")
     parser.add_argument("-d", "--dem", help="Input DEM")
+    parser.add_argument("-c", "--cut", help="cutline.json file")
+    parser.add_argument("-l", "--level", help="contourline.json file")
+    parser.add_argument(
+        "--elevoffset",
+        type=float,
+        default=50,
+        help="Elevation offset target for the cutline wrt the estimated dam elevation",
+    )
+    parser.add_argument(
+        "--elevsampling",
+        type=int,
+        default=1,
+        help="Elevation sampling step for contour lines generation.",
+    )
+    parser.add_argument(
+        "--cache",
+        help="Cache directory to store <DAM>_contourlines@*m.json files.",
+    )
     parser.add_argument("-t", "--tmp", help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
@@ -67,12 +83,14 @@ def main(arguments):
         if feature["properties"]["name"] == "Dam":
             logging.debug(feature)
             # dam = shape(feature["geometry"])
+            dam_elev = float(feature["properties"]["elev"])
             damname = feature["properties"]["damname"]
+            dam_path = damname.replace(" ", "_")
 
         if feature["properties"]["name"] == "PDB":
             logging.debug(feature)
             # pdb = shape(feature["geometry"])
-            pdbelev = feature["properties"]["elev"]
+            pdb_elev = float(feature["properties"]["elev"])
 
         if feature["properties"]["name"] == "Insider":
             logging.debug(feature)
@@ -136,9 +154,46 @@ def main(arguments):
         with open(os.path.join(args.out, "simplified_cutline.geojson"), "w") as outfile:
             json.dump(dbg_simplified_cutline, outfile)
 
-    # load GeoJSON file containing contour lines
-    with open(args.level) as lvl:
-        jsl = json.load(lvl)
+    if args.level is None:
+        # Generate contour lines from DEM
+        logging.debug(
+            "args.cache: "
+            + args.cache
+            + " - dam_path: "
+            + dam_path
+            + " - args.elevsampling: "
+            + str(args.elevsampling)
+        )
+        contourline_fname = os.path.join(
+            args.cache,
+            dam_path + "_contourlines@" + str(args.elevsampling) + "m.json",
+        )
+        logging.debug("contourline_fname: " + contourline_fname)
+        elev_margin = 3 * args.elevsampling
+        target_elev = dam_elev + args.elevoffset
+
+        if os.path.exists(contourline_fname):
+            os.remove(contourline_fname)
+
+        os.system(
+            './gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s" "%s"'
+            % (
+                args.dem,
+                str(int(pdb_elev - elev_margin)),
+                str(args.elevsampling),
+                str(int(target_elev + elev_margin)),
+                contourline_fname,
+                args.tmp,
+            )
+        )
+
+        with open(contourline_fname) as lvl:
+            jsl = json.load(lvl)
+
+    else:
+        # If provided, load GeoJSON file containing contour lines
+        with open(args.level) as lvl:
+            jsl = json.load(lvl)
 
     r_id = 1
     r_elev = []
@@ -182,7 +237,7 @@ def main(arguments):
 
     logging.debug("Identified levels: " + str(r_id))
 
-    r_elev.append(float(pdbelev))
+    r_elev.append(pdb_elev)
     r_area.append(0.0)
 
     # make sure data is sorted by elevation
@@ -206,7 +261,7 @@ def main(arguments):
         xlabel="Virtual Water Surface Elevation (m)",
         ylabel="Virtual Water Surface (ha)",
     )
-    ax.plot(float(pdbelev), 0.0, "ro")
+    ax.plot(pdb_elev, 0.0, "ro")
     ax.grid(b=True, which="major", linestyle="-")
     ax.grid(b=False, which="minor", linestyle="--")
     plt.minorticks_on()
