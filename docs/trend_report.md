@@ -20,4 +20,4 @@ The generator is ran (by CI), collect everything from subdirectories (one by meg
 
 After completion (model estimation and validation on all sites), a "score scrapper will collect all the relevant metric from the logs and store them in a timestamped json (also containing the revision used by the run) that should be added to the repository for versionning and future reference.
 
-The resulting json file will be interpreted and compared to available past jsons to generate a markdown report including multiple graph and table to illustrate the trends both globally and by site/mega-site. Timestamped markdown and associated figures should be added to the repository for versionning.
+The resulting json file will be interpreted and compared to available past jsons to generate a markdown report including multiple graph and table to illustrate the trends both globally and by site/mega-site. Timestamped markdown and associated figures should be added to the repository for versionning. Even better still would be to version the markdown documents into the gitlab wiki after a run from CI!
