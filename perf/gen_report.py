@@ -33,7 +33,9 @@ def run_campaign(args):
         logging.error("Output directory " + args.outdir + " does not exist.")
         raise RuntimeError("Output directory " + args.outdir + " does not exist.")
     else:
-        with open(pathlib.Path(args.outdir, "version.txt"), "w+") as vf:
+        with open(
+            pathlib.Path(args.outdir, get_current_git_rev(), "version.txt"), "w+"
+        ) as vf:
             vf.write(get_current_git_rev())
 
     # Retrieve baseline sites info
