@@ -32,11 +32,6 @@ def run_campaign(args):
     if pathlib.Path(args.outdir).is_dir() is False:
         logging.error("Output directory " + args.outdir + " does not exist.")
         raise RuntimeError("Output directory " + args.outdir + " does not exist.")
-    else:
-        with open(
-            pathlib.Path(args.outdir, get_current_git_rev(), "version.txt"), "w+"
-        ) as vf:
-            vf.write(get_current_git_rev())
 
     # Retrieve baseline sites info
     for site in args.sites:
@@ -72,6 +67,10 @@ def run_campaign(args):
                     + str(pathlib.Path(args.outdir, get_current_git_rev()).absolute())
                 )
             )
+        with open(
+            pathlib.Path(args.outdir, get_current_git_rev(), "version.txt"), "w+"
+        ) as vf:
+            vf.write(get_current_git_rev())
 
 
 def run_report(args):
