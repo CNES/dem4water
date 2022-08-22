@@ -14,6 +14,7 @@ import os
 import pathlib
 import subprocess
 import sys
+from datetime import datetime
 
 
 def get_current_git_rev():
@@ -26,10 +27,14 @@ def get_current_git_rev():
 
 def run_campaign(args):
     """Run the baseline campaign."""
+    logging.info("Starting baseline campaign execution.")
     # Check output directory:
-    if pathlib.Path(args.out).is_dir() is False:
-        logging.error("Output directory " + args.out + " does not exist.")
-        raise RuntimeError("Output directory " + args.out + " does not exist.")
+    if pathlib.Path(args.outdir).is_dir() is False:
+        logging.error("Output directory " + args.outdir + " does not exist.")
+        raise RuntimeError("Output directory " + args.outdir + " does not exist.")
+    else:
+        with open(pathlib.Path(args.outdir, "version.txt"), "w+") as vf:
+            vf.write(get_current_git_rev())
 
     # Retrieve baseline sites info
     for site in args.sites:
@@ -62,19 +67,58 @@ def run_campaign(args):
                     + " "
                     + str(pathlib.Path(args.exec).absolute().parent)
                     + " "
-                    + args.out
+                    + str(pathlib.Path(args.outdir, get_current_git_rev()).absolute())
                 )
             )
 
 
 def run_report(args):
     """Collect and compile performance metrics from an existing campaign."""
-    logging.error("NOT IMPLEMENTED.")
+    logging.info("Starting campaign report generation.")
+    try:
+        with open(pathlib.Path(args.indir, "version.txt")) as vf:
+            version = vf.readlines()[0]
+    except FileNotFoundError:
+        logging.error(
+            "No version file, Directory does not seems to contain campaign results."
+        )
+        raise RuntimeError(
+            "No version file, Directory "
+            + args.indir
+            + " does not seems to contain campaign results."
+        )
+    logging.info("Generating report for revision " + version + ".")
+
+    rep_files = sorted(pathlib.Path(args.indir).glob("**/*_report.json"))
+    logging.debug(rep_files)
+
+    report = []
+    # report.append = {"timestamp": datetime.now(), "version": version}
+    # report["timestamp"] = datetime.now()
+    # report["version"] = version
+
+    for rep in rep_files:
+        with open(rep, "rb") as infile:
+            report.append(json.load(infile))
+
+    logging.debug("\n" + json.dumps(report, indent=4, sort_keys=True))
+
+    with open(
+        pathlib.Path(
+            args.outdir, datetime.now().strftime("%Y%m%d") + version + ".json"
+        ),
+        "w",
+    ) as outfile:
+        json.dump(report, outfile, indent=4)
 
 
 def run_dashboard(args):
     """Generate a trend dashboard from an existing reports."""
-    logging.error("NOT IMPLEMENTED.")
+    logging.error("NOT YET IMPLEMENTED.")
+    # ↗ Better
+    # # ↘ Worst
+    # ↔ Same
+    # ⊙ New
 
 
 def main(arguments):
@@ -110,7 +154,7 @@ def main(arguments):
         default="run_processors.py",
         help="Paths run_processors.py script",
     )
-    parser_camp.add_argument("-o", "--out", help="Output directory", required=True)
+    parser_camp.add_argument("-o", "--outdir", help="Output directory", required=True)
 
     # Report sub-command
     parser_rep = sub_parsers.add_parser(
@@ -125,12 +169,12 @@ def main(arguments):
     )
     parser_rep.add_argument(
         "-i",
-        "--in",
+        "--indir",
         help="Directory containing the results of a campaign",
         required=True,
     )
     parser_rep.add_argument(
-        "-o", "--out", help="Output directory", default="perf/reports/"
+        "-o", "--outdir", help="Output directory", default="perf/reports/"
     )
 
     # Dashboard sub-command
@@ -146,12 +190,12 @@ def main(arguments):
     )
     parser_dash.add_argument(
         "-i",
-        "--in",
+        "--indir",
         help="Directory containing the reports",
         default="perf/reports/",
     )
     parser_dash.add_argument(
-        "-o", "--out", help="Output directory", default="perf/dashboards/"
+        "-o", "--outdir", help="Output directory", default="perf/dashboards/"
     )
 
     args = parser.parse_args(arguments)
@@ -169,7 +213,7 @@ def main(arguments):
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
     # Expose revision
-    logging.info("Performance Estimation of revision " + get_current_git_rev())
+    logging.info("Currently using revision " + get_current_git_rev())
 
     if args.mode == "campaign":
         run_campaign(args)
