@@ -117,9 +117,16 @@ def run_dashboard(args):
     """Generate a trend dashboard from an existing reports."""
     logging.error("NOT YET IMPLEMENTED.")
     # ↗ Better
-    # # ↘ Worst
+    # ↘ Worst
     # ↔ Same
     # ⊙ New
+    rep_files = sorted(pathlib.Path(args.indir).glob("**/*.json"), reverse=True)
+    logging.debug(rep_files)
+
+
+def run_full(args):
+    """Run the whole benchmark end-to-end."""
+    logging.error("NOT YET IMPLEMENTED.")
 
 
 def main(arguments):
@@ -199,6 +206,32 @@ def main(arguments):
         "-o", "--outdir", help="Output directory", default="perf/dashboards/"
     )
 
+    # Full sub-command
+    parser_full = sub_parsers.add_parser(
+        "full",
+        help="Full benchmark mode, run the whole process.",
+    )
+    parser_full.add_argument(
+        "--sites",
+        nargs="+",
+        default=["perf/data/occitanie/", "perf/data/andalousie/"],
+        help="Paths to mega-site direcories",
+    )
+    parser_full.add_argument(
+        "--exec",
+        default="run_processors.py",
+        help="Paths run_processors.py script",
+    )
+    parser_full.add_argument(
+        "-o", "--outdir", help="Campaign output directory", required=True
+    )
+    parser_full.add_argument(
+        "-r", "--repdir", help="Report directory", default="perf/reports/"
+    )
+    parser_full.add_argument(
+        "-d", "--dashdir", help="Dashboard directory", default="perf/dashboards/"
+    )
+
     args = parser.parse_args(arguments)
 
     # Setup Logger
@@ -222,6 +255,8 @@ def main(arguments):
         run_report(args)
     elif args.mode == "dashboard":
         run_dashboard(args)
+    elif args.mode == "full":
+        run_full(args)
 
 
 if __name__ == "__main__":
