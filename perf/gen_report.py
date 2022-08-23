@@ -106,7 +106,7 @@ def run_report(args):
 
     with open(
         pathlib.Path(
-            args.outdir, datetime.now().strftime("%Y%m%d") + version + ".json"
+            args.outdir, datetime.now().strftime("%Y%m%d") + "_" + version + ".json"
         ),
         "w",
     ) as outfile:
