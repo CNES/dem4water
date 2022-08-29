@@ -8,6 +8,7 @@
 """
 
 import argparse
+import csv
 import json
 import logging
 import os
@@ -23,6 +24,18 @@ def get_current_git_rev():
         .decode("ascii")
         .strip()
     )
+
+
+def get_score(json, dam, title):
+    score = "☓"
+    for record in json:
+        if str(record["ID"]) == str(dam):
+            if str(record["S(z)_quality"][title]["mean"]) == "NaN":
+                score = str(record["S(z)_quality"][title]["mean"])
+            else:
+                score = "%.4f" % float(record["S(z)_quality"][title]["mean"])
+
+    return score
 
 
 def run_campaign(args):
@@ -43,10 +56,6 @@ def run_campaign(args):
             with open(pathlib.Path(p_site, p_site.stem + ".cfg"), "r") as cfg:
                 site_cfg = json.load(cfg)
             logging.debug("\n" + json.dumps(site_cfg, indent=4, sort_keys=True))
-
-            # with open(pathlib.Path(p_site, p_site.stem + ".lst"), "r") as lst:
-            #     dam_list = lst.readlines()
-            # logging.debug(dam_list)
 
             os.system(
                 str(
@@ -115,13 +124,52 @@ def run_report(args):
 
 def run_dashboard(args):
     """Generate a trend dashboard from an existing reports."""
-    logging.error("NOT YET IMPLEMENTED.")
     # ↗ Better
     # ↘ Worst
     # ↔ Same
     # ⊙ New
+    # ☓ Missing
     rep_files = sorted(pathlib.Path(args.indir).glob("**/*.json"), reverse=True)
     logging.debug(rep_files)
+
+    # Report Table Header
+    table = "# Reference Campaign Dashboard \n| Dam ID | Dam Name | "
+    sep_line = "|:------|:------"
+    for rep_file in rep_files:
+        table += rep_file.stem + " | "
+        sep_line += "|:------"
+
+    table += "\n"
+    sep_line += ":|\n"
+    table += sep_line
+
+    for site in args.sites:
+        p_site = pathlib.Path(site)
+        if p_site.is_dir() is False:
+            logging.error("Baseline site: " + site + "Not Found.")
+        else:
+            with open(pathlib.Path(p_site, p_site.stem + ".lst"), "r") as f:
+                reader = csv.reader(f)
+                dams = {rows[0]: rows[1] for rows in reader}
+            logging.info(
+                "## Baseline site: " + p_site.stem + " [" + str(len(dams)) + " sites]"
+            )
+
+        for dam in dams:
+            line = "| " + dam + " | " + dams[dam] + " | "
+            for rep_file in rep_files:
+                with open(rep_file, "r") as f:
+                    records = json.load(f)
+                line += get_score(records, dam, "glob") + " | "
+
+            line += "\n"
+            table += line
+        logging.debug(table)
+
+    with open(
+        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md"), "a"
+    ) as outfile:
+        outfile.write(table)
 
 
 def run_full(args):
@@ -149,7 +197,7 @@ def main(arguments):
 
     # Campaign sub-command
     parser_camp = sub_parsers.add_parser(
-        "campaign", help="Campaign mode, runs the model estimations."
+        "campaign", help="1- Campaign mode, runs the model estimations."
     )
     parser_camp.add_argument(
         "--sites",
@@ -167,7 +215,7 @@ def main(arguments):
     # Report sub-command
     parser_rep = sub_parsers.add_parser(
         "report",
-        help="Report mode, collect and compile validation report scores of an existing campaign.",
+        help="2- Report mode, collect and compile validation report scores of an existing campaign.",
     )
     parser_rep.add_argument(
         "--sites",
@@ -188,7 +236,7 @@ def main(arguments):
     # Dashboard sub-command
     parser_dash = sub_parsers.add_parser(
         "dashboard",
-        help="Dashboard mode, generate a comprehensive performance trend dashboard.",
+        help="3- Dashboard mode, generate a comprehensive performance trend dashboard.",
     )
     parser_dash.add_argument(
         "--sites",
