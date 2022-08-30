@@ -38,6 +38,45 @@ def get_score(json, dam, title):
     return score
 
 
+def get_trend(line):
+    trend = "⊙"
+    if line.split(" | ")[1] == "☓" or line.split(" | ")[1] == "NaN":
+        trend = "☓"
+    elif line.split(" | ")[2] == "☓" or line.split(" | ")[2] == "NaN":
+        trend = "⊙"
+    else:
+        try:
+            if abs(float(line.split(" | ")[1])) > abs(float(line.split(" | ")[2])):
+                trend = '<span style="color:red">↘</span>'
+            elif abs(float(line.split(" | ")[1])) < abs(float(line.split(" | ")[2])):
+                trend = '<span style="color:green">↗</span>'
+            elif abs(float(line.split(" | ")[1])) == abs(float(line.split(" | ")[2])):
+                trend = '<span style="color:blue">↔</span>'
+        except ValueError:
+            logging.debug("N/A")
+            trend = "☓"
+
+    return get_trophy(line) + " " + trend
+
+
+def get_trophy(line):
+    trophy = '<span style="color:yellow">🏅</span>'
+    if line.split(" | ")[1] == "☓" or line.split(" | ")[1] == "NaN":
+        trophy = " "
+    else:
+        best = abs(float(line.split(" | ")[1]))
+        for measure in line.split(" | ")[2:]:
+            if measure == "☓" or measure == "NaN" or measure == "\n":
+                continue
+            else:
+                logging.debug("measure:<" + measure + ">")
+                if abs(float(measure)) < best:
+                    trophy = " "
+                    break
+
+    return trophy
+
+
 def run_campaign(args):
     """Run the baseline campaign."""
     logging.info("Starting baseline campaign execution.")
@@ -103,9 +142,6 @@ def run_report(args):
     logging.debug(rep_files)
 
     report = []
-    # report.append = {"timestamp": datetime.now(), "version": version}
-    # report["timestamp"] = datetime.now()
-    # report["version"] = version
 
     for rep in rep_files:
         with open(rep, "rb") as infile:
@@ -129,12 +165,13 @@ def run_dashboard(args):
     # ↔ Same
     # ⊙ New
     # ☓ Missing
+    # 🏆 Best
     rep_files = sorted(pathlib.Path(args.indir).glob("**/*.json"), reverse=True)
     logging.debug(rep_files)
 
     # Report Table Header
-    table = "# Reference Campaign Dashboard \n| Dam ID | Dam Name | "
-    sep_line = "|:------|:------"
+    table = "# Reference Campaign Dashboard \n| Dam ID | Dam Name | Trend | "
+    sep_line = "|:------|:------|:------"
     for rep_file in rep_files:
         table += rep_file.stem + " | "
         sep_line += "|:------"
@@ -156,18 +193,20 @@ def run_dashboard(args):
             )
 
         for dam in dams:
-            line = "| " + dam + " | " + dams[dam] + " | "
+            beg_line = "| " + dam + " | " + dams[dam] + " | "
+            line = " | "
             for rep_file in rep_files:
                 with open(rep_file, "r") as f:
                     records = json.load(f)
                 line += get_score(records, dam, "glob") + " | "
 
             line += "\n"
-            table += line
+            trend = get_trend(line)
+            table += beg_line + trend + line
         logging.debug(table)
 
     with open(
-        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md"), "a"
+        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md"), "w"
     ) as outfile:
         outfile.write(table)
 
