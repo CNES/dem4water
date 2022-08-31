@@ -26,14 +26,26 @@ def get_current_git_rev():
     )
 
 
-def get_score(json, dam, title):
+def get_score(json, dam, measure):
     score = "☓"
     for record in json:
         if str(record["ID"]) == str(dam):
-            if str(record["S(z)_quality"][title]["mean"]) == "NaN":
-                score = str(record["S(z)_quality"][title]["mean"])
+            if str(record[measure[0]][measure[1]]["mean"]) == "NaN":
+                score = str(record[measure[0]][measure[1]]["mean"])
             else:
-                score = "%.4f" % float(record["S(z)_quality"][title]["mean"])
+                score = "%.4f" % float(record[measure[0]][measure[1]]["mean"])
+
+    return score
+
+
+def get_error(json, dam, measure):
+    score = "☓"
+    for record in json:
+        if str(record["ID"]) == str(dam):
+            if str(record[measure[0]][measure[1]]) == "NaN":
+                score = str(record[measure[0]][measure[1]])
+            else:
+                score = "%.4f" % float(record[measure[0]][measure[1]])
 
     return score
 
@@ -69,12 +81,55 @@ def get_trophy(line):
             if measure == "☓" or measure == "NaN" or measure == "\n":
                 continue
             else:
-                logging.debug("measure:<" + measure + ">")
+                # logging.debug("measure:<" + measure + ">")
                 if abs(float(measure)) < best:
                     trophy = " "
                     break
 
     return trophy
+
+
+def get_table(measure, sites, rep_files, func):
+    # Report Table Title
+    table = "\n## " + measure[0] + " " + measure[1] + " quality trend\n"
+    # Report Table Header
+    table += "| Dam ID | Dam Name | Trend | "
+    sep_line = "|:------|:------|:------"
+    for rep_file in rep_files:
+        table += rep_file.stem + " | "
+        sep_line += "|:------"
+
+    table += "\n"
+    sep_line += ":|\n"
+    table += sep_line
+
+    for site in sites:
+        p_site = pathlib.Path(site)
+        if p_site.is_dir() is False:
+            logging.error("Baseline site: " + site + "Not Found.")
+        else:
+            with open(pathlib.Path(p_site, p_site.stem + ".lst"), "r") as f:
+                reader = csv.reader(f)
+                dams = {rows[0]: rows[1] for rows in reader}
+            logging.debug(
+                "Baseline site: " + p_site.stem + " [" + str(len(dams)) + " sites]"
+            )
+
+        for dam in dams:
+            beg_line = "| " + dam + " | " + dams[dam] + " | "
+            line = " | "
+            for rep_file in rep_files:
+                with open(rep_file, "r") as f:
+                    records = json.load(f)
+                line += func(records, dam, measure) + " | "
+                # line += get_error(records, dam, error) + " | "
+
+            line += "\n"
+            trend = get_trend(line)
+            table += beg_line + trend + line
+        # logging.debug(table)
+
+    return table
 
 
 def run_campaign(args):
@@ -166,54 +221,51 @@ def run_dashboard(args):
     # ⊙ New
     # ☓ Missing
     # 🏆 Best
+
+    measures = [
+        ["S(z)_quality", "glob"],
+        ["V(S)_quality", "glob"],
+        ["Vr(S)_quality", "glob"],
+    ]
+
+    errors = [["Dam_bottom_estimation", "Dam_bottom_error"]]
+
     rep_files = sorted(pathlib.Path(args.indir).glob("**/*.json"), reverse=True)
     logging.debug(rep_files)
+    rev = rep_files[0].stem.split("_")[1]
+    page = "# Reference Campaign Dashboard for revision " + rev
 
-    # Report Table Header
-    table = "# Reference Campaign Dashboard \n| Dam ID | Dam Name | Trend | "
-    sep_line = "|:------|:------|:------"
-    for rep_file in rep_files:
-        table += rep_file.stem + " | "
-        sep_line += "|:------"
+    for measure in measures:
+        page += get_table(measure, args.sites, rep_files, get_score)
 
-    table += "\n"
-    sep_line += ":|\n"
-    table += sep_line
+    page += get_table(errors[0], args.sites, rep_files, get_error)
 
-    for site in args.sites:
-        p_site = pathlib.Path(site)
-        if p_site.is_dir() is False:
-            logging.error("Baseline site: " + site + "Not Found.")
-        else:
-            with open(pathlib.Path(p_site, p_site.stem + ".lst"), "r") as f:
-                reader = csv.reader(f)
-                dams = {rows[0]: rows[1] for rows in reader}
-            logging.info(
-                "## Baseline site: " + p_site.stem + " [" + str(len(dams)) + " sites]"
-            )
+    if (
+        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md").is_dir()
+        is True
+    ):
+        outfile = pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md")
+    else:
+        outfile = pathlib.Path(
+            args.outdir, datetime.now().strftime("%Y%m%d_%H%M%S") + ".md"
+        )
 
-        for dam in dams:
-            beg_line = "| " + dam + " | " + dams[dam] + " | "
-            line = " | "
-            for rep_file in rep_files:
-                with open(rep_file, "r") as f:
-                    records = json.load(f)
-                line += get_score(records, dam, "glob") + " | "
+    with open(outfile, "w") as outfile:
+        outfile.write(page)
 
-            line += "\n"
-            trend = get_trend(line)
-            table += beg_line + trend + line
-        logging.debug(table)
-
-    with open(
-        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md"), "w"
-    ) as outfile:
-        outfile.write(table)
+    logging.info(
+        "Up-to-date dashboard relative to revision "
+        + rev
+        + " can be found at "
+        + str((outfile.name))
+        + "."
+    )
 
 
 def run_full(args):
     """Run the whole benchmark end-to-end."""
     logging.error("NOT YET IMPLEMENTED.")
+    # NOTE: running steps through CI, including pushing to wiki would be better
 
 
 def main(arguments):
@@ -333,16 +385,18 @@ def main(arguments):
         logging.basicConfig(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
-    # Expose revision
-    logging.info("Currently using revision " + get_current_git_rev())
 
     if args.mode == "campaign":
+        # Expose revision
+        logging.info("Currently using revision " + get_current_git_rev())
         run_campaign(args)
     elif args.mode == "report":
         run_report(args)
     elif args.mode == "dashboard":
         run_dashboard(args)
     elif args.mode == "full":
+        # Expose revision
+        logging.info("Currently using revision " + get_current_git_rev())
         run_full(args)
 
 
