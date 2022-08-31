@@ -241,8 +241,8 @@ def run_dashboard(args):
     page += get_table(errors[0], args.sites, rep_files, get_error)
 
     if (
-        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md").is_dir()
-        is True
+        pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md").exists()
+        is False
     ):
         outfile = pathlib.Path(args.outdir, datetime.now().strftime("%Y%m%d") + ".md")
     else:
