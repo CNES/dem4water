@@ -264,8 +264,9 @@ def run_dashboard(args):
 
 def run_full(args):
     """Run the whole benchmark end-to-end."""
-    logging.error("NOT YET IMPLEMENTED.")
-    # NOTE: running steps through CI, including pushing to wiki would be better
+    logging.error("End-to-end benchmark - NOT YET IMPLEMENTED.")
+    # NOTE: IMHO running steps through CI,
+    # including pushing resulting markdown to wiki would be better
 
 
 def main(arguments):
@@ -347,8 +348,8 @@ def main(arguments):
 
     # Full sub-command
     parser_full = sub_parsers.add_parser(
-        "full",
-        help="Full benchmark mode, run the whole process.",
+        "end-2-end",
+        help="End-2-end benchmark mode, run the whole process.",
     )
     parser_full.add_argument(
         "--sites",
@@ -394,7 +395,7 @@ def main(arguments):
         run_report(args)
     elif args.mode == "dashboard":
         run_dashboard(args)
-    elif args.mode == "full":
+    elif args.mode == "end-2-end":
         # Expose revision
         logging.info("Currently using revision " + get_current_git_rev())
         run_full(args)
