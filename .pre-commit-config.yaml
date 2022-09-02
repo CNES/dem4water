@@ -13,6 +13,7 @@ repos:
       - id: check-added-large-files
         name: Check for added large files
         entry: check-added-large-files
+        args: ["--maxkb=10000"]
         language: system
       - id: check-toml
         name: Check Toml
@@ -52,6 +53,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: prettier
+        exclude: ^perf/data/
 
   # - repo: https://github.com/pycqa/isort
   #   rev: 5.10.1

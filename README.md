@@ -24,9 +24,8 @@ Each application embbed a documentation that can be accessed using --help.
 
 It's also possible to use qsub in order to parallelize by dam process :
 
-```
+```sh
 python3 run_processors.py dams_list dams_db dem_path wmap_path out_dir chain_dir
-
 ```
 
 where "dam_list" is a csv like file containing "dam_id,dam_name" on each line.
@@ -104,3 +103,96 @@ python3 val_report.py --debug \
   -r "${GT_PATH}" \
   -o "$ROOT_DIR/${DAM}_${RADIUS}/${DAM}_report.json"
 ```
+
+## Performance report generator
+
+Based on a selected reference campaign (Occitania & Andalousia), the goal is to provide a simple interface to run the reference campaign, collect the results and display them in a markdown dashboard. All the tool options can be explored using:
+
+```sh
+python3 perf/gen_report.py --help
+python3 perf/gen_report.py campaign --help
+python3 perf/gen_report.py report --help
+python3 perf/gen_report.py dashboard --help
+```
+
+### Run the campaign
+
+The following command will run the reference campaign and store the output in a subdirectory using the git revision hash.
+
+```sh
+python3 perf/gen_report.py campaign --outdir /tmp/campaign
+```
+
+### Collect the results
+
+The following command will collect and creat a new report in /perf/reports/ with the current date and the revision used by the campaign runner.
+
+```sh
+python3 perf/gen_report.py report --indir /tmp/campaign/494a81a/
+```
+
+### Generate the updated dashboard
+
+The following command will retrieve all the reports in /perf/reports and generate a markdown dashboard displaying the performance history in perf/dashboard/
+
+```sh
+python3 perf/gen_report.py dashboard
+```
+
+At the moment, the resulting dashboard looks like the following table:
+
+| Dam ID     | Dam Name                | 20220823_f1a959e | 20220823_e107d70 | 20220822_a31d185 | 20220820_f1a959e |
+| :--------- | :---------------------- | :--------------- | :--------------- | :--------------- | :--------------: |
+| 2320028893 | Pareloup                | 0.0866           | 0.0866           | 0.0866           |      0.0866      |
+| 2320028933 | Saint Geraud            | ☓                | ☓                | ☓                |        ☓         |
+| 2160030183 | Avene                   | ☓                | ☓                | ☓                |        ☓         |
+| 2160026973 | Salagou                 | -7.2406          | ☓                | ☓                |     -7.2406      |
+| 2320033043 | Saints Peyres           | -28.2802         | -26.4857         | -26.4857         |     -28.2802     |
+| 2320030823 | Cammazes                | 0.0619           | 0.0619           | 0.0619           |      0.0619      |
+| 2320039133 | Astarac                 | 0.1639           | 0.1813           | 0.1813           |      0.1639      |
+| 2320038733 | La Gimone               | 0.1938           | 0.1938           | 0.1938           |      0.1938      |
+| 2320030233 | Montbel                 | -6.3207          | -6.0946          | -6.0946          |     -6.3207      |
+| 2160030553 | Agly                    | 0.0310           | 0.0273           | 0.0273           |      0.0310      |
+| 2320031293 | Laparan                 | -0.0354          | -0.0354          | -0.0354          |     -0.0354      |
+| 2320031303 | Pla de Soulcem          | -0.0383          | -0.0383          | -0.0383          |     -0.0383      |
+| 2160030123 | Vinca                   | -6.4771          | -6.2043          | -6.2043          |     -6.4771      |
+| 2160029943 | Puyvalador              | -0.8011          | -0.5677          | -0.5677          |     -0.8011      |
+| 2160029873 | Villeneuve la Raho      | NaN              | NaN              | NaN              |       NaN        |
+| 2160028013 | Matemale                | 0.3337           | 0.3337           | 0.3337           |      0.3337      |
+| 2160004602 | Casasola                | -0.0233          | ☓                | ☓                |     -0.0233      |
+| 2160004532 | Limonero                | -0.0211          | ☓                | ☓                |     -0.0211      |
+| 2310018492 | Arcos de la Frontera    | ☓                | ☓                | ☓                |        ☓         |
+| 2310018272 | Almodovar               | -12.3807         | ☓                | ☓                |     -12.3807     |
+| 2160004623 | Guadarranque            | 0.0163           | ☓                | ☓                |      0.0163      |
+| 2160004663 | La Concepcion           | 0.0090           | ☓                | ☓                |      0.0090      |
+| 2310018393 | Zahara                  | 0.0593           | ☓                | ☓                |      0.0593      |
+| 2160004413 | La Vinuela              | -0.0111          | ☓                | ☓                |     -0.0111      |
+| 2160004183 | Beznar                  | 0.0365           | ☓                | ☓                |      0.0365      |
+| 2310022903 | Los Bermejales          | 0.0982           | ☓                | ☓                |      0.0982      |
+| 2310024113 | Puebla de Cazalla       | 0.0563           | ☓                | ☓                |      0.0563      |
+| 2310024073 | Iznajar                 | 0.0240           | ☓                | ☓                |      0.0240      |
+| 2310020663 | Piedras                 | ☓                | ☓                | ☓                |        ☓         |
+| 2310023943 | Vadomojon               | -0.0260          | ☓                | ☓                |     -0.0260      |
+| 2310016612 | Andevalo                | ☓                | ☓                | ☓                |        ☓         |
+| 2310023523 | Jose Toran              | -0.0750          | ☓                | ☓                |     -0.0750      |
+| 2310027322 | Los Melonares           | NaN              | ☓                | ☓                |       NaN        |
+| 2310024253 | La Brena II             | -0.0159          | ☓                | ☓                |     -0.0159      |
+| 2310000173 | San Rafael de Navallana | -0.0637          | ☓                | ☓                |     -0.0637      |
+| 2310022062 | Arenoso                 | ☓                | ☓                | ☓                |        ☓         |
+| 2310022743 | Yeguas                  | -0.0438          | ☓                | ☓                |     -0.0438      |
+| 2310027683 | Puente Nuevo            | 0.0992           | ☓                | ☓                |      0.0992      |
+| 2310020933 | Tranco de Beas          | 0.1796           | ☓                | ☓                |      0.1796      |
+| 2310021843 | Encinarejo              | ☓                | ☓                | ☓                |        ☓         |
+| 2310022963 | Giribaile               | -0.2160          | ☓                | ☓                |     -0.2160      |
+| 2310022023 | Guadalen                | -547824.0700     | ☓                | ☓                |   -547824.0700   |
+| 2160003673 | Cuevas de Almanzora     | 0.1080           | ☓                | ☓                |      0.1080      |
+| 2160004373 | Guadalhorce             | ☓                | ☓                | ☓                |        ☓         |
+| 2160004383 | Guadalteba              | 0.6970           | ☓                | ☓                |      0.6970      |
+| 2160004403 | Conde de Guadalhorce    | -0.0575          | ☓                | ☓                |     -0.0575      |
+| 2160004253 | Rules                   | 0.0083           | ☓                | ☓                |      0.0083      |
+| 2310018403 | Bornos                  | 0.0686           | ☓                | ☓                |      0.0686      |
+| 2310018233 | Los Hurones             | 0.0996           | ☓                | ☓                |      0.0996      |
+| 2310020153 | Guadalcacin 2           | -0.1066          | ☓                | ☓                |     -0.1066      |
+| 2310018473 | Barbate                 | -0.0077          | ☓                | ☓                |     -0.0077      |
+| 2310020223 | Celemin                 | 0.0189           | ☓                | ☓                |      0.0189      |
+| 2160004643 | Charco Redondo          | -0.0706          | ☓                | ☓                |     -0.0706      |
