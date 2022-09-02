@@ -73,8 +73,13 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # Silence Mathplotlib related debug messages (font matching)
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
+    geo = osr.SpatialReference()
+    geo.ImportFromEPSG(4326)
+
     ds = gdal.Open(args.dem, gdal.GA_ReadOnly)
     carto = osr.SpatialReference(wkt=ds.GetProjection())
+
+    cartotogeo = osr.CoordinateTransformation(carto, geo)
 
     # load GeoJSON file containing info
     with open(args.info) as i:
@@ -89,8 +94,32 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         if feature["properties"]["name"] == "PDB":
             logging.debug(feature)
-            # pdb = shape(feature["geometry"])
-            pdb_elev = float(feature["properties"]["elev"])
+            pdbin = shape(feature["geometry"])
+
+            pdb = ogr.Geometry(ogr.wkbPoint)
+            pdb.AddPoint(float(pdbin.x), float(pdbin.y))
+            pdb.Transform(cartotogeo)
+            pdblat = pdb.GetX()
+            pdblon = pdb.GetY()
+            pdb_elev = float(
+                os.popen(
+                    'gdallocationinfo -valonly -wgs84 "%s" %s %s'
+                    % (args.dem, pdblon, pdblat)
+                ).read()
+            )
+
+            logging.debug("Coordinates (carto): " + str(pdbin.x) + " - " + str(pdbin.y))
+            logging.debug("Coordinates (latlon): " + str(pdblat) + " - " + str(pdblon))
+            logging.info(
+                "PDB detected: "
+                + " [pdbLat: "
+                + str(pdblat)
+                + ", pdbLon: "
+                + str(pdblon)
+                + ", pdbAlt: "
+                + str(pdb_elev)
+                + "]"
+            )
 
         if feature["properties"]["name"] == "Insider":
             logging.debug(feature)
@@ -155,6 +184,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             json.dump(dbg_simplified_cutline, outfile)
 
     if args.level is None:
+        logging.debug("No contour line provided, generating to cache.")
         # Generate contour lines from DEM
         logging.debug(
             "args.cache: "
@@ -192,6 +222,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     else:
         # If provided, load GeoJSON file containing contour lines
+        logging.debug("Using provided contour line file.")
         with open(args.level) as lvl:
             jsl = json.load(lvl)
 
