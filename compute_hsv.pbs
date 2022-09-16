@@ -14,7 +14,7 @@ module load otb/7.4-python3.7.2
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
 EXTR_DIR="${ROOT_DIR}/extracts"
-RADIUS=""
+RADIUS=${RADIUS:-""}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
@@ -44,7 +44,7 @@ else
            --infile   "${DB_PATH}"       \
            --watermap "${WMAP_PATH}"     \
            --dem      "${DEM_PATH}"      \
-           --radius   "$RADIUS"          \
+           --radius   "${RADIUS}"          \
            --out      "$EXTR_DIR/${DAM}" \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/area_mapping.log"
 fi
