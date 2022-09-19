@@ -15,6 +15,7 @@ module load otb/7.4-python3.7.2
 CAMP_DIR="${ROOT_DIR}/camp"
 EXTR_DIR="${ROOT_DIR}/extracts"
 RADIUS=${RADIUS:-""}
+ELEV_OFF_DAM=${ELEV_OFF_DAM:-60}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
@@ -27,7 +28,7 @@ echo "== WMAP : $WMAP_PATH"
 echo "== DEM : $DEM_PATH"
 echo "== REFERENCE MODEL : $REF_MODEL"
 echo "== RADIUS : $RADIUS"
-
+echo "== ELEV_OFF_DAM: $ELEV_OFF_DAM"
 
 [ -d "$EXTR_DIR/${DAM}" ] || mkdir -p "$EXTR_DIR/${DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
@@ -59,7 +60,7 @@ python3 szi_from_contourline.py --debug                         \
         --radius       "$RADIUS"                                \
         --pdbstep      5                                        \
         --pdbradius    500                                      \
-        --elevoffset   60                                       \
+        --elevoffset   "${ELEV_OFF_DAM}"                        \
         --tmp          "$CAMP_DIR/${DAM}/tmp"                   \
         --out          "$CAMP_DIR/${DAM}"                       \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
@@ -99,7 +100,7 @@ else
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --elevsampling 1                                              \
-    --elevoffset   60                                             \
+    --elevoffset   "${ELEV_OFF_DAM}"                              \
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
     --cache        "$EXTR_DIR/${DAM}"                             \
     --out          "$CAMP_DIR/${DAM}"                             \
