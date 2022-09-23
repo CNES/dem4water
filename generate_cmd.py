@@ -79,7 +79,8 @@ def main(arguments):
             if save:
                 print(f"Save previous results for {name}")
                 save_previous_run(args.out, name)
-                cmd = (f"qsub -v WD=$PWD,DAM={name},DAM_ID={id_dam},ID_FIELD={args.id_db},"
+                cmd = (f"qsub -W umask=117 "
+                       f"-v WD=$PWD,DAM={name},DAM_ID={id_dam},ID_FIELD={args.id_db},"
                        f"DB_PATH={args.infile},DEM_PATH={args.dem},WMAP_PATH={args.watermap},"
                        f"ROOT_DIR={args.out}{rad}{param_dam}{param_cut}{param_vsurf}"
                        f",ELEV_OFF_DAM={args.elevoffdam}"
@@ -89,7 +90,8 @@ def main(arguments):
                 cmd_list.append(cmd)
      
         else:
-            cmd = (f"qsub -v WD=$PWD,DAM={name},DAM_ID={id_dam},ID_FIELD={args.id_db},"
+            cmd = (f"qsub -W umask=117"
+                   f" -v WD=$PWD,DAM={name},DAM_ID={id_dam},ID_FIELD={args.id_db},"
                    f"DB_PATH={args.infile},DEM_PATH={args.dem},WMAP_PATH={args.watermap},"
                    f"ROOT_DIR={args.out}{rad}"
                    f",ELEV_OFF_DAM={args.elevoffdam}"
