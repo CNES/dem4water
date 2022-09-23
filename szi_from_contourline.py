@@ -122,7 +122,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1,
         help="Elevation sampling step for contour lines generation.",
     )
-    parser.add_argument("--info", help="Optional user-defined daminfo.json file")
+    parser.add_argument("--info", help="Optional user-defined daminfo.json file", default="")
 
     parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
@@ -335,7 +335,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.info("Target Elevation for cutline search= " + str(targetelev) + "m")
 
     # BEGIN:
-    if args.info is None:
+    # Can be conflincting with other launcher mode
+    # Set info to default is enough?
+    if args.info == "" # is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
