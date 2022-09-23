@@ -14,7 +14,11 @@ module load otb/7.4-python3.7.2
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
 EXTR_DIR="${ROOT_DIR}/extracts"
+# If not provided set variables to empty string
 RADIUS=${RADIUS:-""}
+INFO_DAM=${INFO_DAM:-""}
+CUTLINE=${CUTLINE:-""}
+VSURF=${VSURF:-""}
 ELEV_OFF_DAM=${ELEV_OFF_DAM:-60}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
@@ -63,6 +67,7 @@ python3 szi_from_contourline.py --debug                         \
         --elevoffset   "${ELEV_OFF_DAM}"                        \
         --tmp          "$CAMP_DIR/${DAM}/tmp"                   \
         --out          "$CAMP_DIR/${DAM}"                       \
+		--info         "${INFO_DAM}"
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
 
 echo "== CUTLINE_SCORE =="
@@ -76,13 +81,18 @@ echo "== CUT_CONTOURLINES =="
 # Allow using a user-provided cutline
 # UP cutline should be located in $$EXTR_DIR/${DAM}/
 # and named ${DAM}_cutline_custom.json"
-if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
-  CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
+# if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
+#   CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
+#   echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+# else
+#   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
+# fi
+if [ -f "${CUTLINE}" ] ; then
+  CUTLINE_FILE="${CUTLINE}"
   echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
 else
   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 fi
-
 if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
   echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
   python3 cut_contourlines.py --debug                                   \
