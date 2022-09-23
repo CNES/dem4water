@@ -5,6 +5,8 @@ import os
 from datetime import datetime
 import shutil
 import glob
+
+
 def save_previous_run(output_path, name):
     current_time = datetime.now()
     date_time = current_time.strftime("%Y%m%dT%Hh%Mm")
@@ -19,6 +21,8 @@ def save_previous_run(output_path, name):
         for infile in files:
             shutil.copy(infile, save_path)
             print(infile, " copied to ", save_path)
+
+
 def main(arguments):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -60,17 +64,17 @@ def main(arguments):
             if dam_info:
                 if len(dam_info) != 1:
                     raise ValueError(f"More than one file found for dam info for {name} dam.")
-                param_dam = ",INFO_DAM={dam_info[0]}"
+                param_dam = f",INFO_DAM={dam_info[0]}"
                 save = True
             if cutline:
                 if len(cutline) != 1:
                     raise ValueError(f"More than one file found for cutline for {name} dam.")
-                param_cut = ",CUTLINE={cutline[0]}"
+                param_cut = f",CUTLINE={cutline[0]}"
                 save = True
             if vsurface:
                 if len(vsurface) != 1:
                     raise ValueError(f"More than one file found for vsurface for {name} dam.")
-                param_vsurf =",VSURF={vsurface[0]}"
+                param_vsurf =f",VSURF={vsurface[0]}"
                 save = True
             if save:
                 print(f"Save previous results for {name}")
@@ -96,7 +100,8 @@ def main(arguments):
         
     current_time = datetime.now()
     date_time = current_time.strftime("%Y%m%dT%Hh%Mm")
-    with open(os.path.join(args.out, f"command_list_{date_time}.txt"), "w", encoding="utf-8") as out_file:
+    with open(os.path.join(args.out, f"command_list_{date_time}.txt"),
+              "w", encoding="utf-8") as out_file:
         out_file.write("\n".join(cmd_list))
     for cmd in cmd_list:
         if args.exec_mode:

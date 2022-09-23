@@ -337,7 +337,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # BEGIN:
     # Can be conflincting with other launcher mode
     # Set info to default is enough?
-    if args.info == "" # is None:
+    if args.info == "": # is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
