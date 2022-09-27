@@ -93,10 +93,19 @@ if [ -f "${CUTLINE}" ] ; then
 else
   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 fi
+
+# Handle daminfo update
+if [ -f "${INFO_DAM}" ] ; then
+  DAM_FILE="${INFO_DAM}"
+  echo "= Using User Provided DAM Info file (${INFO_DAM})"
+else
+  DAM_FILE="$CAMP_DIR/${DAM}/${DAM}_daminfo.json"
+fi
+
 if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
   echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
   python3 cut_contourlines.py --debug                                   \
-    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --level        "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" \
@@ -106,7 +115,7 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
 else
   echo "= No cached contour line file, generating it"
   python3 cut_contourlines.py --debug                             \
-    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --elevsampling 1                                              \
@@ -120,7 +129,7 @@ fi
 echo "== SZI_TO_MODEL =="
 python3 szi_to_model.py --debug                             \
         --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
-        --daminfo    "$CAMP_DIR/${DAM}/${DAM}_daminfo.json" \
+        --daminfo    "${DAM_FILE}" \
         --zminoffset 10                                     \
         --zmaxoffset 30                                     \
         --maemode    "first"                                \
