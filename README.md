@@ -221,7 +221,7 @@ It outputs one geojson file in WGS84 projection.
 Example:
 
 ```sh
-python convert_shp_to_geojson.py INPE-V0-79-retenues.shp INPE-V0-79-barrages.shp INPE-V0-79-barrages.geojson
+python3 convert_shp_to_geojson.py INPE-V0-79-retenues.shp INPE-V0-79-barrages.shp INPE-V0-79-barrages.geojson
 ```
 
 This script requires the installation of `pygeos` to use the `sjoin_nearest` geopandas function, required to handle the case of dam info not intersect exactly the water bodies.

@@ -105,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("wmap_path", type=str, help="surfwater map path")
     parser.add_argument("chain_dir", type=str, help="dem4water chain directory")
     parser.add_argument("out_dir", type=str, help="HSV directory")
+    parser.add_argument("id_field", type=str, help="DAM ID column", default="ID_SWOT")
 
     args = parser.parse_args()
 
@@ -140,7 +141,7 @@ if __name__ == "__main__":
                 + ",DAM_ID="
                 + cle
                 + ",ID_FIELD="
-                + "ID_SWOT"
+                + args.id_field
                 + ",DB_PATH="
                 + args.dams_db
                 + ",DEM_PATH="
