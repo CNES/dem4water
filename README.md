@@ -197,6 +197,17 @@ At the moment, the resulting dashboard looks like the following table:
 | 2310020223 | Celemin                 | 0.0189           | ☓                | ☓                |      0.0189      |
 | 2160004643 | Charco Redondo          | -0.0706          | ☓                | ☓                |     -0.0706      |
 
+## Data preparation
+
+### Harmonize DAM_NAME
+
+Before trying to use dem4water, ensure that the name in your database are all correct.
+Some cases can cause issues during exectution:
+
+- Special symbols : for instance "é,è,à,ç", but also "'"
+- Non unicode characters which can be interpreted like "@,!,#" and interfere with bash
+
+
 ### Fuse shapefile to geojson
 
 The script `convert_shp_to_geojson.py` fuse two shapefiles into one geojson database.
