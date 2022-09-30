@@ -196,3 +196,21 @@ At the moment, the resulting dashboard looks like the following table:
 | 2310018473 | Barbate                 | -0.0077          | ☓                | ☓                |     -0.0077      |
 | 2310020223 | Celemin                 | 0.0189           | ☓                | ☓                |      0.0189      |
 | 2160004643 | Charco Redondo          | -0.0706          | ☓                | ☓                |     -0.0706      |
+
+### Fuse shapefile to geojson
+
+The script `convert_shp_to_geojson.py` fuse two shapefiles into one geojson database.
+
+The inputs are:
+- A shapefile containing polygones for water bodies
+- A shapefile containing points for DAM informations
+
+It outputs one geojson file in WGS84 projection.
+
+Example:
+
+```sh
+python convert_shp_to_geojson.py INPE-V0-79-retenues.shp INPE-V0-79-barrages.shp INPE-V0-79-barrages.geojson
+```
+
+This script requires the installation of `pygeos` to use the `sjoin_nearest` geopandas function, required to handle the case of dam info not intersect exactly the water bodies.
