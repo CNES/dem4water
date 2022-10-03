@@ -90,8 +90,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             # dam = shape(feature["geometry"])
             dam_elev = float(feature["properties"]["elev"])
             damname = feature["properties"]["damname"]
+            damname = damname.replace("-","_")
             dam_path = damname.replace(" ", "_")
-
+            dam_path  = dam_path.replace("-","_")
         if feature["properties"]["name"] == "PDB":
             logging.debug(feature)
             pdbin = shape(feature["geometry"])

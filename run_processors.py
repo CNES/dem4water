@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import sys
 import time
-
+from datetime import datetime
 
 def save_previous_run(path, dam_name):
     """Copy old file to time named folder."""
@@ -33,15 +33,15 @@ def save_previous_run(path, dam_name):
     ]
 
     if not os.path.exists(path_model):
-        logging.warning(f"Model {path_model} not found. No saving done.")
+        logging.info(f"Model {path_model} not found. No saving done.")
     else:
         # get the last modification time
         ti_m = os.path.getmtime(path_model)
         m_ti = time.ctime(ti_m)
         t_obj = time.strptime(m_ti)
         t_stamp = time.strftime("%Y%m%dT%H%M%S", t_obj)
-        mk_dir(t_stamp)
         save_path = os.path.join(path, "camp", dam_name, f"{dam_name}_{t_stamp}")
+        mk_dir(save_path)
         for pred in file_of_interest:
             files = glob.glob(os.path.join(path, "camp", dam_name, pred))
             for infile in files:
@@ -60,7 +60,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
 
         dam_info_new = glob.glob(os.path.join(opt_path, f"{dam_name}_daminfo*.json"))
         cutline_new = glob.glob(
-            os.path.join(args.corrections_folder, f"{dam_name}_cutline*.*json")
+            os.path.join(opt_path, f"{dam_name}_cutline*.*json")
         )
         if len(dam_info_new) > 1:
             raise ValueError(
@@ -100,8 +100,9 @@ def find_corrected_input(path, dam_name, opt_path=None):
         logging.info("No custom daminfo file found.")
 
     if cutline_new:
+        ext = cutline_new[0].split(".")[-1]
         in_cut = os.path.join(
-            path, "extracts", dam_name, f"{dam_name}_cutline_custom.json"
+            path, "extracts", dam_name, f"{dam_name}_cutline_custom.{ext}"
         )
         shutil.copy(cutline_new[0], in_cut)
         logging.info(f"{cutline_new[0]} copied to {in_cut}")
@@ -197,10 +198,10 @@ if __name__ == "__main__":
     parser.add_argument("dams_list", type=str, help="Dams list")
     parser.add_argument("dams_db", type=str, help="Dams database path")
     parser.add_argument("dem_path", type=str, help="DEM path")
-    parser.add_argument("ref_model", type=str, help="Reference model path")
     parser.add_argument("wmap_path", type=str, help="surfwater map path")
     parser.add_argument("chain_dir", type=str, help="dem4water chain directory")
     parser.add_argument("out_dir", type=str, help="HSV directory")
+    parser.add_argument("--ref_model", type=str, help="Reference model path", default=None)
     parser.add_argument("--id_field", type=str, help="DAM ID column", default="ID_SWOT")
     parser.add_argument(
         "--correct_folder",
@@ -227,14 +228,26 @@ if __name__ == "__main__":
     # ======================#
     # Processor compute_hsv #
     # ======================#
-
+    current_time = datetime.now()
+    date_time = current_time.strftime("%Y%m%dT%Hh%Mm")
+    all_cmd = []
     for cle in dams_dict.keys():
 
         dame_name = dams_dict[cle].replace(" ", "_")
-        # if exists save previous results
-        save_previous_run(args.out_dir, dame_name)
+       
         # search for custom files
         add_params = find_corrected_input(args.out_dir, dame_name, args.correct_folder)
+        if os.path.exists(os.path.join(args.out_dir, "camp", dame_name, f"{dame_name}_model.json")):
+            if add_params == "":
+                logging.info(f"!! {dame_name} already processed. Skip !")
+                continue
+            else:
+                # if exists save previous results
+                save_previous_run(args.out_dir, dame_name)
+        
+        if args.ref_model is not None:
+            add_params += f",REF_MODEL={args.ref_model}"
+            
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
@@ -251,26 +264,30 @@ if __name__ == "__main__":
                 + args.dams_db
                 + ",DEM_PATH="
                 + args.dem_path
-                + ",REF_MODEL="
-                + args.ref_model
                 + ",WMAP_PATH="
                 + args.wmap_path
                 + ",ROOT_DIR="
                 + args.out_dir
                 + add_params
-                + " -l walltime=30:00:00"
+                + " -l walltime=00:40:00"
                 + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
                 + " -o "
-                + os.path.join(log_dir, "compute_hsv_" + cle + "_out.log")
+                + os.path.join(log_dir, f"{dame_name}_{cle}_out.log")
                 + " -e "
-                + os.path.join(log_dir, "compute_hsv_" + cle + "_err.log")
+                + os.path.join(log_dir, f"{dame_name}_{cle}_err.log")
                 + " compute_hsv.pbs"
             )
         )
-
+        all_cmd += cmd_compute_hsv
+        
         run_processing(
             cmd_compute_hsv,
             os.path.join(log_dir, "qsub_dem4water_out.log"),
             os.path.join(log_dir, "qsub_dem4water_err.log"),
             title="qsub_dem4water",
         )
+    with open(
+            os.path.join(args.out_dir, f"command_list_{date_time}.txt"), "w", encoding="utf-8"
+    ) as out_file:
+            out_file.write("\n".join(all_cmd))
+            
