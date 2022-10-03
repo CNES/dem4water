@@ -109,7 +109,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
 
         additionnal_params = f",CUTLINE={in_cut}"
     elif cutline_old:
-        additionnal_params += ",CUTLINE={cutline_old[0]}"
+        additionnal_params += f",CUTLINE={cutline_old[0]}"
     else:
         logging.info("No custom cutline found")
     return additionnal_params
