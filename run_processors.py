@@ -55,6 +55,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
     dam_info_new = []
     cutline_old = []
     cutline_new = []
+    additionnal_params = ""
     if opt_path is not None:
 
         dam_info_new = glob.glob(os.path.join(opt_path, f"{dam_name}_daminfo*.json"))
@@ -74,6 +75,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
         dam_info_old = glob.glob(
             os.path.join(path, "camp", dam_name, f"{dam_name}_daminfo_custom.json")
         )
+        # Look for json or geojson files
         cutline_old = glob.glob(
             os.path.join(path, "extracts", dam_name, f"{dam_name}_cutline_custom.*json")
         )
@@ -86,15 +88,30 @@ def find_corrected_input(path, dam_name, opt_path=None):
                 f"More than one file found for cutline for {dam_name} dam."
             )
     if dam_info_new:
+        in_daminfo = os.path.join(
+            path, "camp", dam_name, f"{dam_name}_daminfo_custom.json"
+        )
+        shutil.copy(dam_info_new[0], in_daminfo)
+        logging.info(f"{dam_info_new[0]} copied to {in_daminfo}")
+        additionnal_params += f",INFO_DAM={in_daminfo}"
+    elif dam_info_old:
+        additionnal_params += f",INFO_DAM={dam_info_old[0]}"
+    else:
+        logging.info("No custom daminfo file found.")
 
-        param_dam = f",INFO_DAM={dam_info[0]}"
+    if cutline_new:
+        in_cut = os.path.join(
+            path, "extracts", dam_name, f"{dam_name}_cutline_custom.json"
+        )
+        shutil.copy(cutline_new[0], in_cut)
+        logging.info(f"{cutline_new[0]} copied to {in_cut}")
 
-    if cutline:
-        if len(cutline) != 1:
-            raise ValueError(
-                f"More than one file found for cutline for {dam_name} dam."
-            )
-        param_cut = f",CUTLINE={cutline[0]}"
+        additionnal_params = f",CUTLINE={in_cut}"
+    elif cutline_old:
+        additionnal_params += ",CUTLINE={cutline_old[0]}"
+    else:
+        logging.info("No custom cutline found")
+    return additionnal_params
 
 
 def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
@@ -184,8 +201,13 @@ if __name__ == "__main__":
     parser.add_argument("wmap_path", type=str, help="surfwater map path")
     parser.add_argument("chain_dir", type=str, help="dem4water chain directory")
     parser.add_argument("out_dir", type=str, help="HSV directory")
-    parser.add_argument("id_field", type=str, help="DAM ID column", default="ID_SWOT")
-
+    parser.add_argument("--id_field", type=str, help="DAM ID column", default="ID_SWOT")
+    parser.add_argument(
+        "--correct_folder",
+        type=str,
+        help="Path to folder containing user edited files",
+        default=None,
+    )
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -212,7 +234,7 @@ if __name__ == "__main__":
         # if exists save previous results
         save_previous_run(args.out_dir, dame_name)
         # search for custom files
-
+        add_params = find_corrected_input(args.out_dir, dame_name, args.correct_folder)
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
@@ -235,6 +257,7 @@ if __name__ == "__main__":
                 + args.wmap_path
                 + ",ROOT_DIR="
                 + args.out_dir
+                + add_params
                 + " -l walltime=30:00:00"
                 + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
                 + " -o "
