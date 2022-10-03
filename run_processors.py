@@ -1,7 +1,8 @@
 #!/usr/bin/python
 #  -*- coding: utf-8 -*-
 """
-:author: Gaël Nicolas
+:author: Gaël Nicolas.
+
 :organization: CS SI
 :copyright: 2021 CS. All rights reserved.
 :license: see LICENSE file
@@ -9,11 +10,91 @@
 """
 
 import argparse
+import glob
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
+
+
+def save_previous_run(path, dam_name):
+    """Copy old file to time named folder."""
+    # find model.json
+    path_model = os.path.join(path, "camp", dam_name, f"{dam_name}_model.json")
+    file_of_interest = [
+        "*_daminfo.json",
+        "*_cutline.json",
+        "*.png",
+        "*model.json",
+        "tmp/*.png",
+        f"../../log/*{dam_name}*.log",
+    ]
+
+    if not os.path.exists(path_model):
+        logging.warning(f"Model {path_model} not found. No saving done.")
+    else:
+        # get the last modification time
+        ti_m = os.path.getmtime(path_model)
+        m_ti = time.ctime(ti_m)
+        t_obj = time.strptime(m_ti)
+        t_stamp = time.strftime("%Y%m%dT%H%M%S", t_obj)
+        mk_dir(t_stamp)
+        save_path = os.path.join(path, "camp", dam_name, f"{dam_name}_{t_stamp}")
+        for pred in file_of_interest:
+            files = glob.glob(os.path.join(path, "camp", dam_name, pred))
+            for infile in files:
+                shutil.copy(infile, save_path)
+                logging.info(f"{infile} copied to {save_path}")
+
+
+def find_corrected_input(path, dam_name, opt_path=None):
+    """Look for manually corrected files."""
+    dam_info_old = []
+    dam_info_new = []
+    cutline_old = []
+    cutline_new = []
+    if opt_path is not None:
+
+        dam_info_new = glob.glob(os.path.join(opt_path, f"{dam_name}_daminfo*.json"))
+        cutline_new = glob.glob(
+            os.path.join(args.corrections_folder, f"{dam_name}_cutline*.*json")
+        )
+        if len(dam_info_new) > 1:
+            raise ValueError(
+                f"More than one file found for dam info for {dam_name} dam."
+            )
+        if len(cutline_new) > 1:
+            raise ValueError(
+                f"More than one file found for cutline for {dam_name} dam."
+            )
+
+    else:
+        dam_info_old = glob.glob(
+            os.path.join(path, "camp", dam_name, f"{dam_name}_daminfo_custom.json")
+        )
+        cutline_old = glob.glob(
+            os.path.join(path, "extracts", dam_name, f"{dam_name}_cutline_custom.*json")
+        )
+        if len(dam_info_old) > 1:
+            raise ValueError(
+                f"More than one file found for dam info for {dam_name} dam."
+            )
+        if len(cutline_old) > 1:
+            raise ValueError(
+                f"More than one file found for cutline for {dam_name} dam."
+            )
+    if dam_info_new:
+
+        param_dam = f",INFO_DAM={dam_info[0]}"
+
+    if cutline:
+        if len(cutline) != 1:
+            raise ValueError(
+                f"More than one file found for cutline for {dam_name} dam."
+            )
+        param_cut = f",CUTLINE={cutline[0]}"
 
 
 def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
@@ -30,14 +111,13 @@ def run_processing(cmd_list, stdoutfile, stderrfile, title="", nb_procs="1"):
     :param nb_procs :number of processors
     :type nb_procs : str
     """
-
     nb_cmd = len(cmd_list)
     start = time.time()
     pids = []
     stdout_param = open(stdoutfile, "a")
     stderr_param = open(stderrfile, "a")
 
-    logging.info("Running :  {} {}".format(title, cmd_list))
+    logging.info(f"Running :  {title} {cmd_list}")
 
     while len(cmd_list) > 0 or len(pids) > 0:
         if (len(pids) < int(nb_procs)) and (len(cmd_list) > 0):
@@ -84,7 +164,7 @@ def mk_dir(path):
     :type path : str
     """
     if os.path.exists(path):
-        logging.warning("!! Directory {} already exist".format(path))
+        logging.warning(f"!! Directory {path} already exist")
     else:
         os.makedirs(path, mode=0o755)
 
@@ -93,7 +173,6 @@ if __name__ == "__main__":
     """
     Usage : python run_processors.py dams_list dams_db dem_path ref_model wmap_path chain_dir out_dir
     """
-
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -118,7 +197,7 @@ if __name__ == "__main__":
 
     # Dams name and id
     dams_dict = {}
-    with open(args.dams_list, "r") as file_name:
+    with open(args.dams_list, "r", encoding="utf-8") as file_name:
         dams_to_process = file_name.readlines()
     for dam in dams_to_process:
         dams_dict[dam.split(",")[0]] = dam.split(",")[1].rstrip()
@@ -130,6 +209,10 @@ if __name__ == "__main__":
     for cle in dams_dict.keys():
 
         dame_name = dams_dict[cle].replace(" ", "_")
+        # if exists save previous results
+        save_previous_run(args.out_dir, dame_name)
+        # search for custom files
+
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
