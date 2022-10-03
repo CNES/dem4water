@@ -71,9 +71,16 @@ python3 szi_from_contourline.py --debug                         \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
 
 echo "== CUTLINE_SCORE =="
+if [ -f "${CUTLINE}" ] ; then
+  CUTLINE_FILE="${CUTLINE}"
+  echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+else
+  CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
+fi
+
 python3 cutline_score.py --debug                            \
         --watermap "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
-        --infile   "$CAMP_DIR/${DAM}/${DAM}_cutline.json"   \
+        --infile   "${CUTLINE_FILE}"   \
         --out      "$CAMP_DIR/${DAM}/tmp"                   \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
 
@@ -87,12 +94,6 @@ echo "== CUT_CONTOURLINES =="
 # else
 #   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 # fi
-if [ -f "${CUTLINE}" ] ; then
-  CUTLINE_FILE="${CUTLINE}"
-  echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
-else
-  CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
-fi
 
 # Handle daminfo update
 if [ -f "${INFO_DAM}" ] ; then
