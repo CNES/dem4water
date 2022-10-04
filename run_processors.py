@@ -214,7 +214,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     log_dir = os.path.join(args.out_dir, "log")
-    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a')
+    logging_format = (
+        "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
+    )
+    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a', format=logging_format)
 
     # Create output directories
     mk_dir(args.out_dir)
