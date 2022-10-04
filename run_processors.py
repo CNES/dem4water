@@ -203,6 +203,8 @@ if __name__ == "__main__":
     parser.add_argument("out_dir", type=str, help="HSV directory")
     parser.add_argument("--ref_model", type=str, help="Reference model path", default=None)
     parser.add_argument("--id_field", type=str, help="DAM ID column", default="ID_SWOT")
+    parser.add_argument("--radius", type=str, help="PDB radius search", default=None)
+    parser.add_argument("--elev_off", type=int, help="Offset added to dam elevation", default=60)
     parser.add_argument(
         "--correct_folder",
         type=str,
@@ -211,11 +213,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    log_dir = os.path.join(args.out_dir, "log")
+    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a')
 
     # Create output directories
     mk_dir(args.out_dir)
-    log_dir = os.path.join(args.out_dir, "log")
     mk_dir(log_dir)
 
     # Dams name and id
@@ -247,7 +249,11 @@ if __name__ == "__main__":
         
         if args.ref_model is not None:
             add_params += f",REF_MODEL={args.ref_model}"
-            
+        if args.radius is not None:
+            add_params += f",RADIUS={args.radius}"
+        if args.elev_off is not None:
+            add_params += f",ELEV_OFF_DAM={args.elev_off}"
+        
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
