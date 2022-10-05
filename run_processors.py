@@ -19,6 +19,15 @@ import sys
 import time
 from datetime import datetime
 
+def format_walltime(wall_h, wall_m):
+    wall_h = int(wall_h)
+    wall_m = int(wall_m)
+    
+    if wall_h < 0:
+        raise ValueError(f"Hours for walltime cannot be negative :{wall_h} ""provided as parameter")
+    if wall_m < 0 or wall_m > 59:
+        raise ValueError(f"Minutes must be between 0 and 59: {wall_m} provided")
+    return f"{wall_h:02d}:{wall_m:02d}:00"
 def save_previous_run(path, dam_name):
     """Copy old file to time named folder."""
     # find model.json
@@ -205,6 +214,11 @@ if __name__ == "__main__":
     parser.add_argument("--id_field", type=str, help="DAM ID column", default="ID_SWOT")
     parser.add_argument("--radius", type=str, help="PDB radius search", default=None)
     parser.add_argument("--elev_off", type=int, help="Offset added to dam elevation", default=60)
+    parser.add_argument("--walltime_h", type=int, help="Walltime hours", default=30)
+    parser.add_argument("--walltime_m", type=int, help="Walltime minutes", default=0)
+    parser.add_argument("--ncpu", type=int, help="Number of cpu", default=12)
+    parser.add_argument("--ram", type=int, help="Ram in Mb", default=60000)
+    
     parser.add_argument(
         "--correct_folder",
         type=str,
@@ -222,7 +236,7 @@ if __name__ == "__main__":
     # Create output directories
     mk_dir(args.out_dir)
     mk_dir(log_dir)
-
+    walltime = format_walltime(args.walltime_h, args.walltime_m)
     # Dams name and id
     dams_dict = {}
     with open(args.dams_list, "r", encoding="utf-8") as file_name:
@@ -231,6 +245,7 @@ if __name__ == "__main__":
         dams_dict[dam.split(",")[0]] = dam.split(",")[1].rstrip()
 
     # ======================#
+
     # Processor compute_hsv #
     # ======================#
     current_time = datetime.now()
@@ -278,8 +293,8 @@ if __name__ == "__main__":
                 + ",ROOT_DIR="
                 + args.out_dir
                 + add_params
-                + " -l walltime=00:40:00"
-                + " -l select=1:ncpus=12:mem=60000MB:os=rh7"
+                + f" -l walltime={walltime}"
+                + f" -l select=1:ncpus={args.ncpu}:mem={args.ram}MB:os=rh7"
                 + " -o "
                 + os.path.join(log_dir, f"{dame_name}_{cle}_out.log")
                 + " -e "
