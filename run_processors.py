@@ -231,11 +231,11 @@ if __name__ == "__main__":
     logging_format = (
         "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
     )
-    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a', format=logging_format)
 
     # Create output directories
     mk_dir(args.out_dir)
     mk_dir(log_dir)
+    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a', format=logging_format)
     walltime = format_walltime(args.walltime_h, args.walltime_m)
     # Dams name and id
     dams_dict = {}
@@ -253,17 +253,17 @@ if __name__ == "__main__":
     all_cmd = []
     for cle in dams_dict.keys():
 
-        dame_name = dams_dict[cle].replace(" ", "_")
+        dame_name = dams_dict[cle].replace(" ", "-")
        
         # search for custom files
         add_params = find_corrected_input(args.out_dir, dame_name, args.correct_folder)
-        if os.path.exists(os.path.join(args.out_dir, "camp", dame_name, f"{dame_name}_model.json")):
-            if add_params == "":
+        if add_params == "":
+            if os.path.exists(os.path.join(args.out_dir, "camp", dame_name, f"{dame_name}_model.json")):
                 logging.info(f"!! {dame_name} already processed. Skip !")
                 continue
-            else:
-                # if exists save previous results
-                save_previous_run(args.out_dir, dame_name)
+        else:
+            # if exists save previous results
+            save_previous_run(args.out_dir, dame_name)
         
         if args.ref_model is not None:
             add_params += f",REF_MODEL={args.ref_model}"
