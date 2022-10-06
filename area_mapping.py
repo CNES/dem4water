@@ -77,7 +77,7 @@ def main(arguments):
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
-            dam_path = dam_name.replace(" ", "_")
+            dam_path = dam_name.replace(" ", "-")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
             logging.debug(

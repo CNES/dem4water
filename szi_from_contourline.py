@@ -184,8 +184,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
             dam_id = int(feature.GetField(str(args.id_db)))
-            dam_path = dam_name.replace(" ", "_")
-            dam_path = dam_path.replace("-","_")
+            dam_path = dam_name.replace(" ", "-")
+            # dam_path = dam_path.replace("-","_")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
             if bool(feature.GetField("DAM_LVL_M")):
