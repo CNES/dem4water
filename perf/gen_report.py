@@ -355,7 +355,7 @@ def main(arguments):
         "--sites",
         nargs="+",
         default=["perf/data/occitanie/", "perf/data/andalousie/"],
-        help="Paths to mega-site direcories",
+        help="Paths to mega-site directories",
     )
     parser_full.add_argument(
         "--exec",
