@@ -161,13 +161,13 @@ def run_campaign(args):
                     + " "
                     + site_cfg["dem_path"]
                     + " "
-                    + str(pathlib.Path(p_site, p_site.stem + "_ref.json"))
-                    + " "
                     + site_cfg["wmap_path"]
                     + " "
                     + str(pathlib.Path(args.exec).absolute().parent)
                     + " "
                     + str(pathlib.Path(args.outdir, get_current_git_rev()).absolute())
+                    + " --ref_model "
+                    + str(pathlib.Path(p_site, p_site.stem + "_ref.json"))
                 )
             )
         with open(

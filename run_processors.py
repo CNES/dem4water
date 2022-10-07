@@ -24,10 +24,13 @@ def format_walltime(wall_h, wall_m):
     wall_m = int(wall_m)
     
     if wall_h < 0:
-        raise ValueError(f"Hours for walltime cannot be negative :{wall_h} ""provided as parameter")
+        raise ValueError(f"Hours for walltime cannot be negative :{wall_h} "
+                         "provided as parameter")
     if wall_m < 0 or wall_m > 59:
         raise ValueError(f"Minutes must be between 0 and 59: {wall_m} provided")
     return f"{wall_h:02d}:{wall_m:02d}:00"
+
+
 def save_previous_run(path, dam_name):
     """Copy old file to time named folder."""
     # find model.json
