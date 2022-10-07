@@ -303,9 +303,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     data = np.column_stack((r_elev, r_area))
     np.savetxt(os.path.join(args.out, damname + "_SZi.dat"), data)
     t1_stop = perf_counter()
-    logger.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+    logging.info("Elapsed time:", t1_stop, 's', t1_start, 's')
  
-    logger.info("Elapsed time during the whole program in s :",
+    logging.info("Elapsed time during the whole program in s :",
        t1_stop-t1_start, 's')
 
 if __name__ == "__main__":

@@ -184,9 +184,9 @@ def main(arguments):
     bt_alt = np.amin(np_surf)
     logging.info("Bottom Alt: " + str(bt_alt))
     t1_stop = perf_counter()
-    logger.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+    logging.info("Elapsed time:", t1_stop, 's', t1_start, 's')
  
-    logger.info("Elapsed time during the whole program in s :",
+    logging.info("Elapsed time during the whole program in s :",
        t1_stop-t1_start, 's')
     # Profiling:
     if args.debug is True:
