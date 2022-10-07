@@ -24,7 +24,7 @@ from shapely.geometry import shape
 from utils import distance
 
 # from PIL import Image
-
+from time import perf_counter
 
 def nderiv(y, x):
     "Différence finie, dérivée de la fonction f"
@@ -82,7 +82,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_from_contourline.py
     Measure, for a given range of Z_i, the theorical water surface associated for the dem.
     """
-
+    t1_start = perf_counter()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -960,7 +960,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     outFeature = ogr.Feature(featureDefn)
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
-
+    t1_stop = perf_counter()
+    logger.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+ 
+    logger.info("Elapsed time during the whole program in s :",
+       t1_stop-t1_start, 's')
     print("End SZI_FROM_CONTOURLINE")
 
 

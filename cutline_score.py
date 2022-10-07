@@ -15,13 +15,13 @@ import sys
 
 import numpy as np
 import otbApplication as otb
-
+from time import perf_counter
 
 def main(arguments):
     """cutline_score.py
     Qualify cutline quality by computing intersection with wmap
     """
-
+    t1_start = perf_counter()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -84,7 +84,11 @@ def main(arguments):
         bm.ExecuteAndWriteOutput()
 
     # Cleanup tmp files
-
+    t1_stop = perf_counter()
+    logger.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+ 
+    logger.info("Elapsed time during the whole program in s :",
+       t1_stop-t1_start, 's')
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

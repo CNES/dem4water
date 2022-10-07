@@ -18,13 +18,13 @@ import otbApplication as otb
 from osgeo import gdal, ogr, osr
 
 from utils import distance
-
+from time import perf_counter
 
 def main(arguments):
     """area_mapping.py
     Retrieve dam coordinate
     """
-
+    t1_start = perf_counter()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -35,7 +35,7 @@ def main(arguments):
     parser.add_argument("-d", "--dem", help="Input DEM")
     parser.add_argument("-r", "--radius", help="Extract radius (m)", default=2000)
     parser.add_argument("-o", "--out", help="Output directory")
-    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
+    parser.add_argument("--debug", action="store_false", help="Activate Debug Mode")
     args = parser.parse_args(arguments)
 
     # Silence VRT related error (bad magic number)
@@ -183,7 +183,11 @@ def main(arguments):
     np_surf = bm.GetImageAsNumpyArray("out")
     bt_alt = np.amin(np_surf)
     logging.info("Bottom Alt: " + str(bt_alt))
-
+    t1_stop = perf_counter()
+    logger.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+ 
+    logger.info("Elapsed time during the whole program in s :",
+       t1_stop-t1_start, 's')
     # Profiling:
     if args.debug is True:
         for r in range(200, 1001, 50):
