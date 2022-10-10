@@ -36,7 +36,9 @@ if __name__ == "__main__":
     # Read anw write id and dams names
     with open(args.dams_file, "r") as json_file:
         reader = json.load(json_file)
-
+        crs = reader["crs"]["properties"]["name"].split(":")[-1]
+        if not crs == "CRS84":
+            raise ValueError(f"CRS must be in WGS84/EPSG:4326, {crs} found.")
         with open(args.ouput_list, "w") as output_file:
 
             for feature in reader["features"]:
