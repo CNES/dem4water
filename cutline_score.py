@@ -85,10 +85,9 @@ def main(arguments):
 
     # Cleanup tmp files
     t1_stop = perf_counter()
-    logging.info("Elapsed time:", t1_stop, 's', t1_start, 's')
+    logging.info(f"Elapsed time: {t1_stop}s {t1_start}s")
  
-    logging.info("Elapsed time during the whole program in s :",
-       t1_stop-t1_start, 's')
+    logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
