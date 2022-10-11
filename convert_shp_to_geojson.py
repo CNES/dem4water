@@ -58,7 +58,7 @@ def normalize_list_float(list_float):
                 except ValueError:
                     # The value is unexpected replace by None for futher process
                     out_list.append(None)
-
+    return out_list
 
 if __name__ == "__main__":
     """
