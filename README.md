@@ -237,3 +237,62 @@ At the moment, the resulting dashboard looks like the following table:
 | 2310020223 | Celemin                 | 0.0189           | ☓                | ☓                |      0.0189      |
 | 2160004643 | Charco Redondo          | -0.0706          | ☓                | ☓                |     -0.0706      |
 
+### Use this tool for a custom study campaign
+
+#### Prepare the data
+
+To use this example replace all test-site occurences by the corresponding name site (for example andalousie or occitanie to use the git data).
+
+1. Create a folder named test_site
+2. In this folder create 4 files:
+   - test-site.lst : output of generate_list_from_DB.py
+   - test-site.geojson: the DAM database
+   - test-site.cfg: a config file containing two entries, the watermap and the dem vrts
+   - test-site_ref.json : the reference data for all models to compare with
+
+3. Create an output folder in the location you want: /home/dev/dem4water_tests_campaign
+   and the sub folder campaign, reports and dashboards
+
+#### Prepare working env
+
+If not done clone the dem4water git repository.
+Put your sources on the correct branch
+Ensure you are using python3
+
+#### Launch the campaigns and produce dashboard
+
+1. First campaign all parameters by default
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name all_default
+```
+
+2. Second campaign with a new value for the elevation offset
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name elev_15 --elev_off 15
+```
+
+3. Third campaign with new values for elevation and radius
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name elev_15_rad_100 --elev_off 15 --radius 100
+```
+
+These three campaigns used differents parameters but same source code, then it is possible to launch all three in same time. If you want to test algorithm modifications, be careful to not modify the source code while a campaign is running.
+
+After several minutes (or hours), the campaigns should be done.
+
+Then produce the reports for the campaign with:
+
+```h
+python perf/gen_report.py report -i /home/dev/dem4water_tests_campaign/campaign/all_default -o /home/dev/dem4water_tests_campaign/reports/
+```
+
+Update the -i argument to produce all the reports
+
+Then produce the dashboard:
+
+```sh
+python perf/gen_report.py dashboard -i /home/dev/dem4water_tests_campaign/reports/ -o /home/dev/dem4water_tests_campaign/dashboards/
+```
