@@ -35,7 +35,7 @@ def main(arguments):
     parser.add_argument("-d", "--dem", help="Input DEM")
     parser.add_argument("-r", "--radius", help="Extract radius (m)", default=2000)
     parser.add_argument("-o", "--out", help="Output directory")
-    parser.add_argument("--debug", action="store_false", help="Activate Debug Mode")
+    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     args = parser.parse_args(arguments)
 
     # Silence VRT related error (bad magic number)

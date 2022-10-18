@@ -23,11 +23,9 @@ def format_walltime(wall_h, wall_m):
     wall_h = int(wall_h)
     wall_m = int(wall_m)
     if wall_h < 0:
-        pass
-        # raise ValueError(f"Hours for walltime cannot be negative : {wall_h} provided as parameter")
+        raise ValueError(f"Hours for walltime cannot be negative : {wall_h} provided as parameter")
     if wall_m < 0 or wall_m > 59:
-        pass
-    # raise ValueError(f"Minutes must be between 0 and 59: {wall_m} provided")
+        raise ValueError(f"Minutes must be between 0 and 59: {wall_m} provided")
     return f"{wall_h:02d}:{wall_m:02d}:00"
 
 
@@ -314,7 +312,7 @@ if __name__ == "__main__":
             title="qsub_dem4water",
         )
     with open(
-            os.path.join(args.out_dir, f"command_list_{date_time}.txt"), "w", encoding="utf-8"
+            os.path.join(args.out_dir, f"command_list_{date_time}.txt"), "a", encoding="utf-8"
     ) as out_file:
             out_file.write("\n".join(all_cmd))
             
