@@ -249,15 +249,17 @@ To use this example replace all test-site occurences by the corresponding name s
    - test-site.geojson: the DAM database
    - test-site.cfg: a config file containing two entries, the watermap and the dem vrts
    - test-site_ref.json : the reference data for all models to compare with
+   - Note : some examples are available at perf/data for Occitanie/Andalousie dataset.
 
-3. Create an output folder in the location you want: /home/dev/dem4water_tests_campaign
-   and the sub folder campaign, reports and dashboards
+
 
 #### Prepare working env
 
-If not done clone the dem4water git repository.
-Put your sources on the correct branch
-Ensure you are using python3
+- If not done clone the dem4water git repository.
+- Put your sources on the correct branch
+- Ensure you are using python3
+- Create an output folder in the location you want: /home/dev/dem4water_tests_campaign and the sub folder campaign, reports and dashboards
+
 
 #### Launch the campaigns and produce dashboard
 
