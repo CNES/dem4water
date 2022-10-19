@@ -24,7 +24,7 @@ from shapely.geometry import shape
 from utils import distance
 
 # from PIL import Image
-
+from time import perf_counter
 
 def nderiv(y, x):
     "Différence finie, dérivée de la fonction f"
@@ -82,7 +82,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_from_contourline.py
     Measure, for a given range of Z_i, the theorical water surface associated for the dem.
     """
-
+    t1_start = perf_counter()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -122,7 +122,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1,
         help="Elevation sampling step for contour lines generation.",
     )
-    parser.add_argument("--info", help="Optional user-defined daminfo.json file")
+    parser.add_argument("--info", help="Optional user-defined daminfo.json file", default="")
 
     parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
@@ -184,7 +184,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
             dam_id = int(feature.GetField(str(args.id_db)))
-            dam_path = dam_name.replace(" ", "_")
+            dam_path = dam_name.replace(" ", "-")
+            # dam_path = dam_path.replace("-","_")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
             if bool(feature.GetField("DAM_LVL_M")):
@@ -335,7 +336,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.info("Target Elevation for cutline search= " + str(targetelev) + "m")
 
     # BEGIN:
-    if args.info is None:
+    # Can be conflincting with other launcher mode
+    # Set info to default is enough?
+    if args.info == "": # is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
@@ -957,7 +960,10 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     outFeature = ogr.Feature(featureDefn)
     outFeature.SetGeometry(multiline)
     outLayer.CreateFeature(outFeature)
-
+    t1_stop = perf_counter()
+    logging.info(f"Elapsed time:{t1_stop}s, {t1_start}s")
+ 
+    logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
     print("End SZI_FROM_CONTOURLINE")
 
 

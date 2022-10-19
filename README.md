@@ -16,23 +16,63 @@ pre-commit install
 
 Pre-commit checks will then be performed at each commit to insure code formating and quality.
 
-## Execution
+## Data preparation
 
-The main script used to run the chain is [camp.sh](helper/camp.sh), gathering all steps together to process a list of dams. Using the script requires adapting the input definition section (first part of camp.sh file) as well as the dam list.
-The script [camp.sh](helper/camp.sh) run a whole campaign and is in charge of setting the right environment and dependencies.
-Each application embbed a documentation that can be accessed using --help.
+### Harmonize DAM_NAME
 
-It's also possible to use qsub in order to parallelize by dam process :
+Before trying to use dem4water, ensure that the name in your database are all correct.
+Some cases can cause issues during exectution:
+
+- Special symbols : for instance "é,è,à,ç", but also "'"
+- Non unicode characters which can be interpreted like "@,!,#" and interfere with bash
+
+
+### Fuse shapefile to geojson
+
+The script `convert_shp_to_geojson.py` fuse two shapefiles into one geojson database.
+
+The inputs are:
+- A shapefile containing polygones for water bodies
+- A shapefile containing points for DAM informations
+
+It outputs one geojson file in WGS84 projection.
+
+Example:
 
 ```sh
-python3 run_processors.py dams_list dams_db dem_path wmap_path out_dir chain_dir
+python3 convert_shp_to_geojson.py INPE-V0-79-retenues.shp INPE-V0-79-barrages.shp INPE-V0-79-barrages.geojson
+```
+
+This script requires the installation of `pygeos` to use the `sjoin_nearest` geopandas function, required to handle the case of dam info not intersect exactly the water bodies.
+
+## Execution
+
+The main script used to run the chain is [compute_hsv.pbs](compute_hsv.pbs), gathering all steps together to process an unique dam.
+```sh
+qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
+                      compute_hsv.pbs
+```
+
+with:
+- DAM: the dam name
+- ID_FIELD: the name of field containing DAM ID in the database
+- DB_PATH: the geojson database
+- DEM_PATH, WMAP_PATH: path to the DEM and the watermap vrt
+- ROOT_DIR: output path to store results
+
+
+It's also possible to use [run_processors.py](run_processors.py) in order to process a whole campaign and parallelize the execution by dam process :
+
+```sh
+python3 run_processors.py dams_list dams_db dem_path wmap_path chain_dir out_dir [--id_field] [--ref_model] [--radius] [--elev_off] [--correct_folder]
 ```
 
 where "dam_list" is a csv like file containing "dam_id,dam_name" on each line.
 
 ## Examples
 
-The following examples are directly extracted from [camp.sh](helper/camp.sh)
+The following examples are directly extracted from [compute_hsv.pbs](compute_hsv.pbs)
+Each application have a dedicated help, which is available using `--help` parameter.
 
 ### Step 1 - area_mapping
 
@@ -196,3 +236,65 @@ At the moment, the resulting dashboard looks like the following table:
 | 2310018473 | Barbate                 | -0.0077          | ☓                | ☓                |     -0.0077      |
 | 2310020223 | Celemin                 | 0.0189           | ☓                | ☓                |      0.0189      |
 | 2160004643 | Charco Redondo          | -0.0706          | ☓                | ☓                |     -0.0706      |
+
+### Use this tool for a custom study campaign
+
+#### Prepare the data
+
+To use this example replace all test-site occurences by the corresponding name site (for example andalousie or occitanie to use the git data).
+
+1. Create a folder named test_site
+2. In this folder create 4 files:
+   - test-site.lst : output of generate_list_from_DB.py
+   - test-site.geojson: the DAM database
+   - test-site.cfg: a config file containing two entries, the watermap and the dem vrts
+   - test-site_ref.json : the reference data for all models to compare with
+   - Note : some examples are available at perf/data for Occitanie/Andalousie dataset.
+
+
+
+#### Prepare working env
+
+- If not done clone the dem4water git repository.
+- Put your sources on the correct branch
+- Ensure you are using python3
+- Create an output folder in the location you want: /home/dev/dem4water_tests_campaign and the sub folder campaign, reports and dashboards
+
+
+#### Launch the campaigns and produce dashboard
+
+1. First campaign all parameters by default
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name all_default
+```
+
+2. Second campaign with a new value for the elevation offset
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name elev_15 --elev_off 15
+```
+
+3. Third campaign with new values for elevation and radius
+
+```sh
+python perf/gen_report.py campaign --outdir /home/dev/dem4water_tests_campaign/campaign --name elev_15_rad_100 --elev_off 15 --radius 100
+```
+
+These three campaigns used differents parameters but same source code, then it is possible to launch all three in same time. If you want to test algorithm modifications, be careful to not modify the source code while a campaign is running.
+
+After several minutes (or hours), the campaigns should be done.
+
+Then produce the reports for the campaign with:
+
+```h
+python perf/gen_report.py report -i /home/dev/dem4water_tests_campaign/campaign/all_default -o /home/dev/dem4water_tests_campaign/reports/
+```
+
+Update the -i argument to produce all the reports
+
+Then produce the dashboard:
+
+```sh
+python perf/gen_report.py dashboard -i /home/dev/dem4water_tests_campaign/reports/ -o /home/dev/dem4water_tests_campaign/dashboards/
+```

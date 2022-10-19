@@ -14,7 +14,11 @@ module load otb/7.4-python3.7.2
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
 EXTR_DIR="${ROOT_DIR}/extracts"
-RADIUS=""
+# If not provided set variables to empty string
+RADIUS=${RADIUS:-""}
+INFO_DAM=${INFO_DAM:-""}
+CUTLINE=${CUTLINE:-""}
+ELEV_OFF_DAM=${ELEV_OFF_DAM:-60}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
@@ -27,7 +31,9 @@ echo "== WMAP : $WMAP_PATH"
 echo "== DEM : $DEM_PATH"
 echo "== REFERENCE MODEL : $REF_MODEL"
 echo "== RADIUS : $RADIUS"
-
+echo "== ELEV_OFF_DAM : $ELEV_OFF_DAM"
+echo "== CUTLINE : $CUTLINE"
+echo "== INFO_DAM : ${INFO_DAM}"
 
 [ -d "$EXTR_DIR/${DAM}" ] || mkdir -p "$EXTR_DIR/${DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
@@ -44,7 +50,7 @@ else
            --infile   "${DB_PATH}"       \
            --watermap "${WMAP_PATH}"     \
            --dem      "${DEM_PATH}"      \
-           --radius   "$RADIUS"          \
+           --radius   "${RADIUS}"          \
            --out      "$EXTR_DIR/${DAM}" \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/area_mapping.log"
 fi
@@ -59,15 +65,23 @@ python3 szi_from_contourline.py --debug                         \
         --radius       "$RADIUS"                                \
         --pdbstep      5                                        \
         --pdbradius    500                                      \
-        --elevoffset   60                                       \
+        --elevoffset   "${ELEV_OFF_DAM}"                        \
         --tmp          "$CAMP_DIR/${DAM}/tmp"                   \
         --out          "$CAMP_DIR/${DAM}"                       \
+		--info         "${INFO_DAM}"
     2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
 
 echo "== CUTLINE_SCORE =="
+if [ -f "${CUTLINE}" ] ; then
+  CUTLINE_FILE="${CUTLINE}"
+  echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+else
+  CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
+fi
+
 python3 cutline_score.py --debug                            \
         --watermap "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
-        --infile   "$CAMP_DIR/${DAM}/${DAM}_cutline.json"   \
+        --infile   "${CUTLINE_FILE}"   \
         --out      "$CAMP_DIR/${DAM}/tmp"                   \
     2>&1 | tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
 
@@ -75,17 +89,25 @@ echo "== CUT_CONTOURLINES =="
 # Allow using a user-provided cutline
 # UP cutline should be located in $$EXTR_DIR/${DAM}/
 # and named ${DAM}_cutline_custom.json"
-if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
-  CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
-  echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+# if [ -f "$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json" ] ; then
+#   CUTLINE_FILE="$EXTR_DIR/${DAM}/${DAM}_cutline_custom.json"
+#   echo "= Using User Provided Cutline file ($CUTLINE_FILE)"
+# else
+#   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
+# fi
+
+# Handle daminfo update
+if [ -f "${INFO_DAM}" ] ; then
+  DAM_FILE="${INFO_DAM}"
+  echo "= Using User Provided DAM Info file (${INFO_DAM})"
 else
-  CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
+  DAM_FILE="$CAMP_DIR/${DAM}/${DAM}_daminfo.json"
 fi
 
 if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
   echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
   python3 cut_contourlines.py --debug                                   \
-    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --level        "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" \
@@ -95,11 +117,11 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
 else
   echo "= No cached contour line file, generating it"
   python3 cut_contourlines.py --debug                             \
-    --info         "$CAMP_DIR/${DAM}/${DAM}_daminfo.json"         \
+    --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --elevsampling 1                                              \
-    --elevoffset   60                                             \
+    --elevoffset   "${ELEV_OFF_DAM}"                              \
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
     --cache        "$EXTR_DIR/${DAM}"                             \
     --out          "$CAMP_DIR/${DAM}"                             \
@@ -109,7 +131,7 @@ fi
 echo "== SZI_TO_MODEL =="
 python3 szi_to_model.py --debug                             \
         --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
-        --daminfo    "$CAMP_DIR/${DAM}/${DAM}_daminfo.json" \
+        --daminfo    "${DAM_FILE}" \
         --zminoffset 10                                     \
         --zmaxoffset 30                                     \
         --maemode    "first"                                \

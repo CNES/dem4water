@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 :author: Aurélien Bricier <aurelien.bricier@csgroup.eu>
 :organization: CNES
@@ -139,8 +140,17 @@ def run_campaign(args):
     if pathlib.Path(args.outdir).is_dir() is False:
         logging.error("Output directory " + args.outdir + " does not exist.")
         raise RuntimeError("Output directory " + args.outdir + " does not exist.")
-
+    if args.name is not None:
+        opath = str(pathlib.Path(args.outdir, args.name))
+    else:
+        opath = str(pathlib.Path(args.outdir, get_current_git_rev()).absolute())
     # Retrieve baseline sites info
+    aux_cmd = ""
+    if args.radius is not None:
+        aux_cmd += f" --radius {args.radius} "
+    if args.elev_off is not None:
+        aux_cmd += f" --elev_off {args.elev_off}"
+    
     for site in args.sites:
         p_site = pathlib.Path(site)
         if p_site.is_dir() is False:
@@ -161,19 +171,24 @@ def run_campaign(args):
                     + " "
                     + site_cfg["dem_path"]
                     + " "
-                    + str(pathlib.Path(p_site, p_site.stem + "_ref.json"))
-                    + " "
                     + site_cfg["wmap_path"]
                     + " "
                     + str(pathlib.Path(args.exec).absolute().parent)
                     + " "
-                    + str(pathlib.Path(args.outdir, get_current_git_rev()).absolute())
+                    + opath
+                    + " --ref_model "
+                    + str(pathlib.Path(p_site, p_site.stem + "_ref.json"))
+                    + aux_cmd
                 )
             )
+            
         with open(
-            pathlib.Path(args.outdir, get_current_git_rev(), "version.txt"), "w+"
+            pathlib.Path(opath, "version.txt"), "w+"
         ) as vf:
-            vf.write(get_current_git_rev())
+            if args.name is not None:
+                vf.write(args.name)
+            else:
+                vf.write(get_current_git_rev())
 
 
 def run_report(args):
@@ -303,8 +318,14 @@ def main(arguments):
         help="Paths run_processors.py script",
     )
     parser_camp.add_argument("-o", "--outdir", help="Output directory", required=True)
-
+    parser_camp.add_argument("-n", "--name", help="Name of the campaign", default=None)
+    parser_camp.add_argument("--radius", type=str, help="PDB radius search", default=None)
+    parser_camp.add_argument("--elev_off", type=int, help="Offset added to dam elevation", default=60)
+    
+    
+    # ###########################
     # Report sub-command
+    # ###########################
     parser_rep = sub_parsers.add_parser(
         "report",
         help="2- Report mode, collect and compile validation report scores of an existing campaign.",
@@ -355,7 +376,7 @@ def main(arguments):
         "--sites",
         nargs="+",
         default=["perf/data/occitanie/", "perf/data/andalousie/"],
-        help="Paths to mega-site direcories",
+        help="Paths to mega-site directories",
     )
     parser_full.add_argument(
         "--exec",
