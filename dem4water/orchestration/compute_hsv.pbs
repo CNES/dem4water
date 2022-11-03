@@ -39,8 +39,8 @@ echo "== INFO_DAM : ${INFO_DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
 [ -d "$CAMP_DIR/${DAM}/log" ] || mkdir -p "$CAMP_DIR/${DAM}/log"
 
-if [ -f "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif" ] \
-   && [ -f "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" ] ; then
+if [ -f "$EXTR_DIR/${DAM}/dem_extract_$DAM.tif" ] \
+   && [ -f "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" ] ; then
    echo "Extracts already available --> Skipping area_mapping."
 else
    echo "== AREA_MAPPING =="
@@ -60,8 +60,8 @@ python3 ../szi_from_contourline.py --debug                         \
         --id           "${DAM_ID}"                              \
         --id_db        "${ID_FIELD}"                            \
         --infile       "${DB_PATH}"                             \
-        --watermap     "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
-        --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"  \
+        --watermap     "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" \
+        --dem          "$EXTR_DIR/${DAM}/dem_extract_$DAM.tif"  \
         --radius       "$RADIUS"                                \
         --pdbstep      5                                        \
         --pdbradius    500                                      \
@@ -80,7 +80,7 @@ else
 fi
 
 python3 cutline_score.py --debug                            \
-        --watermap "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
+        --watermap "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" \
         --infile   "${CUTLINE_FILE}"   \
         --out      "$CAMP_DIR/${DAM}/tmp"                   \
     2>&1 tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
@@ -108,7 +108,7 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
   echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
   python3 ../cut_contourlines.py --debug                                   \
     --info         "${DAM_FILE}"         \
-    --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
+    --dem          "$EXTR_DIR/${DAM}/dem_extract_$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --level        "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" \
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
@@ -118,7 +118,7 @@ else
   echo "= No cached contour line file, generating it"
   python3 ../cut_contourlines.py --debug                             \
     --info         "${DAM_FILE}"         \
-    --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
+    --dem          "$EXTR_DIR/${DAM}/dem_extract_$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
     --elevsampling 1                                              \
     --elevoffset   "${ELEV_OFF_DAM}"                              \
