@@ -133,7 +133,7 @@ def main(arguments):
     extw.SetParameterFloat("mode.radius.cx", point.GetX())
     extw.SetParameterFloat("mode.radius.cy", point.GetY())
     extw.SetParameterString(
-        "out", os.path.join(args.out, "wmap_extract-" + dam_path + ".tif")
+        "out", os.path.join(args.out, "wmap_extract_" + dam_path + ".tif")
     )
     extw.ExecuteAndWriteOutput()
 
@@ -146,18 +146,18 @@ def main(arguments):
 
     app = otb.Registry.CreateApplication("Superimpose")
     app.SetParameterString(
-        "inr", os.path.join(args.out, "wmap_extract-" + dam_path + ".tif")
+        "inr", os.path.join(args.out, "wmap_extract_" + dam_path + ".tif")
     )
     app.SetParameterString("inm", args.dem)
     app.SetParameterString(
-        "out", os.path.join(args.out, "dem_extract-" + dam_path + ".tif")
+        "out", os.path.join(args.out, "dem_extract_" + dam_path + ".tif")
     )
     app.ExecuteAndWriteOutput()
 
     # Search dam bottom
     extw_bt = otb.Registry.CreateApplication("ExtractROI")
     extw_bt.SetParameterString(
-        "in", os.path.join(args.out, "wmap_extract-" + dam_path + ".tif")
+        "in", os.path.join(args.out, "wmap_extract_" + dam_path + ".tif")
     )
     extw_bt.SetParameterString("mode", "radius")
     extw_bt.SetParameterString("mode.radius.unitr", "phy")
@@ -170,7 +170,7 @@ def main(arguments):
     extd_bt = otb.Registry.CreateApplication("Superimpose")
     extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
     extd_bt.SetParameterString(
-        "inm", os.path.join(args.out, "dem_extract-" + dam_path + ".tif")
+        "inm", os.path.join(args.out, "dem_extract_" + dam_path + ".tif")
     )
     extd_bt.Execute()
 
@@ -192,7 +192,7 @@ def main(arguments):
         for r in range(200, 1001, 50):
             extw_l = otb.Registry.CreateApplication("ExtractROI")
             extw_l.SetParameterString(
-                "in", os.path.join(args.out, "wmap_extract-" + dam_path + ".tif")
+                "in", os.path.join(args.out, "wmap_extract_" + dam_path + ".tif")
             )
             extw_l.SetParameterString("mode", "radius")
             extw_l.SetParameterString("mode.radius.unitr", "phy")
@@ -205,7 +205,7 @@ def main(arguments):
             extd_l = otb.Registry.CreateApplication("Superimpose")
             extd_l.SetParameterInputImage("inr", extw_l.GetParameterOutputImage("out"))
             extd_l.SetParameterString(
-                "inm", os.path.join(args.out, "dem_extract-" + dam_path + ".tif")
+                "inm", os.path.join(args.out, "dem_extract_" + dam_path + ".tif")
             )
             extd_l.Execute()
 
