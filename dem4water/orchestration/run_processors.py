@@ -103,19 +103,21 @@ def find_corrected_input(path, dam_name, opt_path=None):
         in_daminfo = os.path.join(
             path, "camp", dam_name, f"{dam_name}_daminfo_custom.json"
         )
+        os.makedirs(os.path.dirname(in_daminfo), exist_ok=True)
         shutil.copy(dam_info_new[0], in_daminfo)
         logging.info(f"{dam_info_new[0]} copied to {in_daminfo}")
         additionnal_params += f",INFO_DAM={in_daminfo}"
     elif dam_info_old:
         additionnal_params += f",INFO_DAM={dam_info_old[0]}"
     else:
-        logging.info("No custom daminfo file found.")
+        logging.info(f"{dam_name} No custom daminfo file found.")
 
     if cutline_new:
         ext = cutline_new[0].split(".")[-1]
         in_cut = os.path.join(
             path, "extracts", dam_name, f"{dam_name}_cutline_custom.{ext}"
         )
+        os.makedirs(os.path.dirname(in_cut), exist_ok=True)
         shutil.copy(cutline_new[0], in_cut)
         logging.info(f"{cutline_new[0]} copied to {in_cut}")
 
@@ -123,7 +125,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
     elif cutline_old:
         additionnal_params += f",CUTLINE={cutline_old[0]}"
     else:
-        logging.info("No custom cutline found")
+        logging.info(f"{dam_name} No custom cutline found")
     return additionnal_params
 
 
