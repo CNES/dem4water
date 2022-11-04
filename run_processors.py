@@ -307,12 +307,12 @@ if __name__ == "__main__":
         )
         all_cmd += cmd_compute_hsv
         
-        # run_processing(
-        #     cmd_compute_hsv,
-        #     os.path.join(log_dir, "qsub_dem4water_out.log"),
-        #     os.path.join(log_dir, "qsub_dem4water_err.log"),
-        #     title="qsub_dem4water",
-        # )
+        run_processing(
+            cmd_compute_hsv,
+            os.path.join(log_dir, "qsub_dem4water_out.log"),
+            os.path.join(log_dir, "qsub_dem4water_err.log"),
+            title="qsub_dem4water",
+        )
     with open(
             os.path.join(args.out_dir, f"command_list_{date_time}.txt"), "a", encoding="utf-8"
     ) as out_file:
