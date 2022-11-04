@@ -121,7 +121,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
         shutil.copy(cutline_new[0], in_cut)
         logging.info(f"{cutline_new[0]} copied to {in_cut}")
 
-        additionnal_params = f",CUTLINE={in_cut}"
+        additionnal_params += f",CUTLINE={in_cut}"
     elif cutline_old:
         additionnal_params += f",CUTLINE={cutline_old[0]}"
     else:
