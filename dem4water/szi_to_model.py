@@ -137,6 +137,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     else:
         logging.debug("No outliers detected, keeping all S_ZI data.")
 
+    logging.debug(f"Number of S_Zi used for compute model: {len(S_Zi)}")
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
     logging.debug("Zi: ")
