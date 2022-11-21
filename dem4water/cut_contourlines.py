@@ -207,6 +207,19 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         if os.path.exists(contourline_fname):
             os.remove(contourline_fname)
 
+        logging.info("gen_contourline_polygons.sh parameters: ")
+        logging.info(f"dem: {args.dem} ")
+        logging.info(f"start elev: {str(int(pdb_elev - elev_margin))}")
+        logging.info(f"elevsampling: {args.elevsampling} ")
+        logging.info(f"end elev: {str(int(target_elev + elev_margin))} ")
+        logging.info(f"output file: {contourline_fname} ")
+        logging.info(f"TMPDIR: {args.tmp} ")
+        start_elev = int(pdb_elev - elev_margin)
+        end_elev = int(target_elev + elev_margin)
+
+        if start_elev > end_elev:
+            raise ValueError(f"Start elevation {start_elev} is upper than target_elev {end_elev}")
+
         os.system(
             './gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s" "%s"'
             % (
