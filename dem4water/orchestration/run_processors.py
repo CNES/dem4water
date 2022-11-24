@@ -16,9 +16,15 @@ import os
 import shutil
 import subprocess
 import time
+import unicodedata
 from datetime import datetime
 
-# import sys
+
+def ensure_log_name(name):
+    out_name = unicodedata.normalize("NFKD", name)
+    out_name = out_name.encode("ascii", "ignore")
+    out_name = out_name.decode("utf-8")
+    return out_name
 
 
 def format_walltime(wall_h, wall_m):
@@ -37,13 +43,14 @@ def save_previous_run(path, dam_name):
     """Copy old file to time named folder."""
     # find model.json
     path_model = os.path.join(path, "camp", dam_name, f"{dam_name}_model.json")
+    dam_log_name = ensure_log_name(dam_name)
     file_of_interest = [
         "*_daminfo.json",
         "*_cutline.json",
         "*.png",
         "*model.json",
         "tmp/*.png",
-        f"../../log/*{dam_name}*.log",
+        f"../../log/*{dam_log_name}*.log",
     ]
 
     if not os.path.exists(path_model):
@@ -268,7 +275,7 @@ if __name__ == "__main__":
     for cle in dams_dict.keys():
 
         dame_name = dams_dict[cle].replace(" ", "-")
-
+        dam_log_name = ensure_log_name(dame_name)
         # search for custom files
         add_params = find_corrected_input(args.out_dir, dame_name, args.correct_folder)
         if add_params == "":
@@ -312,9 +319,9 @@ if __name__ == "__main__":
                 + f" -l walltime={walltime}"
                 + f" -l select=1:ncpus={args.ncpu}:mem={args.ram}MB:os=rh7"
                 + " -o "
-                + os.path.join(log_dir, f"{dame_name}_{cle}_out.log")
+                + os.path.join(log_dir, f"{dam_log_name}_{cle}_out.log")
                 + " -e "
-                + os.path.join(log_dir, f"{dame_name}_{cle}_err.log")
+                + os.path.join(log_dir, f"{dam_log_name}_{cle}_err.log")
                 + " compute_hsv.pbs"
             )
         )
