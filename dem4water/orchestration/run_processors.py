@@ -90,22 +90,22 @@ def find_corrected_input(path, dam_name, opt_path=None):
                 f"More than one file found for cutline for {dam_name} dam."
             )
 
-    else:
-        dam_info_old = glob.glob(
-            os.path.join(path, "camp", dam_name, f"{dam_name}_daminfo_custom.json")
+    
+    dam_info_old = glob.glob(
+        os.path.join(path, "camp", dam_name, f"{dam_name}_daminfo_custom.json")
+    )
+    # Look for json or geojson files
+    cutline_old = glob.glob(
+        os.path.join(path, "extracts", dam_name, f"{dam_name}_cutline_custom.*json")
+    )
+    if len(dam_info_old) > 1:
+        raise ValueError(
+            f"More than one file found for dam info for {dam_name} dam."
         )
-        # Look for json or geojson files
-        cutline_old = glob.glob(
-            os.path.join(path, "extracts", dam_name, f"{dam_name}_cutline_custom.*json")
+    if len(cutline_old) > 1:
+        raise ValueError(
+            f"More than one file found for cutline for {dam_name} dam."
         )
-        if len(dam_info_old) > 1:
-            raise ValueError(
-                f"More than one file found for dam info for {dam_name} dam."
-            )
-        if len(cutline_old) > 1:
-            raise ValueError(
-                f"More than one file found for cutline for {dam_name} dam."
-            )
     if dam_info_new:
         in_daminfo = os.path.join(
             path, "camp", dam_name, f"{dam_name}_daminfo_custom.json"
