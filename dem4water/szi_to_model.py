@@ -23,6 +23,86 @@ import matplotlib.ticker as ticker
 import numpy as np
 
 
+
+def select_szi(args):
+    if args.custom_szi is not None:
+        print("Dat file used : ", args.custom_szi)
+        infile = args.custom_szi
+    else:
+        infile = args.infile
+    data = np.loadtxt(infile)
+    
+    if data.size <= 2:
+        logging.error("Not enought S(Zi) data inside file " + infile)
+        sys.exit("Error")
+
+    Zi = data[:, 0]
+    S_Zi = data[:, 1]
+
+    # remove outliers / virtual surface overflow
+    stop_i = 0
+    break_found = False
+    prev = S_Zi[1]
+    for z, sz in zip(Zi, S_Zi):
+        if sz != 0:
+            ratio = prev / sz
+        else:
+            ratio = 1
+        #  print(str(ratio))
+        # TODO: @parameters max ratio
+        if ratio < 10:
+            prev = sz
+            stop_i = stop_i + 1
+        else:
+            break_found = True
+            break
+
+    if break_found is True:
+        logging.debug(
+            "Dropping S_ZI after index "
+            + str(stop_i)
+            + " with a delta ratio of "
+            + str(ratio)
+            + "."
+        )
+        Zi = Zi[stop_i:]
+        S_Zi = S_Zi[stop_i:]
+    else:
+        logging.debug("No outliers detected, keeping all S_ZI data.")
+    return Zi, S_Zi
+
+def filter_szi(args, max_elev, min_elev):
+    if args.custom_szi is not None:
+        print("Dat file used : ", args.custom_szi)
+        infile = args.custom_szi
+    else:
+        infile = args.infile
+    data = np.loadtxt(infile)
+    if data.size <= 2:
+        logging.error("Not enought S(Zi) data inside file " + infile)
+        sys.exit("Error")
+
+    Zi = data[:, 0]
+    S_Zi = data[:, 1]
+
+    # zi[0] is the PDB
+    zi_min = zi[1]
+    zi_max = zi[-1]
+
+    if zi_max > max_elev:
+        logging.info("Too high contour detected filter S_ZI data")
+        
+    else:
+        logging.info("Contour seems correct for max bound. Process")
+
+    if zi_min < min_elev:
+        logging.info("Too low contour detected filter S_ZI data")
+
+    else:
+        logging.info("Contour seems correct for min bound. Process")
+
+    return Zi, S_Zi
+
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_to_model.py
     Prototype scrip allowing to derive a HSV model from a set of S(Z_i) values.
@@ -63,6 +143,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1000,
         help="Threshold used to identify slope breaks in hybrid model selection",
     )
+    parser.add_argument("--custom_szi", type=str, default=None, help="Custom SZi.dat file")
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
 
@@ -98,45 +179,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         # if feature["properties"]["name"] == "PDB":
         #     pdbelev = feature["properties"]["elev"]
 
-    data = np.loadtxt(args.infile)
-    if data.size <= 2:
-        logging.error("Not enought S(Zi) data inside file " + args.infile)
-        sys.exit("Error")
-
-    Zi = data[:, 0]
-    S_Zi = data[:, 1]
-
-    # remove outliers / virtual surface overflow
-    stop_i = 0
-    break_found = False
-    prev = S_Zi[1]
-    for z, sz in zip(Zi, S_Zi):
-        if sz != 0:
-            ratio = prev / sz
-        else:
-            ratio = 1
-        #  print(str(ratio))
-        # TODO: @parameters max ratio
-        if ratio < 10:
-            prev = sz
-            stop_i = stop_i + 1
-        else:
-            break_found = True
-            break
-
-    if break_found is True:
-        logging.debug(
-            "Dropping S_ZI after index "
-            + str(stop_i)
-            + " with a delta ratio of "
-            + str(ratio)
-            + "."
-        )
-        Zi = Zi[stop_i:]
-        S_Zi = S_Zi[stop_i:]
-    else:
-        logging.debug("No outliers detected, keeping all S_ZI data.")
-
+    Zi, S_Zi = select_szi(args)
     logging.debug(f"Number of S_Zi used for compute model: {len(S_Zi)}")
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
