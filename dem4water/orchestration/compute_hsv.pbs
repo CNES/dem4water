@@ -18,6 +18,7 @@ EXTR_DIR="${ROOT_DIR}/extracts"
 RADIUS=${RADIUS:-""}
 INFO_DAM=${INFO_DAM:-""}
 CUTLINE=${CUTLINE:-""}
+SZIDAT=${SZIDAT:-""}
 ELEV_OFF_DAM=${ELEV_OFF_DAM:-60}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
@@ -34,6 +35,8 @@ echo "== RADIUS : $RADIUS"
 echo "== ELEV_OFF_DAM : $ELEV_OFF_DAM"
 echo "== CUTLINE : $CUTLINE"
 echo "== INFO_DAM : ${INFO_DAM}"
+echo "== SZIDAT: ${SZIDAT}"
+
 
 [ -d "$EXTR_DIR/${DAM}" ] || mkdir -p "$EXTR_DIR/${DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
@@ -129,15 +132,28 @@ else
 fi
 
 echo "== SZI_TO_MODEL =="
-python3 ../szi_to_model.py --debug                             \
-        --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
-        --daminfo    "${DAM_FILE}" \
-        --zminoffset 10                                     \
-        --zmaxoffset 30                                     \
-        --maemode    "first"                                \
-        --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
-    2>&1 tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
+if [ -f "${SZIDAT}" ] ; then
+  echo "== Custom SZI.dat file"
+  python3 szi_to_model.py --debug                             \
+          --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
+          --daminfo    "${DAM_FILE}" \
+          --zminoffset 10                                     \
+          --zmaxoffset 30                                     \
+          --maemode    "first"                                \
+		  --custom_szi "${SZIDAT}" \
+          --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
+      2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
+else
 
+  python3 szi_to_model.py --debug                             \
+          --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
+          --daminfo    "${DAM_FILE}" \
+          --zminoffset 10                                     \
+          --zmaxoffset 30                                     \
+          --maemode    "first"                                \
+          --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
+      2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
+fi
 if [ -f "$REF_MODEL" ] ; then
 echo "== VAL_REPORT =="
    python3 ../val_report.py --debug                    \
