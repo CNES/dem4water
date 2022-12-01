@@ -23,21 +23,21 @@ import matplotlib.ticker as ticker
 import numpy as np
 
 
+def select_szi(args, Zi=None, S_Zi=None):
+    if Zi is None and S_ZI is None:
+        if args.custom_szi is not None:
+            print("Dat file used : ", args.custom_szi)
+            infile = args.custom_szi
+        else:
+            infile = args.infile
+        data = np.loadtxt(infile)
 
-def select_szi(args):
-    if args.custom_szi is not None:
-        print("Dat file used : ", args.custom_szi)
-        infile = args.custom_szi
-    else:
-        infile = args.infile
-    data = np.loadtxt(infile)
-    
-    if data.size <= 2:
-        logging.error("Not enought S(Zi) data inside file " + infile)
-        sys.exit("Error")
+        if data.size <= 2:
+            logging.error("Not enought S(Zi) data inside file " + infile)
+            sys.exit("Error")
 
-    Zi = data[:, 0]
-    S_Zi = data[:, 1]
+        Zi = data[:, 0]
+        S_Zi = data[:, 1]
 
     # remove outliers / virtual surface overflow
     stop_i = 0
@@ -71,6 +71,7 @@ def select_szi(args):
         logging.debug("No outliers detected, keeping all S_ZI data.")
     return Zi, S_Zi
 
+
 def filter_szi(args, max_elev, min_elev):
     if args.custom_szi is not None:
         print("Dat file used : ", args.custom_szi)
@@ -82,26 +83,37 @@ def filter_szi(args, max_elev, min_elev):
         logging.error("Not enought S(Zi) data inside file " + infile)
         sys.exit("Error")
 
-    Zi = data[:, 0]
-    S_Zi = data[:, 1]
-
+    z_i = data[:, 0]
+    s_zi = data[:, 1]
+    shp_wmap = wb.create_water_mask(args.watermap)
+    water_body_area = wb.compute_area_from_water_body(args.daminfo, shp_wmap)
+    thres_wb = (water_body_area * 15) / 100
     # zi[0] is the PDB
-    zi_min = zi[1]
-    zi_max = zi[-1]
-
+    zi_min = z_i[1]
+    zi_max = z_i[-1]
     if zi_max > max_elev:
         logging.info("Too high contour detected filter S_ZI data")
-        
     else:
         logging.info("Contour seems correct for max bound. Process")
-
     if zi_min < min_elev:
         logging.info("Too low contour detected filter S_ZI data")
-
     else:
         logging.info("Contour seems correct for min bound. Process")
 
-    return Zi, S_Zi
+    filter_zi_out = []
+    filter_szi_out = []
+    for val_zi, val_szi in zip(z_i[:-1], s_zi[:-1]):
+        if val_szi > thres_wb:
+            filter_zi_out.append(val_zi)
+            filter_szi_out.append(val_szi)
+        else:
+            print(
+                f"Szi {val_szi} for altitude {val_zi} is too small. Check the cutline."
+            )
+    filter_szi_out.append(s_zi[-1])
+    filter_zi_out.append(z_i[-1])
+    return filter_zi_out, filter_szi_out
+
 
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_to_model.py
@@ -120,6 +132,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     parser.add_argument("-i", "--infile", help="Input file")
     parser.add_argument("-d", "--daminfo", help="daminfo.json file")
+    parser.add_argument("-wa", "--watermap", help="Water map product")
     parser.add_argument(
         "-w", "--winsize", type=int, default=11, help="S(Zi) used for model estimation."
     )
@@ -143,7 +156,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1000,
         help="Threshold used to identify slope breaks in hybrid model selection",
     )
-    parser.add_argument("--custom_szi", type=str, default=None, help="Custom SZi.dat file")
+    parser.add_argument(
+        "--custom_szi", type=str, default=None, help="Custom SZi.dat file"
+    )
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
 
@@ -179,10 +194,12 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         # if feature["properties"]["name"] == "PDB":
         #     pdbelev = feature["properties"]["elev"]
 
-    Zi, S_Zi = select_szi(args)
+    Zi, S_Zi = filter_szi(args, 100000, 0)
+    Zi, S_Zi = select_szi(args, Zi, S_Zi)
     logging.debug(f"Number of S_Zi used for compute model: {len(S_Zi)}")
     Zi = Zi[::-1]
     S_Zi = S_Zi[::-1]
+    print("Filtered : ", Zi, S_Zi)
     logging.debug("Zi: ")
     logging.debug(Zi[:])
     logging.debug("S_Zi: ")
@@ -743,7 +760,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     with open(os.path.splitext(args.outfile)[0] + ".json", "w") as write_file:
         json.dump(model_json, write_file)
 
-    z = range(int(Zi[0]) + 1, int(Zi[-1:]))
+    z = range(int(Zi[0]) + 1, int(Zi[-1]))
     sz = []
     abs_sz = []
     for h in z:
