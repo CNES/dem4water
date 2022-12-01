@@ -10,6 +10,7 @@ cd "$WD" || exit
 # Set environnement
 module purge
 module load otb/7.4-python3.7.2
+source $WD/venv_dem/bin/activate
 
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
@@ -137,6 +138,7 @@ if [ -f "${SZIDAT}" ] ; then
   python3 szi_to_model.py --debug                             \
           --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
           --daminfo    "${DAM_FILE}" \
+		  --watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif"\
           --zminoffset 10                                     \
           --zmaxoffset 30                                     \
           --maemode    "first"                                \
@@ -148,6 +150,7 @@ else
   python3 szi_to_model.py --debug                             \
           --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
           --daminfo    "${DAM_FILE}" \
+		  --watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif"\
           --zminoffset 10                                     \
           --zmaxoffset 30                                     \
           --maemode    "first"                                \
