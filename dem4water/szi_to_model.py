@@ -22,7 +22,7 @@ import numpy as np
 
 
 def select_szi(args, Zi=None, S_Zi=None):
-    if Zi is None and S_ZI is None:
+    if Zi is None and S_Zi is None:
         if args.custom_szi is not None:
             print("Dat file used : ", args.custom_szi)
             infile = args.custom_szi
