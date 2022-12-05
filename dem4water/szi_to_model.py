@@ -6,8 +6,6 @@
 :license: see LICENSE file
 :created: 2020
 """
-
-
 import argparse
 import json
 import logging
@@ -50,7 +48,7 @@ def select_szi(args, Zi=None, S_Zi=None):
             ratio = 1
         #  print(str(ratio))
         # TODO: @parameters max ratio
-        if ratio < 10:
+        if ratio < 4:
             prev = sz
             stop_i = stop_i + 1
         else:
@@ -72,7 +70,7 @@ def select_szi(args, Zi=None, S_Zi=None):
     return Zi, S_Zi
 
 
-def filter_szi(args, max_elev, min_elev):
+def filter_szi(args, damname, max_elev, min_elev):
     if args.custom_szi is not None:
         print("Dat file used : ", args.custom_szi)
         infile = args.custom_szi
@@ -85,8 +83,12 @@ def filter_szi(args, max_elev, min_elev):
 
     z_i = data[:, 0]
     s_zi = data[:, 1]
-    shp_wmap = wb.create_water_mask(args.watermap)
-    water_body_area = wb.compute_area_from_water_body(args.daminfo, shp_wmap)
+    shp_wmap = wb.create_water_mask(args.watermap, 0.05)
+    # water_body_area = wb.compute_area_from_water_body(args.daminfo, shp_wmap)
+    water_body_area = wb.compute_area_from_database_geom(
+        args.database, damname, shp_wmap
+    )
+    logging.info(f"water body area: {water_body_area}")
     thres_wb = (water_body_area * 15) / 100
     # zi[0] is the PDB
     zi_min = z_i[1]
@@ -133,6 +135,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     parser.add_argument("-i", "--infile", help="Input file")
     parser.add_argument("-d", "--daminfo", help="daminfo.json file")
     parser.add_argument("-wa", "--watermap", help="Water map product")
+    parser.add_argument(
+        "-db", "--database", help="The database geojson file with geometry"
+    )
     parser.add_argument(
         "-w", "--winsize", type=int, default=11, help="S(Zi) used for model estimation."
     )
@@ -193,8 +198,10 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             dam_id = feature["properties"]["ID"]
         # if feature["properties"]["name"] == "PDB":
         #     pdbelev = feature["properties"]["elev"]
-
-    Zi, S_Zi = filter_szi(args, 100000, 0)
+    # shp_wmap = wb.create_water_mask(args.watermap, 0.05)
+    # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
+    # wm_thres = (water_body_area * 15)/100
+    Zi, S_Zi = filter_szi(args, damname, 100000, 0)
     Zi, S_Zi = select_szi(args, Zi, S_Zi)
     logging.debug(f"Number of S_Zi used for compute model: {len(S_Zi)}")
     Zi = Zi[::-1]
