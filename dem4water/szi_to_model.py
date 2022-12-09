@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
+From Szi compute model.
+
 :author: Aurélien Bricier <aurelien.bricier@csgroup.eu>
 :organization: CS Group
-:copyright: 2020 CS Group. All rights reserved.
+:copyright: 2020 CNES. All rights reserved.
 :license: see LICENSE file
 :created: 2020
 """
@@ -15,14 +17,18 @@ import sys
 from statistics import median
 from time import perf_counter
 
-import matplotlib.gridspec as gridspec  # noqa: F401
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+# import matplotlib.gridspec as gridspec  # noqa: F401
+# import matplotlib.pyplot as plt
+# import matplotlib.ticker as ticker
 import numpy as np
 
 
-def select_szi(args, Zi=None, S_Zi=None):
-    if Zi is None and S_Zi is None:
+def select_szi(args, z_i=None, s_zi=None):
+    """Apply a ratio filtering on SZi.
+
+    If Zi and S_Zi are None, the dat file is loaded.
+    """
+    if z_i is None and s_zi is None:
         if args.custom_szi is not None:
             print("Dat file used : ", args.custom_szi)
             infile = args.custom_szi
@@ -31,25 +37,25 @@ def select_szi(args, Zi=None, S_Zi=None):
         data = np.loadtxt(infile)
 
         if data.size <= 2:
-            logging.error("Not enought S(Zi) data inside file " + infile)
+            logging.error(f"Not enought S(Zi) data inside file {infile}")
             sys.exit("Error")
 
-        Zi = data[:, 0]
-        S_Zi = data[:, 1]
+        z_i = data[:, 0]
+        s_zi = data[:, 1]
 
     # remove outliers / virtual surface overflow
     stop_i = 0
     break_found = False
-    prev = S_Zi[1]
-    for z, sz in zip(Zi, S_Zi):
-        if sz != 0:
-            ratio = prev / sz
+    prev = s_zi[1]
+    for s_z in s_zi:
+        if s_z != 0:
+            ratio = prev / s_z
         else:
             ratio = 1
         #  print(str(ratio))
         # TODO: @parameters max ratio
         if ratio < 4:
-            prev = sz
+            prev = s_z
             stop_i = stop_i + 1
         else:
             break_found = True
@@ -57,20 +63,17 @@ def select_szi(args, Zi=None, S_Zi=None):
 
     if break_found is True:
         logging.debug(
-            "Dropping S_ZI after index "
-            + str(stop_i)
-            + " with a delta ratio of "
-            + str(ratio)
-            + "."
+            f"Dropping S_ZI after index {stop_i} with a delta ratio of {ratio}."
         )
-        Zi = Zi[stop_i:]
-        S_Zi = S_Zi[stop_i:]
+        z_i = z_i[stop_i:]
+        s_zi = s_zi[stop_i:]
     else:
         logging.debug("No outliers detected, keeping all S_ZI data.")
-    return Zi, S_Zi
+    return z_i, s_zi
 
 
 def filter_szi(args, damname, max_elev, min_elev):
+    """Use area criterion to filter szi."""
     if args.custom_szi is not None:
         print("Dat file used : ", args.custom_szi)
         infile = args.custom_szi
@@ -78,7 +81,7 @@ def filter_szi(args, damname, max_elev, min_elev):
         infile = args.infile
     data = np.loadtxt(infile)
     if data.size <= 2:
-        logging.error("Not enought S(Zi) data inside file " + infile)
+        logging.error(f"Not enought S(Zi) data inside file {infile}")
         sys.exit("Error")
 
     z_i = data[:, 0]
@@ -118,8 +121,9 @@ def filter_szi(args, damname, max_elev, min_elev):
 
 
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
-    """szi_to_model.py
+    """
     Prototype scrip allowing to derive a HSV model from a set of S(Z_i) values.
+
     The first value of the set should be S_0 = S(Z_0) = 0 with Z_0 the altitude of dam bottom
 
     The output
@@ -201,23 +205,22 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # shp_wmap = wb.create_water_mask(args.watermap, 0.05)
     # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
-    Zi, S_Zi = filter_szi(args, damname, 100000, 0)
-    Zi, S_Zi = select_szi(args, Zi, S_Zi)
-    logging.debug(f"Number of S_Zi used for compute model: {len(S_Zi)}")
-    Zi = Zi[::-1]
-    S_Zi = S_Zi[::-1]
-    print("Filtered : ", Zi, S_Zi)
-    logging.debug("Zi: ")
-    logging.debug(Zi[:])
-    logging.debug("S_Zi: ")
-    logging.debug(S_Zi[:])
-    logging.debug("Zi_max: " + str(Zi[-1]) + " - S(Zi_max): " + str(S_Zi[-1]))
-    #  logging.debug("med(Zi):"+ str(median(Zi[1:])) +" - med(S_Zi): "+ str(median(S_Zi[1:]))+ "(after outliers removal, Z0 and S(Z0) excluded)")
-    logging.info("Z0: " + str(Zi[0]) + " - S(Z0): " + str(S_Zi[0]))
+    z_i, s_zi = filter_szi(args, damname, 100000, 0)
+    z_i, s_zi = select_szi(args, z_i, s_zi)
+    logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
+    z_i = z_i[::-1]
+    s_zi = s_zi[::-1]
+    print("Filtered : ", z_i, s_zi)
+    logging.debug("z_i: ")
+    logging.debug(z_i[:])
+    logging.debug("s_zi: ")
+    logging.debug(s_zi[:])
+    logging.debug("Zi_max: " + str(z_i[-1]) + " - S(Zi_max): " + str(s_zi[-1]))
+    logging.info("Z0: " + str(z_i[0]) + " - S(Z0): " + str(s_zi[0]))
 
     # find start_i
     start_i = 0
-    for z in Zi:
+    for z in z_i:
         if z > float(damelev) - args.zminoffset:
             logging.debug(
                 "start_i = :" + str(start_i) + " - search stopped at Zi = " + str(z)
@@ -244,15 +247,15 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # Shortcut if just enough data
     data_shortage = False
     # autorise d'avoir un seul point...
-    if (i + args.winsize) >= (len(Zi) - 1):
+    if (i + args.winsize) >= (len(z_i) - 1):
         data_shortage = True
         logging.warning("Just enough data! Compute unique model.")
-        alpha, beta, mae = cm.compute_model(Zi, S_Zi, Zi[0], S_Zi[0])
+        alpha, beta, mae, poly = cm.compute_model(z_i, s_zi, z_i[0], s_zi[0])
         logging.debug(
             "Zrange ["
-            + str(Zi[0])
+            + str(z_i[0])
             + "; "
-            + str(Zi[-1])
+            + str(z_i[-1])
             + "]"
             + " --> alpha= "
             + str(alpha)
@@ -266,39 +269,39 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             "i: "
             + str(i)
             + " - Slope= "
-            + str(p[0])
+            + str(poly[0])
             + " - z_med= "
-            + str(median(Zi))
+            + str(median(z_i))
             + " - Sz_med= "
-            + str(median(S_Zi))
+            + str(median(s_zi))
         )
 
         # Select MEA to be used:
         best = mae
-        best_P = p
+        best_P = poly
         best_alpha = alpha
         best_beta = beta
 
     # Enough data but not in specified distance to the dam
     # (maybe estimated dam elevation is false, maybe offsets are to strict)
-    if median(Zi[i : i + args.winsize]) >= args.zmaxoffset + float(damelev):
+    if median(z_i[i : i + args.winsize]) >= args.zmaxoffset + float(damelev):
         data_shortage = True
         logging.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
         logging.error("Maybe dam elevation estimation is not correct.")
         logging.warning(
             "Computing unique model with the first available S(Zi) dataset."
         )
-        alpha, beta, mae = cm.compute_model(
-            Zi[i : i + args.winsize], S_Zi[i : i + args.winsize], Zi[0], S_Zi[0]
+        alpha, beta, mae, poly = cm.compute_model(
+            z_i[i : i + args.winsize], s_zi[i : i + args.winsize], z_i[0], s_zi[0]
         )
 
         logging.debug(
             "i: "
             + str(i)
             + " - Zrange ["
-            + str(Zi[i])
+            + str(z_i[i])
             + "; "
-            + str(Zi[i + args.winsize])
+            + str(z_i[i + args.winsize])
             + "]"
             + " --> alpha= "
             + str(alpha)
@@ -312,29 +315,29 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             "i: "
             + str(i)
             + " - Slope= "
-            + str(p[0])
+            + str(poly[0])
             + " - z_med= "
-            + str(median(Zi[i : i + args.winsize]))
+            + str(median(z_i[i : i + args.winsize]))
             + " - Sz_med= "
-            + str(median(S_Zi[i : i + args.winsize]))
+            + str(median(s_zi[i : i + args.winsize]))
         )
 
         best = mae
         best_i = i
-        best_P = p
+        best_P = poly
         best_alpha = alpha
         best_beta = beta
 
-    while ((i + args.winsize) < (len(Zi) - 1)) and (
-        median(Zi[i : i + args.winsize]) < args.zmaxoffset + float(damelev)
+    while ((i + args.winsize) < (len(z_i) - 1)) and (
+        median(z_i[i : i + args.winsize]) < args.zmaxoffset + float(damelev)
     ):
         logging.debug(
-            "len(Zi[i:i+args.winsize]): " + str(len(Zi[i : i + args.winsize]))
+            "len(z_i[i:i+args.winsize]): " + str(len(z_i[i : i + args.winsize]))
         )
         #  logging.debug(Zi[i:i+args.winsize])
         # p = np.polyfit(
         #     Zi[i : i + args.winsize],
-        #     S_Zi[i : i + args.winsize],
+        #     s_zi[i : i + args.winsize],
         #     1,
         #     rcond=None,
         #     full=False,
@@ -346,33 +349,33 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         # beta = (
         #     p[0]
         #     * (median(Zi[i : i + args.winsize]) - Zi[0])
-        #     / (median(S_Zi[i : i + args.winsize]) - S_Zi[0])
+        #     / (median(s_zi[i : i + args.winsize]) - s_zi[0])
         # )
         # alpha = (
         #     p[0] * (math.pow(median(Zi[i : i + args.winsize]) - Zi[0], 1 - beta)) / beta
         # )
 
         # mae_sum = 0
-        # for z, sz in zip(Zi, S_Zi):
-        #     s = S_Zi[0] + alpha * math.pow((z - Zi[0]), beta)
+        # for z, sz in zip(Zi, s_zi):
+        #     s = s_zi[0] + alpha * math.pow((z - Zi[0]), beta)
         #     mae_sum += abs(sz - s)
         # # glo_mae = mae_sum / len(Zi)
 
         # mae_sum = 0
-        # for z, sz in zip(Zi[i : i + args.winsize], S_Zi[i : i + args.winsize]):
-        #     s = S_Zi[0] + alpha * math.pow((z - Zi[0]), beta)
+        # for z, sz in zip(Zi[i : i + args.winsize], s_zi[i : i + args.winsize]):
+        #     s = s_zi[0] + alpha * math.pow((z - Zi[0]), beta)
         #     mae_sum += abs(sz - s)
         # loc_mae = mae_sum / len(Zi[i : i + args.winsize])
-        alpha, beta, loc_mae = cm.compute_model(
-            Zi[i : i + args.winsize], S_Zi[i : i + args.winsize], Zi[0], S_Zi[0]
+        alpha, beta, loc_mae, poly = cm.compute_model(
+            z_i[i : i + args.winsize], s_zi[i : i + args.winsize], z_i[0], s_zi[0]
         )
         logging.debug(
             "i: "
             + str(i)
             + " - Zrange ["
-            + str(Zi[i])
+            + str(z_i[i])
             + "; "
-            + str(Zi[i + args.winsize])
+            + str(z_i[i + args.winsize])
             + "]"
             + " --> alpha= "
             + str(alpha)
@@ -387,21 +390,21 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             "i: "
             + str(i)
             + " - Slope= "
-            + str(p[0])
+            + str(poly[0])
             + " - z_med= "
-            + str(median(Zi[i : i + args.winsize]))
+            + str(median(z_i[i : i + args.winsize]))
             + " - Sz_med= "
-            + str(median(S_Zi[i : i + args.winsize]))
+            + str(median(s_zi[i : i + args.winsize]))
         )
 
         # Select MEA to be used:
         #  mae = glo_mae
         mae = loc_mae
         l_i.append(i)
-        l_z.append(median(Zi[i : i + args.winsize]))
-        l_sz.append(median(S_Zi[i : i + args.winsize]))
-        l_P.append(p)
-        l_slope.append(p[0])
+        l_z.append(median(z_i[i : i + args.winsize]))
+        l_sz.append(median(s_zi[i : i + args.winsize]))
+        l_P.append(poly)
+        l_slope.append(poly[0])
         l_mae.append(mae)
         l_alpha.append(alpha)
         l_beta.append(beta)
@@ -409,7 +412,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         if (best == -10000) or (mae < best):
             best = mae
             best_i = i
-            best_P = p
+            best_P = poly
             best_alpha = alpha
             best_beta = beta
             #  logging.debug("i: "+ str(i)
@@ -440,11 +443,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.info(
         damname
         + ": S(Z) = "
-        + format(S_Zi[0], ".2F")
+        + format(s_zi[0], ".2F")
         + " + "
         + format(best_alpha, ".3E")
         + " * ( Z - "
-        + format(Zi[0], ".2F")
+        + format(z_i[0], ".2F")
         + " ) ^ "
         + format(best_beta, ".3E")
     )
@@ -675,9 +678,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             + " - beta= "
             + str(best_beta)
             + " (Computed on the range ["
-            + str(Zi[best_i])
+            + str(z_i[best_i])
             + "; "
-            + str(Zi[best_i + args.winsize])
+            + str(z_i[best_i + args.winsize])
             + "])"
             + " (i= "
             + str(best_i)
@@ -686,11 +689,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         logging.info(
             damname
             + ": S(Z) = "
-            + format(S_Zi[0], ".2F")
+            + format(s_zi[0], ".2F")
             + " + "
             + format(best_alpha, ".3E")
             + " * ( Z - "
-            + format(Zi[0], ".2F")
+            + format(z_i[0], ".2F")
             + " ) ^ "
             + format(best_beta, ".3E")
         )
@@ -703,9 +706,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             + " - beta= "
             + str(best_beta)
             + " (Computed on the range ["
-            + str(Zi[best_i])
+            + str(z_i[best_i])
             + "; "
-            + str(Zi[best_i + args.winsize])
+            + str(z_i[best_i + args.winsize])
             + "])"
             + " (i= "
             + str(best_i)
@@ -714,11 +717,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         logging.info(
             damname
             + ": S(Z) = "
-            + format(S_Zi[0], ".2F")
+            + format(s_zi[0], ".2F")
             + " + "
             + format(best_alpha, ".3E")
             + " * ( Z - "
-            + format(Zi[0], ".2F")
+            + format(z_i[0], ".2F")
             + " ) ^ "
             + format(best_beta, ".3E")
         )
@@ -728,8 +731,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         "Name": damname,
         "Elevation": damelev,
         "Model": {
-            "Z0": Zi[0],
-            "S0": S_Zi[0],
+            "Z0": z_i[0],
+            "S0": s_zi[0],
             "V0": 0.0,
             "alpha": best_alpha,
             "beta": best_beta,
@@ -739,35 +742,34 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     with open(os.path.splitext(args.outfile)[0] + ".json", "w") as write_file:
         json.dump(model_json, write_file)
 
-    z = range(int(Zi[0]) + 1, int(Zi[-1]))
-    sz = []
+    z = range(int(z_i[0]) + 1, int(z_i[-1]))
+    mod_sz = []
     abs_sz = []
     for h in z:
-        s = S_Zi[0] + best_alpha * math.pow((h - Zi[0]), best_beta)
-        sz.append(s)
-        s = S_Zi[0] + abs_alpha * math.pow((h - Zi[0]), abs_beta)
-        abs_sz.append(s)
+        val_s = s_zi[0] + best_alpha * math.pow((h - z_i[0]), best_beta)
+        mod_sz.append(val_s)
+        val_s = s_zi[0] + abs_alpha * math.pow((h - z_i[0]), abs_beta)
+        abs_sz.append(val_s)
 
     # reg_abs = np.poly1d(abs_P)
     # reg_best = np.poly1d(best_P)
 
     # Moldel Plot
     pl.plot_model(
-        S_Zi,
-        Zi,
-        S_Zi[best_i : best_i + args.winsize],
-        Zi[best_i : best_i + args.winsize],
+        s_zi[best_i : best_i + args.winsize],
+        z_i[best_i : best_i + args.winsize],
         best_alpha,
         best_beta,
+        damname,
         args.outfile,
     )
     # fig, ax = plt.subplots()
     # ax.plot(z, sz, "r--", label="S(z)")
-    # ax.plot(Zi[0], S_Zi[0], "ro")
-    # ax.scatter(Zi[1:], S_Zi[1:], marker=".", label="S(Zi)")
+    # ax.plot(Zi[0], s_zi[0], "ro")
+    # ax.scatter(Zi[1:], s_zi[1:], marker=".", label="S(Zi)")
     # ax.scatter(
     #     median(Zi[best_i : best_i + args.winsize]),
-    #     median(S_Zi[best_i : best_i + args.winsize]),
+    #     median(s_zi[best_i : best_i + args.winsize]),
     #     color="#ff7f0e",
     #     marker="p",
     #     label="Selected S(Zi)",
@@ -783,7 +785,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # plt.title(
     #     damname
     #     + ": S(Z) = "
-    #     + format(S_Zi[0], ".2F")
+    #     + format(s_zi[0], ".2F")
     #     + " + "
     #     + format(best_alpha, ".3E")
     #     + " * ( Z - "
@@ -813,7 +815,19 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     # Plot Local MAE
     # TODO : call function plot_slope()
-
+    pl.plot_slope(
+        z_i[best_i : best_i + args.winsize],
+        l_mae,
+        damelev,
+        z_i[abs_i : abs_i + args.winsize],
+        abs_mae,
+        best,
+        damname,
+        l_z,
+        l_slope,
+        best_P,
+        os.path.splitext(args.outfile)[0] + "_slope.png",
+    )
     # ms_fig = plt.figure(dpi=300)
     # ms_fig.subplots_adjust(hspace=0)
     # ms_gs = ms_fig.add_gridspec(3, 1, height_ratios=[1, 1, 1])
@@ -894,6 +908,24 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     #     plt.savefig(os.path.splitext(args.outfile)[0] + "_slope.png", dpi=300)
 
     # Combined Local MAE / model plot
+    pl.plot_model_combo(
+        z_i,
+        s_zi,
+        z_i[best_i : best_i + args.winsize],
+        s_zi[best_i : best_i + args.winsize],
+        damelev,
+        data_shortage,
+        alpha,
+        beta,
+        damname,
+        abs_sz,
+        mod_sz,
+        l_z,
+        l_mae,
+        abs_mae,
+        best,
+        os.path.splitext(args.outfile)[0] + "_combo.png",
+    )
     # fig = plt.figure(dpi=300)
     # fig.subplots_adjust(hspace=0)
     # gs = fig.add_gridspec(2, 1, height_ratios=[4, 1])
@@ -902,11 +934,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # maeax0.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
     # maeax0.plot(z, abs_sz, "g--", label="S(z) abs_model")
     # maeax0.plot(z, sz, "r--", label="S(z)")
-    # maeax0.plot(Zi[0], S_Zi[0], "ro")
-    # maeax0.scatter(Zi, S_Zi, marker=".", label="S(Z_i)")
+    # maeax0.plot(Zi[0], s_zi[0], "ro")
+    # maeax0.scatter(Zi, s_zi, marker=".", label="S(Z_i)")
     # maeax0.plot(
     #     Zi[best_i : best_i + args.winsize],
-    #     S_Zi[best_i : best_i + args.winsize],
+    #     s_zi[best_i : best_i + args.winsize],
     #     marker="o",
     #     ls=":",
     #     lw=1,
@@ -916,7 +948,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # )
     # maeax0.plot(
     #     median(Zi[best_i : best_i + args.winsize]),
-    #     median(S_Zi[best_i : best_i + args.winsize]),
+    #     median(s_zi[best_i : best_i + args.winsize]),
     #     color="#ff7f0e",
     #     marker="p",
     #     markerfacecolor="#ff7f0e",
@@ -931,7 +963,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # #  maeax0.set_xlim(z[0]-10, z[-1]+10)
     # if data_shortage is False:
     #     maeax0.set_xlim(z[0] - 5, median(Zi[best_i : best_i + args.winsize]) + 30)
-    #     maeax0.set_ylim(-10, S_Zi[best_i + args.winsize] * 1.1)
+    #     maeax0.set_ylim(-10, s_zi[best_i + args.winsize] * 1.1)
     # # Trick to display in Ha
     # maeax0.yaxis.set_major_formatter(ticks_m2)
     # plt.minorticks_on()
@@ -969,7 +1001,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # plt.suptitle(
     #     damname
     #     + ": S(Z) = "
-    #     + format(S_Zi[0], ".2F")
+    #     + format(s_zi[0], ".2F")
     #     + " + "
     #     + format(best_alpha, ".3E")
     #     + " * ( Z - "
@@ -981,13 +1013,22 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # plt.savefig(os.path.splitext(args.outfile)[0] + "_combo.png", dpi=300)
 
     # V(S)
-    # S_dam = S_Zi[0] + best_alpha * math.pow((float(damelev) - Zi[0]), best_beta)
+    pl.plot_vs(
+        z_i,
+        s_zi,
+        damelev,
+        best_alpha,
+        best_beta,
+        damname,
+        os.path.splitext(args.outfile)[0] + "_VS.png",
+    )
+    # S_dam = s_zi[0] + best_alpha * math.pow((float(damelev) - Zi[0]), best_beta)
     # s = range(0, math.ceil(S_dam) + 10000)
     # v0 = 0.0
     # vs = []
     # for a in s:
-    #     v = v0 + math.pow(((a - S_Zi[0]) / best_alpha), 1 / best_beta) * (
-    #         S_Zi[0] + ((a - S_Zi[0]) / (best_beta + 1.0))
+    #     v = v0 + math.pow(((a - s_zi[0]) / best_alpha), 1 / best_beta) * (
+    #         s_zi[0] + ((a - s_zi[0]) / (best_beta + 1.0))
     #     )
     #     vs.append(v)
 
@@ -1002,7 +1043,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # )
     # plt.title(
     #     damname + " : V=f(S) ",
-    #     #  +": S(Z) = "+format(S_Zi[0], '.2F')+" + "+format(best_alpha, '.3E')
+    #     #  +": S(Z) = "+format(s_zi[0], '.2F')+" + "+format(best_alpha, '.3E')
     #     #  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'),
     #     fontsize=10,
     # )
