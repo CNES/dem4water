@@ -215,30 +215,27 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.debug(z_i[:])
     logging.debug("s_zi: ")
     logging.debug(s_zi[:])
-    logging.debug("Zi_max: " + str(z_i[-1]) + " - S(Zi_max): " + str(s_zi[-1]))
-    logging.info("Z0: " + str(z_i[0]) + " - S(Z0): " + str(s_zi[0]))
+    logging.debug(f"Zi_max: {z_i[-1]} - S(Zi_max): {s_zi[-1]}")
+    logging.info(f"Z0: {z_i[0]} - S(Z0): {s_zi[0]}")
 
     # find start_i
     start_i = 0
-    for z in z_i:
-        if z > float(damelev) - args.zminoffset:
-            logging.debug(
-                "start_i = :" + str(start_i) + " - search stopped at Zi = " + str(z)
-            )
+    for alt in z_i:
+        if alt > float(damelev) - args.zminoffset:
+            logging.debug(f"start_i = : {start_i}  - search stopped at Zi = {alt}")
             break
-        else:
-            start_i = start_i + 1
+        start_i = start_i + 1
 
     i = start_i
     best = -10000
     best_i = i
-    best_P = 0
+    best_p = 0
     best_alpha = 0
     best_beta = 0
     l_i = []
     l_z = []
     l_sz = []
-    l_P = []
+    l_p = []
     l_slope = []
     l_mae = []
     l_alpha = []
@@ -278,7 +275,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         # Select MEA to be used:
         best = mae
-        best_P = poly
+        best_p = poly
         best_alpha = alpha
         best_beta = beta
 
@@ -324,7 +321,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         best = mae
         best_i = i
-        best_P = poly
+        best_p = poly
         best_alpha = alpha
         best_beta = beta
 
@@ -403,7 +400,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         l_i.append(i)
         l_z.append(median(z_i[i : i + args.winsize]))
         l_sz.append(median(s_zi[i : i + args.winsize]))
-        l_P.append(poly)
+        l_p.append(poly)
         l_slope.append(poly[0])
         l_mae.append(mae)
         l_alpha.append(alpha)
@@ -412,7 +409,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         if (best == -10000) or (mae < best):
             best = mae
             best_i = i
-            best_P = poly
+            best_p = poly
             best_alpha = alpha
             best_beta = beta
             #  logging.debug("i: "+ str(i)
@@ -424,7 +421,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     # For testing
     abs_i = best_i
-    # abs_P = best_P
+    # abs_P = best_p
     abs_mae = best
     abs_beta = best_beta
     abs_alpha = best_alpha
@@ -468,7 +465,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     + ")."
                 )
                 best_i = l_i[0]
-                best_P = l_P[0]
+                best_p = l_p[0]
                 best = l_mae[0]
                 best_beta = l_beta[0]
                 best_alpha = l_alpha[0]
@@ -494,7 +491,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     + ")."
                 )
                 best_i = l_i[1]
-                best_P = l_P[1]
+                best_p = l_p[1]
                 best = l_mae[1]
                 best_beta = l_beta[1]
                 best_alpha = l_alpha[1]
@@ -529,7 +526,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                             + ")."
                         )
                         best_i = l_i[j]
-                        best_P = l_P[j]
+                        best_p = l_p[j]
                         best = l_mae[j]
                         best_beta = l_beta[j]
                         best_alpha = l_alpha[j]
@@ -552,35 +549,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         else:
             logging.debug("Reanalizing Impossible, not enough local mae data!")
 
-        #  prev_mae_id=0
-        #  next_mae_id=4
-        #  #  for e in l_mae[2:]:
-        #  for e in l_i[2:]:
-        #      if (l_mae[e] < l_mae[e-2]) and (l_mae[e] < l_mae[e+2]):
-        #          found_first = True
-        #          logging.debug("@i= "+str(e)+": "+str(l_mae[e-2])+" > "+str(l_mae[e])+" < "+str(l_mae[e+2]))
-        #          logging.debug("First local minimum found at "+ str(l_z[prev_mae_id+2])
-        #                        +" (i= "+str(l_i[prev_mae_id+2])+").")
-        #          logging.debug("First local minimum found at "+ str(l_z[e])
-        #                        +" (i= "+str(e)+").")
-        #          #  best_i = l_i[prev_mae_id+2]
-        #          best_i = e+start_i-2
-        #          best_P = l_P[best_i]
-        #          #  best = e
-        #          best = l_mae[e]
-        #          best_beta = l_beta[best_i]
-        #          best_alpha = l_alpha[best_i]
-        #          logging.debug("i: "+ str(best_i)
-        #                        +" - alpha= " +str(best_alpha)
-        #                        +" - beta= "  +str(best_beta)
-        #                        +" - mae= " +str(best))
-        #          break
-        #      else:
-        #          prev_mae_id=prev_mae_id+1
-        #          next_mae_id=next_mae_id+1
-        #  if found_first is False:
-        #      logging.debug("Reanalizing local mae to find the first local minimum --> FAILLED.")
-
     elif args.maemode == "hybrid" and data_shortage is False:
         # first find absolute min at z > damelev > damelev+offset
         logging.debug("Reanalizing local mae to find the optimal local minimum.")
@@ -598,7 +566,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                 best_j = j
                 best_z = l_z[j]
                 best_i = l_i[j]
-                best_P = l_P[j]
+                best_p = l_p[j]
                 best = l_mae[j]
                 best_beta = l_beta[j]
                 best_alpha = l_alpha[j]
@@ -650,7 +618,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                 )
                 best_z = l_z[k]
                 best_i = l_i[k]
-                best_P = l_P[k]
+                best_p = l_p[k]
                 best = l_mae[k]
                 best_beta = l_beta[k]
                 best_alpha = l_alpha[k]
@@ -752,7 +720,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         abs_sz.append(val_s)
 
     # reg_abs = np.poly1d(abs_P)
-    # reg_best = np.poly1d(best_P)
+    # reg_best = np.poly1d(best_p)
 
     # Moldel Plot
     pl.plot_model(
@@ -825,7 +793,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         damname,
         l_z,
         l_slope,
-        best_P,
+        best_p,
         os.path.splitext(args.outfile)[0] + "_slope.png",
     )
     # ms_fig = plt.figure(dpi=300)
@@ -873,7 +841,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # )
     # slpax.plot(
     #     median(Zi[best_i : best_i + args.winsize]),
-    #     best_P[0],
+    #     best_p[0],
     #     "p",
     #     color="#ff7f0e",
     #     label="Selected min(MAE)",
