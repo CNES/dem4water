@@ -117,6 +117,7 @@ def filter_szi(args, damname, max_elev, min_elev):
 
 
 def get_info_dam(daminfo):
+    """Extract information from daminfo name."""
     with open(daminfo) as info:
         jsi = json.load(info)
         for feature in jsi["features"]:
@@ -133,13 +134,19 @@ def get_info_dam(daminfo):
 def select_lower_szi(z_i, sz_i, damelev, max_offset):
     """Select all valid point under the damelev to find law."""
     filtered_szi = [szi for zi_, szi in zip(z_i, sz_i) if zi_ < damelev + max_offset]
-    filtered_zi = [szi for zi_, szi in zip(z_i, sz_i) if zi_ < damelev + max_offset]
-
+    filtered_zi = [zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < damelev + max_offset]
+    if len(filtered_szi) < 11:
+        if len(z_i) > 11:
+            filtered_szi = sz_i[:11]
+            filtered_zi = z_i[:11]
+        else:
+            filtered_szi = sz_i[:]
+            filtered_zi = z_i[:]
     return filtered_zi, filtered_szi
 
 
 def compute_model(z_i, s_zi, z_0, s_z0):
-    """"""
+    """Compute model from points."""
     logging.info(f"Model computed using {len(s_zi)} values.")
     poly = np.polyfit(z_i[1:], s_zi[1:], 1, rcond=None, full=False, w=None, cov=False)
     beta = poly[0] * (median([z_i]) - z_0) / (median(s_zi) - s_z0)
