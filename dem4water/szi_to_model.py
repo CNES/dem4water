@@ -17,9 +17,6 @@ import sys
 from statistics import median
 from time import perf_counter
 
-# import matplotlib.gridspec as gridspec  # noqa: F401
-# import matplotlib.pyplot as plt
-# import matplotlib.ticker as ticker
 import numpy as np
 
 
@@ -120,6 +117,165 @@ def filter_szi(args, damname, max_elev, min_elev):
     return filter_zi_out, filter_szi_out
 
 
+def found_mae_first(found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p):
+    """Analyze MAE to find the first local minimum."""
+    logging.debug("Reanalizing local mae to find the first local minimum.")
+    logging.debug(f"len(l_mae): {len(l_mae)}")
+    if len(l_i) > 4:
+        if l_mae[0] < l_mae[1] and l_mae[0] < l_mae[2]:
+
+            found_first = True
+            logging.debug(f"First local minimum found at {l_z[0]} (i= {l_i[0]}).")
+            best_i = l_i[0]
+            best_p = l_p[0]
+            best = l_mae[0]
+            best_beta = l_beta[0]
+            best_alpha = l_alpha[0]
+            logging.debug(
+                f"i: {best_i} - alpha= {best_alpha} - "
+                f"beta= {best_beta} - mae= {best}"
+            )
+
+        elif l_mae[1] < l_mae[0] and l_mae[1] < l_mae[2] and l_mae[1] < l_mae[3]:
+
+            found_first = True
+            logging.debug(f"First local minimum found at {l_z[1]} (i= {l_i[1]}).")
+            best_i = l_i[1]
+            best_p = l_p[1]
+            best = l_mae[1]
+            best_beta = l_beta[1]
+            best_alpha = l_alpha[1]
+            logging.debug(
+                f"i: {best_i} - alpha= {best_alpha} - "
+                f"beta= {best_beta} - mae= {best}"
+            )
+
+        else:
+            x = range(0, len(l_i) - 1)
+            logging.debug(x)
+            for j in x[2:-2]:
+                if (
+                    l_mae[j] < l_mae[j - 2]
+                    and l_mae[j] < l_mae[j - 1]
+                    and l_mae[j] < l_mae[j + 1]
+                    and l_mae[j] < l_mae[j + 2]
+                ):
+
+                    found_first = True
+                    logging.debug(
+                        f"First local minimum found at {l_z[j]} (i= {l_i[j]})."
+                    )
+                    best_i = l_i[j]
+                    best_p = l_p[j]
+                    best = l_mae[j]
+                    best_beta = l_beta[j]
+                    best_alpha = l_alpha[j]
+                    logging.debug(
+                        f"i: {best_i} - alpha= {best_alpha} - beta= {best_beta} - mae= {best}"
+                    )
+                    break
+
+            if found_first is False:
+                logging.info(
+                    "Reanalizing local mae to find the first local minimum --> FAILLED."
+                )
+                # Exception ?
+    else:
+        logging.debug("Reanalizing Impossible, not enough local mae data!")
+        # Exception ?
+    return best_i, best_p, best, best_alpha, best_beta, found_first
+
+
+def found_mae_hybrid(
+    z_i,
+    s_zi,
+    l_i,
+    l_z,
+    args,
+    damname,
+    damelev,
+    l_p,
+    l_mae,
+    l_beta,
+    l_alpha,
+    l_slope,
+):
+    """Analyze local mae to find optimal local minimum."""
+    logging.debug("Reanalizing local mae to find the optimal local minimum.")
+    best = -10000
+    x = range(0, len(l_i) - 1)
+    for j in x:
+        #  logging.debug("j: "+ str(j)
+        #  +" - l_z[j]: "+ str(l_z[j]))
+        if (
+            l_z[j] <= args.zmaxoffset + float(damelev)
+            and l_z[j] >= float(damelev)
+            and ((best == -10000) or (l_mae[j] < best))
+        ):
+
+            best_j = j
+            best_z = l_z[j]
+            best_i = l_i[j]
+            best_p = l_p[j]
+            best = l_mae[j]
+            best_beta = l_beta[j]
+            best_alpha = l_alpha[j]
+
+            logging.debug(
+                f"j: {best_j} - alpha= {best_alpha} - beta= "
+                f"{best_beta} - mae= {best}@{best_z}m"
+            )
+
+    logging.info(
+        f"Hybrid pass #1 => i: {best_i} - alpha= {best_alpha} "
+        f"- beta= {best_beta} - mae= {best}@{best_z}m"
+    )
+
+    # then refine with a local lmae minima for smaller Zs
+    # and until the slope "breaks"
+    x = range(0, best_j - 1)
+    ds = np.diff(l_slope) / np.diff(l_z)
+    for k in x[::-1]:
+        if (
+            l_z[k] >= float(damelev) - args.zminoffset
+            and abs(ds[k]) < args.dslopethresh
+        ):
+            # and
+            #  (l_mae[k] < best)):
+            logging.debug(
+                "k: %s - lmae[k]: %s - l_z[k]: %s - ds[k]: %s",
+                str(k),
+                str(l_mae[k]),
+                str(l_z[k]),
+                str(ds[k]),
+            )
+            best_z = l_z[k]
+            best_i = l_i[k]
+            best_p = l_p[k]
+            best = l_mae[k]
+            best_beta = l_beta[k]
+            best_alpha = l_alpha[k]
+        else:
+            break
+
+    logging.info(
+        f"Hybrid pass #2 => i: {best_i} - alpha= {best_alpha} - beta= "
+        f"{best_beta} - mae= {best}@{best_z}m"
+    )
+
+    logging.info("Model updated using hybrid optimal model selection.")
+    logging.info(
+        f"alpha= {best_alpha} - beta= {best_beta}"
+        f" (Computed on the range [{z_i[best_i]}; {z_i[best_i + args.winsize]}])"
+        f" (i= {best_i})."
+    )
+    logging.info(
+        f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} "
+        f"* ( Z - {z_i[0]:.2F} ) ^ {best_beta:.3E}"
+    )
+    return best_i, best_p, best, best_alpha, best_beta
+
+
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """
     Prototype scrip allowing to derive a HSV model from a set of S(Z_i) values.
@@ -192,7 +348,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.info("Starting szi_to_model.py")
 
     # load GeoJSON file containing info
-    with open(args.daminfo) as i:
+    with open(args.daminfo, encoding="utf-8") as i:
         jsi = json.load(i)
     for feature in jsi["features"]:
         if feature["properties"]["name"] == "Dam":
@@ -249,28 +405,12 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         logging.warning("Just enough data! Compute unique model.")
         alpha, beta, mae, poly = cm.compute_model(z_i, s_zi, z_i[0], s_zi[0])
         logging.debug(
-            "Zrange ["
-            + str(z_i[0])
-            + "; "
-            + str(z_i[-1])
-            + "]"
-            + " --> alpha= "
-            + str(alpha)
-            + " - beta= "
-            + str(beta)
-            + " with a local mae of: "
-            + str(mae)
-            + " m2"
+            f"Zrange [{z_i[0]} ; {z_i[-1]}] --> alpha= {alpha} - "
+            f"beta= {beta}  with a local mae of: {mae} m2"
         )
         logging.debug(
-            "i: "
-            + str(i)
-            + " - Slope= "
-            + str(poly[0])
-            + " - z_med= "
-            + str(median(z_i))
-            + " - Sz_med= "
-            + str(median(s_zi))
+            f"i: {i} - Slope= {poly[0]} - z_med= {median(z_i)} -"
+            f" Sz_med= {median(s_zi)}"
         )
 
         # Select MEA to be used:
@@ -293,30 +433,13 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         )
 
         logging.debug(
-            "i: "
-            + str(i)
-            + " - Zrange ["
-            + str(z_i[i])
-            + "; "
-            + str(z_i[i + args.winsize])
-            + "]"
-            + " --> alpha= "
-            + str(alpha)
-            + " - beta= "
-            + str(beta)
-            + " with a local mae of: "
-            + str(mae)
-            + " m2"
+            f"i: {i} - Zrange [{z_i[i]}; {z_i[i + args.winsize]}] --> alpha="
+            f" {alpha} - beta= {beta} with a local mae of: {mae} m2"
         )
         logging.debug(
-            "i: "
-            + str(i)
-            + " - Slope= "
-            + str(poly[0])
-            + " - z_med= "
-            + str(median(z_i[i : i + args.winsize]))
-            + " - Sz_med= "
-            + str(median(s_zi[i : i + args.winsize]))
+            f"i: {i} - Slope= {poly[0]} - z_med= "
+            f"{median(z_i[i : i + args.winsize])} - "
+            f"Sz_med= {median(s_zi[i : i + args.winsize])}"
         )
 
         best = mae
@@ -328,70 +451,18 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     while ((i + args.winsize) < (len(z_i) - 1)) and (
         median(z_i[i : i + args.winsize]) < args.zmaxoffset + float(damelev)
     ):
-        logging.debug(
-            "len(z_i[i:i+args.winsize]): " + str(len(z_i[i : i + args.winsize]))
-        )
-        #  logging.debug(Zi[i:i+args.winsize])
-        # p = np.polyfit(
-        #     Zi[i : i + args.winsize],
-        #     s_zi[i : i + args.winsize],
-        #     1,
-        #     rcond=None,
-        #     full=False,
-        #     w=None,
-        #     cov=False,
-        # )
-        # #  P = np.poly1d(p)
-
-        # beta = (
-        #     p[0]
-        #     * (median(Zi[i : i + args.winsize]) - Zi[0])
-        #     / (median(s_zi[i : i + args.winsize]) - s_zi[0])
-        # )
-        # alpha = (
-        #     p[0] * (math.pow(median(Zi[i : i + args.winsize]) - Zi[0], 1 - beta)) / beta
-        # )
-
-        # mae_sum = 0
-        # for z, sz in zip(Zi, s_zi):
-        #     s = s_zi[0] + alpha * math.pow((z - Zi[0]), beta)
-        #     mae_sum += abs(sz - s)
-        # # glo_mae = mae_sum / len(Zi)
-
-        # mae_sum = 0
-        # for z, sz in zip(Zi[i : i + args.winsize], s_zi[i : i + args.winsize]):
-        #     s = s_zi[0] + alpha * math.pow((z - Zi[0]), beta)
-        #     mae_sum += abs(sz - s)
-        # loc_mae = mae_sum / len(Zi[i : i + args.winsize])
+        logging.debug(f"len(z_i[i:i+args.winsize]): {len(z_i[i : i + args.winsize])}")
         alpha, beta, loc_mae, poly = cm.compute_model(
             z_i[i : i + args.winsize], s_zi[i : i + args.winsize], z_i[0], s_zi[0]
         )
         logging.debug(
-            "i: "
-            + str(i)
-            + " - Zrange ["
-            + str(z_i[i])
-            + "; "
-            + str(z_i[i + args.winsize])
-            + "]"
-            + " --> alpha= "
-            + str(alpha)
-            + " - beta= "
-            + str(beta)
-            #  + " with a glogal mae of: " +str(glo_mae) +" m2"
-            + " with a local mae of: "
-            + str(loc_mae)
-            + " m2"
+            f"i: {i} - Zrange [{z_i[i]}; {z_i[i + args.winsize]}] --> alpha="
+            f" {alpha} - beta= {beta} with a local mae of: {loc_mae} m2"
         )
         logging.debug(
-            "i: "
-            + str(i)
-            + " - Slope= "
-            + str(poly[0])
-            + " - z_med= "
-            + str(median(z_i[i : i + args.winsize]))
-            + " - Sz_med= "
-            + str(median(s_zi[i : i + args.winsize]))
+            f"i: {i} - Slope= {poly[0]} - z_med="
+            f" {median(z_i[i : i + args.winsize])} - "
+            f"Sz_med= {median(s_zi[i : i + args.winsize])}"
         )
 
         # Select MEA to be used:
@@ -412,11 +483,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             best_p = poly
             best_alpha = alpha
             best_beta = beta
-            #  logging.debug("i: "+ str(i)
-            #  +" - alpha= " +str(alpha)
-            #  +" - beta= "  +str(beta)
-            #  +" - mae= " +str(mae))
-
         i = i + 1
 
     # For testing
@@ -428,270 +494,44 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     logging.debug("Best Abs")
     logging.debug(
-        "i: "
-        + str(best_i)
-        + " - alpha= "
-        + str(best_alpha)
-        + " - beta= "
-        + str(best_beta)
-        + " - mae= "
-        + str(best)
+        f"i: {best_i} - alpha= {best_alpha} - beta= {best_beta} - mae= {best}"
     )
     logging.info(
-        damname
-        + ": S(Z) = "
-        + format(s_zi[0], ".2F")
-        + " + "
-        + format(best_alpha, ".3E")
-        + " * ( Z - "
-        + format(z_i[0], ".2F")
-        + " ) ^ "
-        + format(best_beta, ".3E")
+        f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} "
+        f"* ( Z - {z_i[0]:.2F} ) ^ {best_beta:.3E}"
     )
 
     found_first = False
     if args.maemode == "first":
-        logging.debug("Reanalizing local mae to find the first local minimum.")
-        logging.debug("len(l_mae): " + str(len(l_mae)))
-        if len(l_i) > 4:
-            if l_mae[0] < l_mae[1] and l_mae[0] < l_mae[2]:
-
-                found_first = True
-                logging.debug(
-                    "First local minimum found at "
-                    + str(l_z[0])
-                    + " (i= "
-                    + str(l_i[0])
-                    + ")."
-                )
-                best_i = l_i[0]
-                best_p = l_p[0]
-                best = l_mae[0]
-                best_beta = l_beta[0]
-                best_alpha = l_alpha[0]
-                logging.debug(
-                    "i: "
-                    + str(best_i)
-                    + " - alpha= "
-                    + str(best_alpha)
-                    + " - beta= "
-                    + str(best_beta)
-                    + " - mae= "
-                    + str(best)
-                )
-
-            elif l_mae[1] < l_mae[0] and l_mae[1] < l_mae[2] and l_mae[1] < l_mae[3]:
-
-                found_first = True
-                logging.debug(
-                    "First local minimum found at "
-                    + str(l_z[1])
-                    + " (i= "
-                    + str(l_i[1])
-                    + ")."
-                )
-                best_i = l_i[1]
-                best_p = l_p[1]
-                best = l_mae[1]
-                best_beta = l_beta[1]
-                best_alpha = l_alpha[1]
-                logging.debug(
-                    "i: "
-                    + str(best_i)
-                    + " - alpha= "
-                    + str(best_alpha)
-                    + " - beta= "
-                    + str(best_beta)
-                    + " - mae= "
-                    + str(best)
-                )
-
-            else:
-                x = range(0, len(l_i) - 1)
-                logging.debug(x)
-                for j in x[2:-2]:
-                    if (
-                        l_mae[j] < l_mae[j - 2]
-                        and l_mae[j] < l_mae[j - 1]
-                        and l_mae[j] < l_mae[j + 1]
-                        and l_mae[j] < l_mae[j + 2]
-                    ):
-
-                        found_first = True
-                        logging.debug(
-                            "First local minimum found at "
-                            + str(l_z[j])
-                            + " (i= "
-                            + str(l_i[j])
-                            + ")."
-                        )
-                        best_i = l_i[j]
-                        best_p = l_p[j]
-                        best = l_mae[j]
-                        best_beta = l_beta[j]
-                        best_alpha = l_alpha[j]
-                        logging.debug(
-                            "i: "
-                            + str(best_i)
-                            + " - alpha= "
-                            + str(best_alpha)
-                            + " - beta= "
-                            + str(best_beta)
-                            + " - mae= "
-                            + str(best)
-                        )
-                        break
-
-            if found_first is False:
-                logging.info(
-                    "Reanalizing local mae to find the first local minimum --> FAILLED."
-                )
-        else:
-            logging.debug("Reanalizing Impossible, not enough local mae data!")
-
+        best_i, best_p, best, best_alpha, best_beta, found_first = found_mae_first(
+            found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p
+        )
     elif args.maemode == "hybrid" and data_shortage is False:
         # first find absolute min at z > damelev > damelev+offset
-        logging.debug("Reanalizing local mae to find the optimal local minimum.")
-        best = -10000
-        x = range(0, len(l_i) - 1)
-        for j in x:
-            #  logging.debug("j: "+ str(j)
-            #  +" - l_z[j]: "+ str(l_z[j]))
-            if (
-                l_z[j] <= args.zmaxoffset + float(damelev)
-                and l_z[j] >= float(damelev)
-                and ((best == -10000) or (l_mae[j] < best))
-            ):
-
-                best_j = j
-                best_z = l_z[j]
-                best_i = l_i[j]
-                best_p = l_p[j]
-                best = l_mae[j]
-                best_beta = l_beta[j]
-                best_alpha = l_alpha[j]
-
-                logging.debug(
-                    "j: "
-                    + str(best_j)
-                    + " - alpha= "
-                    + str(best_alpha)
-                    + " - beta= "
-                    + str(best_beta)
-                    + " - mae= "
-                    + str(best)
-                    + "@"
-                    + str(best_z)
-                    + "m"
-                )
-
-        logging.info(
-            "Hybrid pass #1 => i: "
-            + str(best_i)
-            + " - alpha= "
-            + str(best_alpha)
-            + " - beta= "
-            + str(best_beta)
-            + " - mae= "
-            + str(best)
-            + "@"
-            + str(best_z)
-            + "m"
+        best_i, best_p, best, best_alpha, best_beta = found_mae_hybrid(
+            z_i,
+            s_zi,
+            l_i,
+            l_z,
+            args,
+            damname,
+            damelev,
+            l_p,
+            l_mae,
+            l_beta,
+            l_alpha,
+            l_slope,
         )
-
-        # then refine with a local lmae minima for smaller Zs
-        # and until the slope "breaks"
-        x = range(0, best_j - 1)
-        ds = np.diff(l_slope) / np.diff(l_z)
-        for k in x[::-1]:
-            if (
-                l_z[k] >= float(damelev) - args.zminoffset
-                and abs(ds[k]) < args.dslopethresh
-            ):  # and
-                #  (l_mae[k] < best)):
-                logging.debug(
-                    "k: %s - lmae[k]: %s - l_z[k]: %s - ds[k]: %s",
-                    str(k),
-                    str(l_mae[k]),
-                    str(l_z[k]),
-                    str(ds[k]),
-                )
-                best_z = l_z[k]
-                best_i = l_i[k]
-                best_p = l_p[k]
-                best = l_mae[k]
-                best_beta = l_beta[k]
-                best_alpha = l_alpha[k]
-            else:
-                break
-
-        logging.info(
-            "Hybrid pass #2 => i: "
-            + str(best_i)
-            + " - alpha= "
-            + str(best_alpha)
-            + " - beta= "
-            + str(best_beta)
-            + " - mae= "
-            + str(best)
-            + "@"
-            + str(best_z)
-            + "m"
-        )
-
-        logging.info("Model updated using hybrid optimal model selection.")
-        logging.info(
-            "alpha= "
-            + str(best_alpha)
-            + " - beta= "
-            + str(best_beta)
-            + " (Computed on the range ["
-            + str(z_i[best_i])
-            + "; "
-            + str(z_i[best_i + args.winsize])
-            + "])"
-            + " (i= "
-            + str(best_i)
-            + ")."
-        )
-        logging.info(
-            damname
-            + ": S(Z) = "
-            + format(s_zi[0], ".2F")
-            + " + "
-            + format(best_alpha, ".3E")
-            + " * ( Z - "
-            + format(z_i[0], ".2F")
-            + " ) ^ "
-            + format(best_beta, ".3E")
-        )
-
     if found_first is True:
         logging.info("Model updated using first LMAE minimum.")
         logging.info(
-            "alpha= "
-            + str(best_alpha)
-            + " - beta= "
-            + str(best_beta)
-            + " (Computed on the range ["
-            + str(z_i[best_i])
-            + "; "
-            + str(z_i[best_i + args.winsize])
-            + "])"
-            + " (i= "
-            + str(best_i)
-            + ")."
+            f"alpha= {best_alpha} - beta= {best_beta}"
+            f" (Computed on the range [{z_i[best_i]}; {z_i[best_i + args.winsize]}])"
+            f" (i= {best_i})."
         )
         logging.info(
-            damname
-            + ": S(Z) = "
-            + format(s_zi[0], ".2F")
-            + " + "
-            + format(best_alpha, ".3E")
-            + " * ( Z - "
-            + format(z_i[0], ".2F")
-            + " ) ^ "
-            + format(best_beta, ".3E")
+            f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} *"
+            f" ( Z - {z_i[0]:.2F}) ^ {best_beta:.3E}"
         )
 
     model_json = {
@@ -707,7 +547,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         },
     }
 
-    with open(os.path.splitext(args.outfile)[0] + ".json", "w") as write_file:
+    with open(
+        os.path.splitext(args.outfile)[0] + ".json", "w", encoding="utf-8"
+    ) as write_file:
         json.dump(model_json, write_file)
 
     z = range(int(z_i[0]) + 1, int(z_i[-1]))
@@ -719,9 +561,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         val_s = s_zi[0] + abs_alpha * math.pow((h - z_i[0]), abs_beta)
         abs_sz.append(val_s)
 
-    # reg_abs = np.poly1d(abs_P)
-    # reg_best = np.poly1d(best_p)
-
     # Moldel Plot
     pl.plot_model(
         s_zi[best_i : best_i + args.winsize],
@@ -731,55 +570,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         damname,
         args.outfile,
     )
-    # fig, ax = plt.subplots()
-    # ax.plot(z, sz, "r--", label="S(z)")
-    # ax.plot(Zi[0], s_zi[0], "ro")
-    # ax.scatter(Zi[1:], s_zi[1:], marker=".", label="S(Zi)")
-    # ax.scatter(
-    #     median(Zi[best_i : best_i + args.winsize]),
-    #     median(s_zi[best_i : best_i + args.winsize]),
-    #     color="#ff7f0e",
-    #     marker="p",
-    #     label="Selected S(Zi)",
-    # )
-    # #  ax.plot(z, reg_abs(z), 'b-')
-    # #  ax.plot(z, reg_best(z), 'g-')
-    # ax.grid(b=True, which="major", linestyle="-")
-    # ax.grid(b=False, which="minor", linestyle="--")
-    # ax.set(
-    #     xlabel="Virtual Water Surface Elevation (m)",
-    #     ylabel="Virtual Water Surface (ha)",
-    # )
-    # plt.title(
-    #     damname
-    #     + ": S(Z) = "
-    #     + format(s_zi[0], ".2F")
-    #     + " + "
-    #     + format(best_alpha, ".3E")
-    #     + " * ( Z - "
-    #     + format(Zi[0], ".2F")
-    #     + " ) ^ "
-    #     + format(best_beta, ".3E"),
-    #     fontsize=10,
-    # )
-    # ax.set_xlim(z[0] - 10, z[-1] + 10)
-    # # Trick to display in Ha
-    # ticks_m2 = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x / 10000.0))
-    # ax.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-    # plt.legend(prop={"size": 6}, loc="upper left")
-    # plt.savefig(args.outfile, dpi=300)
-
-    # Superimpose local MAE to model
-    #  ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-    #  ax2.set_ylabel('Local MAE')  # we already handled the x-label with ax1
-    #  ax2.set_yscale('log')
-    #  ax2.yaxis.set_major_formatter(ticks_m2)
-    #  ax2.plot(l_z, l_mae,
-    #  marker='.',
-    #  linestyle='dashed')
-    #  ax2.plot(median(Zi[best_i:best_i+args.winsize]), best, 'p', color='#ff7f0e')
-    #  plt.savefig(os.path.splitext(args.outfile)[0]+"_imposed.png", dpi=300)
 
     # Plot Local MAE
     # TODO : call function plot_slope()
@@ -796,84 +586,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         best_p,
         os.path.splitext(args.outfile)[0] + "_slope.png",
     )
-    # ms_fig = plt.figure(dpi=300)
-    # ms_fig.subplots_adjust(hspace=0)
-    # ms_gs = ms_fig.add_gridspec(3, 1, height_ratios=[1, 1, 1])
-
-    # maeax = plt.subplot(ms_gs[0])
-    # #  maefig, maeax = plt.subplots()
-    # maeax.axvline(x=float(damelev), ls="--", lw=1, color="teal", label="Dam elevation")
-    # maeax.plot(l_z, l_mae, marker=".", color="purple", linestyle="dashed", label="MAE")
-    # maeax.plot(
-    #     median(Zi[best_i : best_i + args.winsize]),
-    #     best,
-    #     "p",
-    #     color="#ff7f0e",
-    #     label="Selected min(MAE)",
-    # )
-    # maeax.plot(
-    #     median(Zi[abs_i : abs_i + args.winsize]),
-    #     abs_mae,
-    #     "+",
-    #     color="black",
-    #     label="Absolute min(MAE)",
-    # )
-    # maeax.grid(b=True, which="major", linestyle="-")
-    # maeax.grid(b=False, which="minor", linestyle="--")
-    # maeax.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local MAE (ha)")
-    # maeax.set_xlim(z[0], z[-1] + 10)
-    # maeax.set_yscale("log")
-    # maeax.label_outer()
-    # # Trick to display in Ha
-    # maeax.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-    # plt.title(damname + ": Local Maximum Absolute Error")
-    # plt.legend(prop={"size": 6})
-    # #  if (args.debug is True):
-    # #  plt.savefig(os.path.splitext(args.outfile)[0]+"_mae.png", dpi=300)
-
-    # # Plot slope
-    # #  slpfig, slpax = plt.subplots()
-    # slpax = plt.subplot(ms_gs[1])
-    # slpax.axvline(x=float(damelev), ls="--", lw=1, color="teal", label="Dam elevation")
-    # slpax.plot(
-    #     l_z, l_slope, marker=".", color="purple", linestyle="dashed", label="Slope"
-    # )
-    # slpax.plot(
-    #     median(Zi[best_i : best_i + args.winsize]),
-    #     best_p[0],
-    #     "p",
-    #     color="#ff7f0e",
-    #     label="Selected min(MAE)",
-    # )
-    # slpax.grid(b=True, which="major", linestyle="-")
-    # slpax.grid(b=False, which="minor", linestyle="--")
-    # slpax.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local Slope")
-    # slpax.set_xlim(z[0], z[-1] + 10)
-    # #  slpax.set_yscale('log')
-    # # Trick to display in Ha
-    # #  slpax.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-    # #  plt.title(damname+": Local Slope")
-    # #  plt.legend(prop={'size': 6})
-    # dslpax = plt.subplot(ms_gs[2])
-    # ds = np.diff(l_slope) / np.diff(l_z)
-    # dz = (np.array(l_z)[:-1] + np.array(l_z)[1:]) / 2
-    # dslpax.axvline(x=float(damelev), ls="--", lw=1, color="teal", label="Dam elevation")
-    # dslpax.plot(dz, ds, marker=".", color="blue", label="dSlope")
-    # dslpax.grid(b=True, which="major", linestyle="-")
-    # dslpax.grid(b=False, which="minor", linestyle="--")
-    # dslpax.set(
-    #     xlabel="Virtual Water Surface Elevation (m)", ylabel="Local Slope Derivative"
-    # )
-    # dslpax.set_xlim(z[0], z[-1] + 10)
-    # #  slpax.set_yscale('log')
-    # # Trick to display in Ha
-    # #  dslpax.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-
-    # if args.debug is True:
-    #     plt.savefig(os.path.splitext(args.outfile)[0] + "_slope.png", dpi=300)
 
     # Combined Local MAE / model plot
     pl.plot_model_combo(
@@ -894,91 +606,6 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         best,
         os.path.splitext(args.outfile)[0] + "_combo.png",
     )
-    # fig = plt.figure(dpi=300)
-    # fig.subplots_adjust(hspace=0)
-    # gs = fig.add_gridspec(2, 1, height_ratios=[4, 1])
-
-    # maeax0 = plt.subplot(gs[0])
-    # maeax0.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
-    # maeax0.plot(z, abs_sz, "g--", label="S(z) abs_model")
-    # maeax0.plot(z, sz, "r--", label="S(z)")
-    # maeax0.plot(Zi[0], s_zi[0], "ro")
-    # maeax0.scatter(Zi, s_zi, marker=".", label="S(Z_i)")
-    # maeax0.plot(
-    #     Zi[best_i : best_i + args.winsize],
-    #     s_zi[best_i : best_i + args.winsize],
-    #     marker="o",
-    #     ls=":",
-    #     lw=1,
-    #     color="yellow",
-    #     markerfacecolor="blue",
-    #     label="Selected S(Z_i)",
-    # )
-    # maeax0.plot(
-    #     median(Zi[best_i : best_i + args.winsize]),
-    #     median(s_zi[best_i : best_i + args.winsize]),
-    #     color="#ff7f0e",
-    #     marker="p",
-    #     markerfacecolor="#ff7f0e",
-    # )
-    # maeax0.grid(b=True, which="major", linestyle="-")
-    # maeax0.grid(b=False, which="minor", linestyle="--")
-    # maeax0.set(
-    #     xlabel="Virtual Water Surface Elevation (m)",
-    #     ylabel="Virtual Water Surface (ha)",
-    # )
-    # maeax0.label_outer()
-    # #  maeax0.set_xlim(z[0]-10, z[-1]+10)
-    # if data_shortage is False:
-    #     maeax0.set_xlim(z[0] - 5, median(Zi[best_i : best_i + args.winsize]) + 30)
-    #     maeax0.set_ylim(-10, s_zi[best_i + args.winsize] * 1.1)
-    # # Trick to display in Ha
-    # maeax0.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-    # plt.legend(prop={"size": 6}, loc="upper left")
-
-    # maeax1 = plt.subplot(gs[1])
-    # maeax1.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
-    # maeax1.plot(l_z, l_mae, color="purple", marker=".", linestyle="dashed", label="MAE")
-    # maeax1.plot(
-    #     median(Zi[best_i : best_i + args.winsize]),
-    #     best,
-    #     "p",
-    #     color="#ff7f0e",
-    #     label="Selected MAE",
-    # )
-    # maeax1.plot(
-    #     median(Zi[abs_i : abs_i + args.winsize]),
-    #     abs_mae,
-    #     "+",
-    #     color="black",
-    #     label="Absolute min(MAE)",
-    # )
-    # maeax1.grid(b=True, which="major", linestyle="-")
-    # maeax1.grid(b=True, which="minor", linestyle="--")
-    # maeax1.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local MAE (ha)")
-    # #  maeax1.set_xlim(z[0]-10, z[-1]+10)
-    # if data_shortage is False:
-    #     maeax1.set_xlim(z[0] - 5, median(Zi[best_i : best_i + args.winsize]) + 30)
-    # maeax1.set_yscale("log")
-    # # Trick to display in Ha
-    # maeax1.yaxis.set_major_formatter(ticks_m2)
-    # plt.minorticks_on()
-    # plt.legend(prop={"size": 6}, loc="lower left")
-
-    # plt.suptitle(
-    #     damname
-    #     + ": S(Z) = "
-    #     + format(s_zi[0], ".2F")
-    #     + " + "
-    #     + format(best_alpha, ".3E")
-    #     + " * ( Z - "
-    #     + format(Zi[0], ".2F")
-    #     + " ) ^ "
-    #     + format(best_beta, ".3E"),
-    #     fontsize=10,
-    # )
-    # plt.savefig(os.path.splitext(args.outfile)[0] + "_combo.png", dpi=300)
 
     # V(S)
     pl.plot_vs(
@@ -990,38 +617,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         damname,
         os.path.splitext(args.outfile)[0] + "_VS.png",
     )
-    # S_dam = s_zi[0] + best_alpha * math.pow((float(damelev) - Zi[0]), best_beta)
-    # s = range(0, math.ceil(S_dam) + 10000)
-    # v0 = 0.0
-    # vs = []
-    # for a in s:
-    #     v = v0 + math.pow(((a - s_zi[0]) / best_alpha), 1 / best_beta) * (
-    #         s_zi[0] + ((a - s_zi[0]) / (best_beta + 1.0))
-    #     )
-    #     vs.append(v)
 
-    # # V(S) Moldel Plot
-    # figv, axv = plt.subplots()
-    # axv.axvline(x=S_dam, ls=":", lw=2, color="teal", label="Max Dam Surface")
-    # axv.plot(s, vs, "r-", label="V(S)")
-    # axv.grid(b=True, which="major", linestyle="-")
-    # axv.grid(b=False, which="minor", linestyle="--")
-    # axv.set(
-    #     xlabel="Estimated Water Surface (ha)", ylabel="Modelized Water Volume (hm3)"
-    # )
-    # plt.title(
-    #     damname + " : V=f(S) ",
-    #     #  +": S(Z) = "+format(s_zi[0], '.2F')+" + "+format(best_alpha, '.3E')
-    #     #  +" * ( Z - "+format(Zi[0], '.2F')+" ) ^ "+ format(best_beta, '.3E'),
-    #     fontsize=10,
-    # )
-    # # Trick to display in Ha
-    # axv.xaxis.set_major_formatter(ticks_m2)
-    # ticks_m3 = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x / 1000000.0))
-    # axv.yaxis.set_major_formatter(ticks_m3)
-    # plt.minorticks_on()
-    # plt.legend(prop={"size": 6}, loc="upper left")
-    # plt.savefig(os.path.splitext(args.outfile)[0] + "_VS.png", dpi=300)
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop}s, {t1_start}s")
 
