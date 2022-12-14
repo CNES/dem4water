@@ -12,14 +12,15 @@ Module providing tools for computing models and filter points.
 import json
 import logging
 import math
-
-# import os
+import os
 import sys
 from statistics import median
 
 import numpy as np
 
-import water_body as wb
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('.'))
+import src.water_body as wb
 
 
 def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
@@ -162,7 +163,8 @@ def compute_model(z_i, s_zi, z_0, s_z0):
     """Compute model from points."""
     logging.info(f"Model computed using {len(s_zi)} values.")
     poly = np.polyfit(z_i[1:], s_zi[1:], 1, rcond=None, full=False, w=None, cov=False)
-    beta = poly[0] * (median([z_i]) - z_0) / (median(s_zi) - s_z0)
+    beta = poly[0] * (median(z_i) - z_0) / (median(s_zi) - s_z0)
+    print(poly[0], z_i, z_0, beta)
     alpha = poly[0] * (math.pow(median(z_i) - z_0, 1 - beta)) / beta
 
     mae_sum = 0
