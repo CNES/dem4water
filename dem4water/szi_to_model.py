@@ -232,6 +232,10 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     parser.add_argument(
         "--selection_mode", type=str, default="best", help="best, firsts"
     )
+    parser.add_argument(
+        "--jump_ratio", type=str, default=4, help="Ratio between two surface"
+    )
+
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
 
@@ -270,7 +274,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
     z_i, s_zi = cm.filter_szi(args, damname, 100000, 0)
-    z_i, s_zi = cm.select_szi(args, z_i, s_zi)
+    z_i, s_zi = cm.remove_jump_szi(args, z_i, s_zi, args.jump_ratio)
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
