@@ -44,7 +44,7 @@ if [ -f "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif" ] \
    echo "Extracts already available --> Skipping area_mapping."
 else
    echo "== AREA_MAPPING =="
-   python3 area_mapping.py --debug       \
+   python3 ../area_mapping.py --debug       \
            --id       "${DAM_ID}"        \
            --id_db    "${ID_FIELD}"      \
            --infile   "${DB_PATH}"       \
@@ -56,7 +56,7 @@ else
 fi
 
 echo "== SZI_FROM_CONTOURLINE =="
-python3 szi_from_contourline.py --debug                         \
+python3 ../szi_from_contourline.py --debug                         \
         --id           "${DAM_ID}"                              \
         --id_db        "${ID_FIELD}"                            \
         --infile       "${DB_PATH}"                             \
@@ -106,7 +106,7 @@ fi
 
 if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
   echo "= Using cached contour line file ($EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json)"
-  python3 cut_contourlines.py --debug                                   \
+  python3 ../cut_contourlines.py --debug                                   \
     --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
@@ -116,7 +116,7 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
     2>&1 tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
 else
   echo "= No cached contour line file, generating it"
-  python3 cut_contourlines.py --debug                             \
+  python3 ../cut_contourlines.py --debug                             \
     --info         "${DAM_FILE}"         \
     --dem          "$EXTR_DIR/${DAM}/dem_extract-$DAM.tif"        \
     --cut          "$CUTLINE_FILE"                                \
@@ -129,7 +129,7 @@ else
 fi
 
 echo "== SZI_TO_MODEL =="
-python3 szi_to_model.py --debug                             \
+python3 ../szi_to_model.py --debug                             \
         --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
         --daminfo    "${DAM_FILE}" \
         --zminoffset 10                                     \
@@ -140,7 +140,7 @@ python3 szi_to_model.py --debug                             \
 
 if [ -f "$REF_MODEL" ] ; then
 echo "== VAL_REPORT =="
-   python3 val_report.py --debug                    \
+   python3 ../val_report.py --debug                    \
            -i "$CAMP_DIR/${DAM}/${DAM}_model.json"  \
            -r "$REF_MODEL"                          \
            -o "$CAMP_DIR/${DAM}/${DAM}_report.json" \
