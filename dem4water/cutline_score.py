@@ -12,10 +12,11 @@ import argparse
 import logging
 import os
 import sys
+from time import perf_counter
 
 import numpy as np
 import otbApplication as otb
-from time import perf_counter
+
 
 def main(arguments):
     """cutline_score.py
@@ -86,8 +87,9 @@ def main(arguments):
     # Cleanup tmp files
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop}s {t1_start}s")
- 
+
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

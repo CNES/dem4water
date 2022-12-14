@@ -52,7 +52,7 @@ else
            --dem      "${DEM_PATH}"      \
            --radius   "${RADIUS}"          \
            --out      "$EXTR_DIR/${DAM}" \
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/area_mapping.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/area_mapping.log"
 fi
 
 echo "== SZI_FROM_CONTOURLINE =="
@@ -69,7 +69,7 @@ python3 szi_from_contourline.py --debug                         \
         --tmp          "$CAMP_DIR/${DAM}/tmp"                   \
         --out          "$CAMP_DIR/${DAM}"                       \
 		--info         "${INFO_DAM}"
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/szi_from_contourline.log"
 
 echo "== CUTLINE_SCORE =="
 if [ -f "${CUTLINE}" ] ; then
@@ -83,7 +83,7 @@ python3 cutline_score.py --debug                            \
         --watermap "$EXTR_DIR/${DAM}/wmap_extract-$DAM.tif" \
         --infile   "${CUTLINE_FILE}"   \
         --out      "$CAMP_DIR/${DAM}/tmp"                   \
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/cutline_score.log"
 
 echo "== CUT_CONTOURLINES =="
 # Allow using a user-provided cutline
@@ -113,7 +113,7 @@ if [ -f "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" ] ; then
     --level        "$EXTR_DIR/${DAM}/${DAM}_contourlines@1m.json" \
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
     --out          "$CAMP_DIR/${DAM}"                             \
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
 else
   echo "= No cached contour line file, generating it"
   python3 cut_contourlines.py --debug                             \
@@ -125,7 +125,7 @@ else
     --tmp          "$CAMP_DIR/${DAM}/tmp"                         \
     --cache        "$EXTR_DIR/${DAM}"                             \
     --out          "$CAMP_DIR/${DAM}"                             \
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/cut_contourlines.log"
 fi
 
 echo "== SZI_TO_MODEL =="
@@ -136,7 +136,7 @@ python3 szi_to_model.py --debug                             \
         --zmaxoffset 30                                     \
         --maemode    "first"                                \
         --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
-    2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
+    2>&1 tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 
 if [ -f "$REF_MODEL" ] ; then
 echo "== VAL_REPORT =="
@@ -144,6 +144,6 @@ echo "== VAL_REPORT =="
            -i "$CAMP_DIR/${DAM}/${DAM}_model.json"  \
            -r "$REF_MODEL"                          \
            -o "$CAMP_DIR/${DAM}/${DAM}_report.json" \
-   2>&1 | tee "$CAMP_DIR/${DAM}/log/val_report.log"
+   2>&1 tee "$CAMP_DIR/${DAM}/log/val_report.log"
 fi
 echo "== End DEM4WATER =="

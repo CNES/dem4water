@@ -14,17 +14,17 @@ import logging
 import os
 import sys
 from math import ceil, sqrt
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
 import otbApplication as otb
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
-
 from utils import distance
 
 # from PIL import Image
-from time import perf_counter
+
 
 def nderiv(y, x):
     "Différence finie, dérivée de la fonction f"
@@ -122,7 +122,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         default=1,
         help="Elevation sampling step for contour lines generation.",
     )
-    parser.add_argument("--info", help="Optional user-defined daminfo.json file", default="")
+    parser.add_argument(
+        "--info", help="Optional user-defined daminfo.json file", default=""
+    )
 
     parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
@@ -338,7 +340,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # BEGIN:
     # Can be conflincting with other launcher mode
     # Set info to default is enough?
-    if args.info == "": # is None:
+    if args.info == "":  # is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
@@ -962,7 +964,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     outLayer.CreateFeature(outFeature)
     t1_stop = perf_counter()
     logging.info(f"Elapsed time:{t1_stop}s, {t1_start}s")
- 
+
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
     print("End SZI_FROM_CONTOURLINE")
 

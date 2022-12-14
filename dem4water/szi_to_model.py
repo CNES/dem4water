@@ -15,12 +15,13 @@ import math
 import os
 import sys
 from statistics import median
+from time import perf_counter
 
 import matplotlib.gridspec as gridspec  # noqa: F401
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from time import perf_counter
+
 
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """szi_to_model.py
@@ -963,8 +964,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     plt.savefig(os.path.splitext(args.outfile)[0] + "_VS.png", dpi=300)
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop}s, {t1_start}s")
- 
+
     logging.info(f"Elapsed time during the whole program in s :{t1_stop-t1_start}s")
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
