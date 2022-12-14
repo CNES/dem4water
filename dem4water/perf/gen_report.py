@@ -150,7 +150,7 @@ def run_campaign(args):
         aux_cmd += f" --radius {args.radius} "
     if args.elev_off is not None:
         aux_cmd += f" --elev_off {args.elev_off}"
-    
+
     for site in args.sites:
         p_site = pathlib.Path(site)
         if p_site.is_dir() is False:
@@ -181,10 +181,8 @@ def run_campaign(args):
                     + aux_cmd
                 )
             )
-            
-        with open(
-            pathlib.Path(opath, "version.txt"), "w+"
-        ) as vf:
+
+        with open(pathlib.Path(opath, "version.txt"), "w+") as vf:
             if args.name is not None:
                 vf.write(args.name)
             else:
@@ -319,10 +317,13 @@ def main(arguments):
     )
     parser_camp.add_argument("-o", "--outdir", help="Output directory", required=True)
     parser_camp.add_argument("-n", "--name", help="Name of the campaign", default=None)
-    parser_camp.add_argument("--radius", type=str, help="PDB radius search", default=None)
-    parser_camp.add_argument("--elev_off", type=int, help="Offset added to dam elevation", default=60)
-    
-    
+    parser_camp.add_argument(
+        "--radius", type=str, help="PDB radius search", default=None
+    )
+    parser_camp.add_argument(
+        "--elev_off", type=int, help="Offset added to dam elevation", default=60
+    )
+
     # ###########################
     # Report sub-command
     # ###########################
