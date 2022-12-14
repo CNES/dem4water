@@ -12,13 +12,13 @@ import argparse
 import logging
 import os
 import sys
+from time import perf_counter
 
 import numpy as np
 import otbApplication as otb
 from osgeo import gdal, ogr, osr
-
 from utils import distance
-from time import perf_counter
+
 
 def main(arguments):
     """area_mapping.py
@@ -185,7 +185,7 @@ def main(arguments):
     logging.info("Bottom Alt: " + str(bt_alt))
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
- 
+
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start} s")
     # Profiling:
     if args.debug is True:

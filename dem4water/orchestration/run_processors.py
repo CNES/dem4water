@@ -15,15 +15,19 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 import time
 from datetime import datetime
+
+# import sys
+
 
 def format_walltime(wall_h, wall_m):
     wall_h = int(wall_h)
     wall_m = int(wall_m)
     if wall_h < 0:
-        raise ValueError(f"Hours for walltime cannot be negative : {wall_h} provided as parameter")
+        raise ValueError(
+            f"Hours for walltime cannot be negative : {wall_h} provided as parameter"
+        )
     if wall_m < 0 or wall_m > 59:
         raise ValueError(f"Minutes must be between 0 and 59: {wall_m} provided")
     return f"{wall_h:02d}:{wall_m:02d}:00"
@@ -69,9 +73,7 @@ def find_corrected_input(path, dam_name, opt_path=None):
     if opt_path is not None:
 
         dam_info_new = glob.glob(os.path.join(opt_path, f"{dam_name}_daminfo*.json"))
-        cutline_new = glob.glob(
-            os.path.join(opt_path, f"{dam_name}_cutline*.*json")
-        )
+        cutline_new = glob.glob(os.path.join(opt_path, f"{dam_name}_cutline*.*json"))
         if len(dam_info_new) > 1:
             raise ValueError(
                 f"More than one file found for dam info for {dam_name} dam."
@@ -213,15 +215,19 @@ if __name__ == "__main__":
     parser.add_argument("wmap_path", type=str, help="surfwater map path")
     parser.add_argument("chain_dir", type=str, help="dem4water chain directory")
     parser.add_argument("out_dir", type=str, help="HSV directory")
-    parser.add_argument("--ref_model", type=str, help="Reference model path", default=None)
+    parser.add_argument(
+        "--ref_model", type=str, help="Reference model path", default=None
+    )
     parser.add_argument("--id_field", type=str, help="DAM ID column", default="ID_SWOT")
     parser.add_argument("--radius", type=str, help="PDB radius search", default=None)
-    parser.add_argument("--elev_off", type=int, help="Offset added to dam elevation", default=60)
+    parser.add_argument(
+        "--elev_off", type=int, help="Offset added to dam elevation", default=60
+    )
     parser.add_argument("--walltime_h", type=int, help="Walltime hours", default=30)
     parser.add_argument("--walltime_m", type=int, help="Walltime minutes", default=0)
     parser.add_argument("--ncpu", type=int, help="Number of cpu", default=12)
     parser.add_argument("--ram", type=int, help="Ram in Mb", default=60000)
-    
+
     parser.add_argument(
         "--correct_folder",
         type=str,
@@ -238,7 +244,12 @@ if __name__ == "__main__":
     # Create output directories
     mk_dir(args.out_dir)
     mk_dir(log_dir)
-    logging.basicConfig(level=logging.INFO, filename=os.path.join(log_dir, "run_processors.log"),filemode='a', format=logging_format)
+    logging.basicConfig(
+        level=logging.INFO,
+        filename=os.path.join(log_dir, "run_processors.log"),
+        filemode="a",
+        format=logging_format,
+    )
     walltime = format_walltime(args.walltime_h, args.walltime_m)
     # Dams name and id
     dams_dict = {}
@@ -257,24 +268,26 @@ if __name__ == "__main__":
     for cle in dams_dict.keys():
 
         dame_name = dams_dict[cle].replace(" ", "-")
-       
+
         # search for custom files
         add_params = find_corrected_input(args.out_dir, dame_name, args.correct_folder)
         if add_params == "":
-            if os.path.exists(os.path.join(args.out_dir, "camp", dame_name, f"{dame_name}_model.json")):
+            if os.path.exists(
+                os.path.join(args.out_dir, "camp", dame_name, f"{dame_name}_model.json")
+            ):
                 logging.info(f"!! {dame_name} already processed. Skip !")
                 continue
         else:
             # if exists save previous results
             save_previous_run(args.out_dir, dame_name)
-        
+
         if args.ref_model is not None:
             add_params += f",REF_MODEL={args.ref_model}"
         if args.radius is not None:
             add_params += f",RADIUS={args.radius}"
         if args.elev_off is not None:
             add_params += f",ELEV_OFF_DAM={args.elev_off}"
-        
+
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
@@ -306,7 +319,7 @@ if __name__ == "__main__":
             )
         )
         all_cmd += cmd_compute_hsv
-        
+
         run_processing(
             cmd_compute_hsv,
             os.path.join(log_dir, "qsub_dem4water_out.log"),
@@ -314,7 +327,8 @@ if __name__ == "__main__":
             title="qsub_dem4water",
         )
     with open(
-            os.path.join(args.out_dir, f"command_list_{date_time}.txt"), "a", encoding="utf-8"
+        os.path.join(args.out_dir, f"command_list_{date_time}.txt"),
+        "a",
+        encoding="utf-8",
     ) as out_file:
-            out_file.write("\n".join(all_cmd))
-            
+        out_file.write("\n".join(all_cmd))

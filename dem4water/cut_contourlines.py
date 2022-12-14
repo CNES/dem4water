@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -22,7 +23,7 @@ import shapely.wkt
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
 from shapely.ops import polygonize, split, unary_union
-from time import perf_counter
+
 
 def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     """cut_contourliness.py
@@ -304,8 +305,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     np.savetxt(os.path.join(args.out, damname + "_SZi.dat"), data)
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop}s {t1_start}s")
- 
+
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

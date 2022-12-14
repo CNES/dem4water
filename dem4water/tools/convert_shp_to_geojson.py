@@ -6,9 +6,7 @@
 :copyright: 2021 CNES. All rights reserved.
 :license: see LICENSE file
 :created: 2022
-"""
 
-"""
 Avant d'utiliser ce script:
 - assurer que le csv n'est pas corrompu
 - assurer que le csv a bien été enregistré en utf-8
@@ -59,6 +57,7 @@ def normalize_list_float(list_float):
                     # The value is unexpected replace by None for futher process
                     out_list.append(None)
     return out_list
+
 
 if __name__ == "__main__":
     """
