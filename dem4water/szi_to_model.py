@@ -18,103 +18,8 @@ from statistics import median
 from time import perf_counter
 
 import numpy as np
-
-
-def select_szi(args, z_i=None, s_zi=None):
-    """Apply a ratio filtering on SZi.
-
-    If Zi and S_Zi are None, the dat file is loaded.
-    """
-    if z_i is None and s_zi is None:
-        if args.custom_szi is not None:
-            print("Dat file used : ", args.custom_szi)
-            infile = args.custom_szi
-        else:
-            infile = args.infile
-        data = np.loadtxt(infile)
-
-        if data.size <= 2:
-            logging.error(f"Not enought S(Zi) data inside file {infile}")
-            sys.exit("Error")
-
-        z_i = data[:, 0]
-        s_zi = data[:, 1]
-
-    # remove outliers / virtual surface overflow
-    stop_i = 0
-    break_found = False
-    prev = s_zi[1]
-    for s_z in s_zi:
-        if s_z != 0:
-            ratio = prev / s_z
-        else:
-            ratio = 1
-        #  print(str(ratio))
-        # TODO: @parameters max ratio
-        if ratio < 4:
-            prev = s_z
-            stop_i = stop_i + 1
-        else:
-            break_found = True
-            break
-
-    if break_found is True:
-        logging.debug(
-            f"Dropping S_ZI after index {stop_i} with a delta ratio of {ratio}."
-        )
-        z_i = z_i[stop_i:]
-        s_zi = s_zi[stop_i:]
-    else:
-        logging.debug("No outliers detected, keeping all S_ZI data.")
-    return z_i, s_zi
-
-
-def filter_szi(args, damname, max_elev, min_elev):
-    """Use area criterion to filter szi."""
-    if args.custom_szi is not None:
-        print("Dat file used : ", args.custom_szi)
-        infile = args.custom_szi
-    else:
-        infile = args.infile
-    data = np.loadtxt(infile)
-    if data.size <= 2:
-        logging.error(f"Not enought S(Zi) data inside file {infile}")
-        sys.exit("Error")
-
-    z_i = data[:, 0]
-    s_zi = data[:, 1]
-    shp_wmap = wb.create_water_mask(args.watermap, 0.05)
-    # water_body_area = wb.compute_area_from_water_body(args.daminfo, shp_wmap)
-    water_body_area = wb.compute_area_from_database_geom(
-        args.database, damname, shp_wmap
-    )
-    logging.info(f"water body area: {water_body_area}")
-    thres_wb = (water_body_area * 15) / 100
-    # zi[0] is the PDB
-    zi_min = z_i[1]
-    zi_max = z_i[-1]
-    if zi_max > max_elev:
-        logging.info("Too high contour detected filter S_ZI data")
-    else:
-        logging.info("Contour seems correct for max bound. Process")
-    if zi_min < min_elev:
-        logging.info("Too low contour detected filter S_ZI data")
-    else:
-        logging.info("Contour seems correct for min bound. Process")
-
-    filter_zi_out = []
-    filter_szi_out = []
-    for val_zi, val_szi in zip(z_i[:-1], s_zi[:-1]):
-        if val_szi > thres_wb:
-            filter_zi_out.append(val_zi)
-            filter_szi_out.append(val_szi)
-        else:
-            print(
-                f"Szi {val_szi} for altitude {val_zi} is too small. Check the cutline."
-            )
-    filter_szi_out.append(s_zi[-1])
-    filter_zi_out.append(z_i[-1])
-    return filter_zi_out, filter_szi_out
+from src import compute_model as cm
+from src import plot_lib as pl
 
 
 def found_mae_first(found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p):
@@ -324,6 +229,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     parser.add_argument(
         "--custom_szi", type=str, default=None, help="Custom SZi.dat file"
     )
+    parser.add_argument(
+        "--selection_mode", type=str, default="best", help="best, firsts"
+    )
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
 
@@ -361,11 +269,15 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # shp_wmap = wb.create_water_mask(args.watermap, 0.05)
     # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
-    z_i, s_zi = filter_szi(args, damname, 100000, 0)
-    z_i, s_zi = select_szi(args, z_i, s_zi)
+    z_i, s_zi = cm.filter_szi(args, damname, 100000, 0)
+    z_i, s_zi = cm.select_szi(args, z_i, s_zi)
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
+    if args.selection_mode == "first":
+        z_i, s_zi = cm.select_lower_szi(
+            z_i, s_zi, damelev, args.zmaxoffset, args.winsize
+        )
     print("Filtered : ", z_i, s_zi)
     logging.debug("z_i: ")
     logging.debug(z_i[:])
@@ -448,6 +360,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         best_alpha = alpha
         best_beta = beta
 
+    # Si on est pas dans les deux premiers cas
     while ((i + args.winsize) < (len(z_i) - 1)) and (
         median(z_i[i : i + args.winsize]) < args.zmaxoffset + float(damelev)
     ):
