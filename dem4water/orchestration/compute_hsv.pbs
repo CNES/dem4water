@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #PBS -l select=1:ncpus=6:mem=30000MB:os=rh7
-#PBS -l walltime=30:00:00
+#PBS -l walltime=0:50:00
 
 echo "Usage : qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
                       compute_hsv.pbs"
@@ -20,7 +20,9 @@ RADIUS=${RADIUS:-""}
 INFO_DAM=${INFO_DAM:-""}
 CUTLINE=${CUTLINE:-""}
 SZIDAT=${SZIDAT:-""}
-ELEV_OFF_DAM=${ELEV_OFF_DAM:-60}
+ELEV_OFF_DAM=${ELEV_OFF_DAM:-20}
+JUMP_RATIO=${JUMP_RATIO:-10}
+SELECT_MODE=${SELECT_MODE:-"best"}
 
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
@@ -37,7 +39,8 @@ echo "== ELEV_OFF_DAM : $ELEV_OFF_DAM"
 echo "== CUTLINE : $CUTLINE"
 echo "== INFO_DAM : ${INFO_DAM}"
 echo "== SZIDAT: ${SZIDAT}"
-
+echo "== SELECT_MODE: ${SELECT_MODE}"
+echo "== JUMP_RATIO: ${JUMP_RATIO}"
 
 [ -d "$EXTR_DIR/${DAM}" ] || mkdir -p "$EXTR_DIR/${DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
@@ -156,6 +159,8 @@ else
           --zminoffset 10                                     \
           --zmaxoffset 30                                     \
           --maemode    "first"                                \
+		  --jump_ratio "$JUMP_RATIO"                          \
+		  --selection_mode "$SELECT_MODE"                     \
           --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
       2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 fi

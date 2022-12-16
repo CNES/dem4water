@@ -150,7 +150,10 @@ def run_campaign(args):
         aux_cmd += f" --radius {args.radius} "
     if args.elev_off is not None:
         aux_cmd += f" --elev_off {args.elev_off}"
-
+    if args.jump_ratio is not None:
+        aux_cmd += f" --jump_ratio {args.jump_ratio}"
+    if args.select_mode is not None:
+        aux_cmd += f" --select_mode {args.select_mode}"
     for site in args.sites:
         p_site = pathlib.Path(site)
         if p_site.is_dir() is False:
@@ -322,6 +325,12 @@ def main(arguments):
     )
     parser_camp.add_argument(
         "--elev_off", type=int, help="Offset added to dam elevation", default=60
+    )
+    parser_camp.add_argument(
+        "--jump_ratio", type=int, help="Ratio between two surface", default=10
+    )
+    parser_camp.add_argument(
+        "--select_mode", type=str, help="Select szi", default="best"
     )
 
     # ###########################

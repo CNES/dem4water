@@ -90,7 +90,6 @@ def find_corrected_input(path, dam_name, opt_path=None):
                 f"More than one file found for cutline for {dam_name} dam."
             )
 
-    
     dam_info_old = glob.glob(
         os.path.join(path, "camp", dam_name, f"{dam_name}_daminfo_custom.json")
     )
@@ -99,13 +98,9 @@ def find_corrected_input(path, dam_name, opt_path=None):
         os.path.join(path, "extracts", dam_name, f"{dam_name}_cutline_custom.*json")
     )
     if len(dam_info_old) > 1:
-        raise ValueError(
-            f"More than one file found for dam info for {dam_name} dam."
-        )
+        raise ValueError(f"More than one file found for dam info for {dam_name} dam.")
     if len(cutline_old) > 1:
-        raise ValueError(
-            f"More than one file found for cutline for {dam_name} dam."
-        )
+        raise ValueError(f"More than one file found for cutline for {dam_name} dam.")
     if dam_info_new:
         in_daminfo = os.path.join(
             path, "camp", dam_name, f"{dam_name}_daminfo_custom.json"
@@ -230,8 +225,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--elev_off", type=int, help="Offset added to dam elevation", default=60
     )
-    parser.add_argument("--walltime_h", type=int, help="Walltime hours", default=30)
-    parser.add_argument("--walltime_m", type=int, help="Walltime minutes", default=0)
+    parser.add_argument(
+        "--jump_ratio", type=int, help="Ratio between two surface", default=10
+    )
+    parser.add_argument("--select_mode", type=str, help="Select szi", default="best")
+    parser.add_argument("--walltime_h", type=int, help="Walltime hours", default=00)
+    parser.add_argument("--walltime_m", type=int, help="Walltime minutes", default=50)
     parser.add_argument("--ncpu", type=int, help="Number of cpu", default=12)
     parser.add_argument("--ram", type=int, help="Ram in Mb", default=60000)
 
@@ -294,7 +293,10 @@ if __name__ == "__main__":
             add_params += f",RADIUS={args.radius}"
         if args.elev_off is not None:
             add_params += f",ELEV_OFF_DAM={args.elev_off}"
-
+        if args.jump_ratio is not None:
+            add_params += f",JUMP_RATIO={args.jump_ratio}"
+        if args.select_mode is not None:
+            add_params += f",SELECT_MODE={args.select_mode}"
         cmd_compute_hsv = []
         cmd_compute_hsv.append(
             str(
