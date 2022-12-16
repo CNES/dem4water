@@ -283,10 +283,21 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
+    # find start_i
+    start_i = 0
+    all_zi = z_i[:]
+    all_szi = s_zi[:]
     if args.selection_mode == "firsts":
         z_i, s_zi = cm.select_lower_szi(
             z_i, s_zi, damelev, args.zmaxoffset, args.winsize
         )
+        start_i = 1
+    else:
+        for alt in z_i:
+            if alt > float(damelev) - args.zminoffset:
+                logging.debug(f"start_i = : {start_i}  - search stopped at Zi = {alt}")
+                break
+            start_i = start_i + 1
     print("Filtered : ", z_i, s_zi)
     logging.debug("z_i: ")
     logging.debug(z_i[:])
@@ -295,13 +306,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     logging.debug(f"Zi_max: {z_i[-1]} - S(Zi_max): {s_zi[-1]}")
     logging.info(f"Z0: {z_i[0]} - S(Z0): {s_zi[0]}")
 
-    # find start_i
-    start_i = 0
-    for alt in z_i:
-        if alt > float(damelev) - args.zminoffset:
-            logging.debug(f"start_i = : {start_i}  - search stopped at Zi = {alt}")
-            break
-        start_i = start_i + 1
+
 
     i = start_i
     best = -10000
@@ -338,12 +343,14 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         best = mae
 
         best_i  = 1
+
         best_p = poly
         best_alpha = alpha
         best_beta = beta
 
     # Enough data but not in specified distance to the dam
     # (maybe estimated dam elevation is false, maybe offsets are to strict)
+    print(z_i, i, args.winsize)
     if median(z_i[i : i + args.winsize]) >= args.zmaxoffset + float(damelev):
         data_shortage = True
         logging.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
@@ -515,8 +522,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     # Combined Local MAE / model plot
     pl.plot_model_combo(
-        z_i,
-        s_zi,
+        all_zi,
+        all_szi,
         z_i[best_i : best_i + args.winsize],
         s_zi[best_i : best_i + args.winsize],
         damelev,
