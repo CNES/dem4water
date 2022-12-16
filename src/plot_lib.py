@@ -38,7 +38,7 @@ def plot_slope(
     maeax = plt.subplot(ms_gs[0])
     maeax.axvline(x=float(damelev), ls="--", lw=1, color="teal", label="Dam elevation")
     maeax.plot(
-        model_zi, model_mae, marker=".", color="purple", linestyle="dashed", label="MAE"
+        l_z, model_mae, marker=".", color="purple", linestyle="dashed", label="MAE"
     )
     maeax.plot(
         median(model_zi),
@@ -129,7 +129,7 @@ def plot_model_combo(
     g_s = fig.add_gridspec(2, 1, height_ratios=[4, 1])
 
     alt = range(int(all_zi[0]) + 1, int(all_zi[-1]))
-
+    print(alt)
     maeax0 = plt.subplot(g_s[0])
     maeax0.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
     maeax0.plot(alt, abs_sz, "g--", label="S(z) abs_model")
@@ -161,10 +161,11 @@ def plot_model_combo(
     )
     maeax0.label_outer()
     #  maeax0.set_xlim(z[0]-10, z[-1]+10)
+    maeax0.set_xlim(alt[0]-10, alt[-1]+10)
     ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
     if data_shortage is False:
         maeax0.set_xlim(alt[0] - 5, median(model_zi) + 30)
-        maeax0.set_ylim(-10, model_szi * 1.1)
+        maeax0.set_ylim(-10, model_szi[-1] * 1.1)
     # Trick to display in Ha
     maeax0.yaxis.set_major_formatter(ticks_m2)
     plt.minorticks_on()
@@ -172,7 +173,7 @@ def plot_model_combo(
 
     maeax1 = plt.subplot(g_s[1])
     maeax1.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
-    maeax1.plot(l_z, l_mae, color="purple", marker=".", linestyle="dashed", label="MAE")
+    maeax1.plot( l_z, l_mae, color="purple", marker=".", linestyle="dashed", label="MAE")
     maeax1.plot(
         median(model_zi),
         best,
@@ -190,7 +191,7 @@ def plot_model_combo(
     maeax1.grid(visible=True, which="major", linestyle="-")
     maeax1.grid(visible=True, which="minor", linestyle="--")
     maeax1.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local MAE (ha)")
-    #  maeax1.set_xlim(z[0]-10, z[-1]+10)
+    maeax1.set_xlim(alt[0]-10, alt[-1]+10)
     if data_shortage is False:
         maeax1.set_xlim(alt[0] - 5, median(model_zi) + 30)
     maeax1.set_yscale("log")
@@ -207,16 +208,16 @@ def plot_model_combo(
     plt.savefig(outfile, dpi=300)
 
 
-def plot_model(model_szi, model_zi, alpha, beta, damname, outfile):
+def plot_model(model_szi, model_zi,z_0, sz_0, alpha, beta, damname, outfile):
     """Plot model."""
     alt = range(int(model_zi[0]) + 1, int(model_zi[-1]))
     mod_sz = []
     for curr_alt in alt:
-        mod_sz.append(model_szi[0] + alpha * math.pow((curr_alt - model_zi[0]), beta))
+        mod_sz.append(sz_0 + alpha * math.pow((curr_alt - z_0), beta))
 
     _, axe = plt.subplots()
     axe.plot(alt, mod_sz, "r--", label="S(z)")
-    axe.plot(model_zi[0], model_szi[0], "ro")
+    axe.plot(z_0, sz_0, "ro")
     axe.scatter(model_zi[1:], model_szi[1:], marker=".", label="S(Zi)")
     axe.scatter(
         median(model_zi),
@@ -236,16 +237,16 @@ def plot_model(model_szi, model_zi, alpha, beta, damname, outfile):
     plt.title(
         damname
         + ": S(Z) = "
-        + format(model_szi[0], ".2F")
+        + format(sz_0, ".2F")
         + " + "
         + format(alpha, ".3E")
         + " * ( Z - "
-        + format(model_zi[0], ".2F")
+        + format(z_0, ".2F")
         + " ) ^ "
         + format(beta, ".3E"),
         fontsize=10,
     )
-    axe.set_xlim(alt[0] - 10, alt[-1] + 10)
+    axe.set_xlim(z_0 - 10, alt[-1] + 10)
     # Trick to display in Ha
     ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x / 10000.0:g}")
     axe.yaxis.set_major_formatter(ticks_m2)

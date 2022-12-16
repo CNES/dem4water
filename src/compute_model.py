@@ -144,32 +144,34 @@ def get_info_dam(daminfo):
 
 def select_lower_szi(z_i, sz_i, damelev, max_offset, winsize):
     """Select all valid point under the damelev to find law."""
-    filtered_szi = [szi for zi_, szi in zip(z_i, sz_i) if zi_ < damelev + max_offset]
-    filtered_zi = [zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < damelev + max_offset]
-    if len(filtered_szi) < winsize:
-        if len(z_i) > winsize:
-            filtered_szi = sz_i[:winsize]
-            filtered_zi = z_i[:winsize]
+    filtered_szi = [szi for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)]
+    filtered_zi = [zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)]
+    # Add 1 to winsize as the first point is Z0 and it must not be used as a valid point
+    # to compute model
+    if len(filtered_szi) < winsize+1:
+        if len(z_i) > winsize+1:
+            filtered_szi = sz_i[:winsize+1]
+            filtered_zi = z_i[:winsize+1]
         else:
             filtered_szi = sz_i[:]
             filtered_zi = z_i[:]
     else:
-        filtered_szi = filtered_szi[:winsize]
-        filtered_zi = filtered_zi[:winsize]
+        filtered_szi = filtered_szi[:winsize+1]
+        filtered_zi = filtered_zi[:winsize+1]
     return filtered_zi, filtered_szi
 
 
 def compute_model(z_i, s_zi, z_0, s_z0):
     """Compute model from points."""
     logging.info(f"Model computed using {len(s_zi)} values.")
-    poly = np.polyfit(z_i[1:], s_zi[1:], 1, rcond=None, full=False, w=None, cov=False)
+    poly = np.polyfit(z_i, s_zi, 1, rcond=None, full=False, w=None, cov=False)
     beta = poly[0] * (median(z_i) - z_0) / (median(s_zi) - s_z0)
     print(poly[0], z_i, z_0, beta)
     alpha = poly[0] * (math.pow(median(z_i) - z_0, 1 - beta)) / beta
 
     mae_sum = 0
     for z, sz in zip(z_i, s_zi):
-        s = s_zi[0] + alpha * math.pow((z - z_0), beta)
+        s = s_z0 + alpha * math.pow((z - z_0), beta)
         mae_sum += abs(sz - s)
     mae = mae_sum / len(z_i)
     logging.info(f"MAE computed: {mae}")

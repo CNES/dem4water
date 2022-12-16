@@ -22,7 +22,7 @@ from src import compute_model as cm
 from src import plot_lib as pl
 
 
-def found_mae_first(found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p):
+def found_mae_first(found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p,best_i, best_p, best, best_alpha, best_beta):
     """Analyze MAE to find the first local minimum."""
     logging.debug("Reanalizing local mae to find the first local minimum.")
     logging.debug(f"len(l_mae): {len(l_mae)}")
@@ -103,7 +103,7 @@ def found_mae_hybrid(
     l_mae,
     l_beta,
     l_alpha,
-    l_slope,
+    l_slope,best_i, best_p, best, best_alpha, best_beta
 ):
     """Analyze local mae to find optimal local minimum."""
     logging.debug("Reanalizing local mae to find the optimal local minimum.")
@@ -233,12 +233,12 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         "--selection_mode", type=str, default="best", help="best, firsts"
     )
     parser.add_argument(
-        "--jump_ratio", type=str, default=4, help="Ratio between two surface"
+        "--jump_ratio", type=str, default=10, help="Ratio between two surface"
     )
 
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
-
+    parser.add_argument("--filter_area", action="store_true", help="Enable the filtering of low szi")
     # Silence Mathplotlib related debug messages (font matching)
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
@@ -273,12 +273,17 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # shp_wmap = wb.create_water_mask(args.watermap, 0.05)
     # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
-    z_i, s_zi = cm.filter_szi(args, damname, 100000, 0)
-    z_i, s_zi = cm.remove_jump_szi(args, z_i, s_zi, args.jump_ratio)
+    if args.filter_area:
+        print("Apply area filter")
+        z_i, s_zi = cm.filter_szi(args, damname, 100000, 0)
+    else:
+        z_i = None
+        s_zi = None
+    z_i, s_zi = cm.remove_jump_szi(args, z_i, s_zi, int(args.jump_ratio))
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
-    if args.selection_mode == "first":
+    if args.selection_mode == "firsts":
         z_i, s_zi = cm.select_lower_szi(
             z_i, s_zi, damelev, args.zmaxoffset, args.winsize
         )
@@ -319,7 +324,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     if (i + args.winsize) >= (len(z_i) - 1):
         data_shortage = True
         logging.warning("Just enough data! Compute unique model.")
-        alpha, beta, mae, poly = cm.compute_model(z_i, s_zi, z_i[0], s_zi[0])
+        alpha, beta, mae, poly = cm.compute_model(z_i[1:], s_zi[1:], z_i[0], s_zi[0])
         logging.debug(
             f"Zrange [{z_i[0]} ; {z_i[-1]}] --> alpha= {alpha} - "
             f"beta= {beta}  with a local mae of: {mae} m2"
@@ -331,6 +336,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         # Select MEA to be used:
         best = mae
+
+        best_i  = 1
         best_p = poly
         best_alpha = alpha
         best_beta = beta
@@ -419,9 +426,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     )
 
     found_first = False
-    if args.maemode == "first":
+    if args.maemode == "first" and data_shortage is False:
         best_i, best_p, best, best_alpha, best_beta, found_first = found_mae_first(
-            found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p
+            found_first, l_mae, l_i, l_z, l_beta, l_alpha, l_p,best_i, best_p, best, best_alpha, best_beta
         )
     elif args.maemode == "hybrid" and data_shortage is False:
         # first find absolute min at z > damelev > damelev+offset
@@ -437,7 +444,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             l_mae,
             l_beta,
             l_alpha,
-            l_slope,
+            l_slope,best_i, best_p, best, best_alpha, best_beta
         )
     if found_first is True:
         logging.info("Model updated using first LMAE minimum.")
@@ -482,6 +489,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     pl.plot_model(
         s_zi[best_i : best_i + args.winsize],
         z_i[best_i : best_i + args.winsize],
+        z_i[0],
+        s_zi[0],
         best_alpha,
         best_beta,
         damname,
