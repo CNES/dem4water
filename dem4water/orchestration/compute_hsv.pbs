@@ -23,7 +23,7 @@ SZIDAT=${SZIDAT:-""}
 ELEV_OFF_DAM=${ELEV_OFF_DAM:-20}
 JUMP_RATIO=${JUMP_RATIO:-10}
 SELECT_MODE=${SELECT_MODE:-"best"}
-
+FILTER_AREA=${FILTER_AREA:-"disabled"}
 [ -z "$OTB_MAX_RAM_HINT" ] && export OTB_MAX_RAM_HINT=4000
 export OTB_LOGGER_LEVEL=CRITICAL
 
@@ -41,6 +41,7 @@ echo "== INFO_DAM : ${INFO_DAM}"
 echo "== SZIDAT: ${SZIDAT}"
 echo "== SELECT_MODE: ${SELECT_MODE}"
 echo "== JUMP_RATIO: ${JUMP_RATIO}"
+echo "== FILTER_AREA: ${FILTER_AREA}"
 
 [ -d "$EXTR_DIR/${DAM}" ] || mkdir -p "$EXTR_DIR/${DAM}"
 [ -d "$CAMP_DIR/${DAM}/tmp" ] || mkdir -p "$CAMP_DIR/${DAM}/tmp"
@@ -148,6 +149,7 @@ if [ -f "${SZIDAT}" ] ; then
           --maemode    "first"                                \
 		  --custom_szi "${SZIDAT}" \
           --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
+		  --filter_area "${FILTER_AREA}" \
       2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 else
 
@@ -161,6 +163,7 @@ else
           --maemode    "first"                                \
 		  --jump_ratio "$JUMP_RATIO"                          \
 		  --selection_mode "$SELECT_MODE"                     \
+		  --filter_area "${FILTER_AREA}" \
           --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
       2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 fi

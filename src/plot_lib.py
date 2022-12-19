@@ -115,6 +115,7 @@ def plot_model_combo(
     alpha,
     beta,
     damname,
+        alt_sz,
     abs_sz,
     mod_sz,
     l_z,
@@ -132,8 +133,8 @@ def plot_model_combo(
     print(alt)
     maeax0 = plt.subplot(g_s[0])
     maeax0.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
-    maeax0.plot(alt, abs_sz, "g--", label="S(z) abs_model")
-    maeax0.plot(alt, mod_sz, "r--", label="S(z)")
+    maeax0.plot(alt_sz, abs_sz, "g--", label="S(z) abs_model")
+    maeax0.plot(alt_sz, mod_sz, "r--", label="S(z)")
     maeax0.plot(all_zi[0], all_szi[0], "ro")
     maeax0.scatter(all_zi, all_szi, marker=".", label="S(Z_i)")
     maeax0.plot(

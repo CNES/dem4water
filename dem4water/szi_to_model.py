@@ -238,7 +238,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     parser.add_argument("-o", "--outfile", help="Output file")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
-    parser.add_argument("--filter_area", action="store_true", help="Enable the filtering of low szi")
+    parser.add_argument("--filter_area", type=str, default="disabled", help="Enable the filtering of low szi", choices=["enabled", "disabled"])
     # Silence Mathplotlib related debug messages (font matching)
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
@@ -273,8 +273,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # shp_wmap = wb.create_water_mask(args.watermap, 0.05)
     # water_body_area = wb.compute_area_from_database_geom(args.database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
-    if args.filter_area:
-        print("Apply area filter")
+    if args.filter_area == "enabled":
+        logging.info("Filter small surfaces enabled.")
         z_i, s_zi = cm.filter_szi(args, damname, 100000, 0)
     else:
         z_i = None
@@ -531,6 +531,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         alpha,
         beta,
         damname,
+        z,
         abs_sz,
         mod_sz,
         l_z,
