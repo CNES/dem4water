@@ -115,7 +115,7 @@ def plot_model_combo(
     alpha,
     beta,
     damname,
-        alt_sz,
+    alt_sz,
     abs_sz,
     mod_sz,
     l_z,
@@ -162,7 +162,7 @@ def plot_model_combo(
     )
     maeax0.label_outer()
     #  maeax0.set_xlim(z[0]-10, z[-1]+10)
-    maeax0.set_xlim(alt[0]-10, alt[-1]+10)
+    maeax0.set_xlim(alt[0] - 10, alt[-1] + 10)
     ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
     if data_shortage is False:
         maeax0.set_xlim(alt[0] - 5, median(model_zi) + 30)
@@ -174,7 +174,7 @@ def plot_model_combo(
 
     maeax1 = plt.subplot(g_s[1])
     maeax1.axvline(x=float(damelev), ls=":", lw=2, color="teal", label="Dam Elevation")
-    maeax1.plot( l_z, l_mae, color="purple", marker=".", linestyle="dashed", label="MAE")
+    maeax1.plot(l_z, l_mae, color="purple", marker=".", linestyle="dashed", label="MAE")
     maeax1.plot(
         median(model_zi),
         best,
@@ -192,7 +192,7 @@ def plot_model_combo(
     maeax1.grid(visible=True, which="major", linestyle="-")
     maeax1.grid(visible=True, which="minor", linestyle="--")
     maeax1.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local MAE (ha)")
-    maeax1.set_xlim(alt[0]-10, alt[-1]+10)
+    maeax1.set_xlim(alt[0] - 10, alt[-1] + 10)
     if data_shortage is False:
         maeax1.set_xlim(alt[0] - 5, median(model_zi) + 30)
     maeax1.set_yscale("log")
@@ -209,7 +209,7 @@ def plot_model_combo(
     plt.savefig(outfile, dpi=300)
 
 
-def plot_model(model_szi, model_zi,z_0, sz_0, alpha, beta, damname, outfile):
+def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
     """Plot model."""
     alt = range(int(model_zi[0]) + 1, int(model_zi[-1]))
     mod_sz = []

@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Module providing tools for computing models and filter points.
-
-:author: Benjamin Tardy <benjamin.tardy@csgroup.eu>
-:organization: CS Group
-:copyright: 2022 CNES. All rights reserved.
-:license: see LICENSE file
-:created: 2022
 """
 # import argparse
+# import os
 import json
 import logging
 import math
-import os
 import sys
 from statistics import median
 
 import numpy as np
 
-sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('.'))
-import src.water_body as wb
+import dem4water.water_body as wb
 
 
 def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
@@ -57,8 +50,6 @@ def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
             ratio = prev / sz
         else:
             ratio = 1
-        #  print(str(ratio))
-        # TODO: @parameters max ratio
         if ratio < jump_ratio:
             prev = sz
             stop_i = stop_i + 1
@@ -144,20 +135,24 @@ def get_info_dam(daminfo):
 
 def select_lower_szi(z_i, sz_i, damelev, max_offset, winsize):
     """Select all valid point under the damelev to find law."""
-    filtered_szi = [szi for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)]
-    filtered_zi = [zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)]
+    filtered_szi = [
+        szi for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)
+    ]
+    filtered_zi = [
+        zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)
+    ]
     # Add 1 to winsize as the first point is Z0 and it must not be used as a valid point
     # to compute model
-    if len(filtered_szi) < winsize+1:
-        if len(z_i) > winsize+1:
-            filtered_szi = sz_i[:winsize+1]
-            filtered_zi = z_i[:winsize+1]
+    if len(filtered_szi) < winsize + 1:
+        if len(z_i) > winsize + 1:
+            filtered_szi = sz_i[: winsize + 1]
+            filtered_zi = z_i[: winsize + 1]
         else:
             filtered_szi = sz_i[:]
             filtered_zi = z_i[:]
     else:
-        filtered_szi = filtered_szi[:winsize+1]
-        filtered_zi = filtered_zi[:winsize+1]
+        filtered_szi = filtered_szi[: winsize + 1]
+        filtered_zi = filtered_zi[: winsize + 1]
     return filtered_zi, filtered_szi
 
 
