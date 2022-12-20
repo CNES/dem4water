@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-:author: Aurélien Bricier <aurelien.bricier@csgroup.eu>
-:organization: CS Group
-:copyright: 2020 CS Group. All rights reserved.
-:license: see LICENSE file
-:created: 2020
-"""
+"""This module provides function to find the PDB and the cutline."""
 
 
 import argparse
@@ -21,13 +15,14 @@ import numpy as np
 import otbApplication as otb
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
-from utils import distance
+
+from dem4water.tools.utils import distance
 
 # from PIL import Image
 
 
 def nderiv(y, x):
-    "Différence finie, dérivée de la fonction f"
+    "Différence finie, dérivée de la fonction f."
     n = len(y)
     d = np.zeros(n, "d")  # virgule flottante à double précision (double)
     # différences de part et d'autre
@@ -78,63 +73,31 @@ def points_in_circle(circle, arr):
             yield arr[i][j]
 
 
-def main(arguments):  # noqa: C901  #FIXME: Function is too complex
-    """szi_from_contourline.py
-    Measure, for a given range of Z_i, the theorical water surface associated for the dem.
-    """
+def szi_from_contourline(
+    infile,
+    dam_id,
+    id_db,
+    watermap,
+    dem,
+    radius,
+    pdbstep,
+    pdbradius,
+    mradius,
+    maxdist,
+    elevoffset,
+    elevsampling,
+    info,
+    tmp,
+    out,
+    debug=False,
+):  # noqa: C901  #FIXME: Function is too complex
+    """Find the PDB and create the cutline."""
     t1_start = perf_counter()
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("-i", "--infile", help="Input file")
-    parser.add_argument("--id", help="Dam ID")
-    parser.add_argument("--id_db", help="Dam id field in database")
-    parser.add_argument("-w", "--watermap", help="Input water map file")
-    parser.add_argument("-d", "--dem", help="Input DEM")
-    parser.add_argument("-r", "--radius", default=5000, help="Extract radius (m)")
-    parser.add_argument(
-        "-s", "--pdbstep", type=int, default=5, help="Sampling step for pdb search"
-    )
-    parser.add_argument(
-        "-p", "--pdbradius", type=int, default=500, help="PDB Search Radius"
-    )
-    parser.add_argument(
-        "--mradius",
-        type=float,
-        default=1.7,
-        help="Masking radius for second point search wrt internal loop radius",
-    )
-    parser.add_argument(
-        "--maxdist",
-        type=float,
-        default=0.3,
-        help="Max distance between two concecutive points in the cutline wrt internal loop radius",
-    )
-    parser.add_argument(
-        "--elevoffset",
-        type=float,
-        default=50,
-        help="Elevation offset target for the cutline wrt the estimated dam elevation",
-    )
-    parser.add_argument(
-        "--elevsampling",
-        type=int,
-        default=1,
-        help="Elevation sampling step for contour lines generation.",
-    )
-    parser.add_argument(
-        "--info", help="Optional user-defined daminfo.json file", default=""
-    )
-
-    parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
-    parser.add_argument("-o", "--out", help="Output directory")
-    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
-    args = parser.parse_args(arguments)
 
     logging_format = (
         "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
     )
-    if args.debug is True:
+    if debug is True:
         logging.basicConfig(
             stream=sys.stdout, level=logging.DEBUG, format=logging_format
         )
@@ -151,7 +114,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     geo = osr.SpatialReference()
     geo.ImportFromEPSG(4326)
 
-    ds = gdal.Open(args.dem, gdal.GA_ReadOnly)
+    ds = gdal.Open(dem, gdal.GA_ReadOnly)
     carto = osr.SpatialReference(wkt=ds.GetProjection())
 
     geotocarto = osr.CoordinateTransformation(geo, carto)
@@ -159,7 +122,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
     # Start processing by qualifying the Dam
     driver = ogr.GetDriverByName("GeoJSON")
-    dataSource = driver.Open(args.infile, 0)
+    dataSource = driver.Open(infile, 0)
     layer = dataSource.GetLayer()
 
     clat = 0
@@ -171,21 +134,21 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     dam_path = ""
     dam_404 = True
     calt_from_DB = False
-    radius = args.radius
+    # radius = radius
 
     for feature in layer:
-        if str(int(feature.GetField(str(args.id_db)))) == str(args.id):
+        if str(int(feature.GetField(str(id_db)))) == str(dam_id):
             # Compute radius
             if radius == "":
                 geom = feature.GetGeometryRef()
                 bbox = geom.GetEnvelope()
                 radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
-                logging.info("=> RADIUS : {}".format(radius))
+                logging.info(f"=> RADIUS : {radius}")
 
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
-            dam_id = int(feature.GetField(str(args.id_db)))
+            # dam_id = int(feature.GetField(str(id_db)))
             dam_path = dam_name.replace(" ", "-")
             # dam_path = dam_path.replace("-","_")
             clat = float(feature.GetField("LAT_DD"))
@@ -198,9 +161,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     "Altitude for dam "
                     + dam_name
                     + "(ID:"
-                    + str(args.id)
+                    + str(id)
                     + ") is not present in "
-                    + args.infile
+                    + infile
                     + "."
                 )
             if bool(feature.GetField("LAT_WW")):
@@ -211,9 +174,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     "Point inside water body for dam "
                     + dam_name
                     + "(ID:"
-                    + str(args.id)
+                    + str(id)
                     + ") is not present in "
-                    + args.infile
+                    + infile
                     + ". Can not process."
                 )
             break
@@ -224,27 +187,27 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             "404 - Dam Not Found: "
             + dam_name
             + "(ID:"
-            + str(args.id)
+            + str(id)
             + ") is not present in "
-            + args.infile
+            + infile
         )
 
     # Init output vector data files:
     shpDriver = ogr.GetDriverByName("GeoJSON")
-    if os.path.exists(os.path.join(args.out, dam_path + "_cutline.json")):
-        shpDriver.DeleteDataSource(os.path.join(args.out, dam_path + "_cutline.json"))
+    if os.path.exists(os.path.join(out, dam_path + "_cutline.json")):
+        shpDriver.DeleteDataSource(os.path.join(out, dam_path + "_cutline.json"))
     outDataSource = shpDriver.CreateDataSource(
-        os.path.join(args.out, dam_path + "_cutline.json")
+        os.path.join(out, dam_path + "_cutline.json")
     )
     outLayer = outDataSource.CreateLayer(
         "", srs=carto, geom_type=ogr.wkbMultiLineString
     )
 
     drv_dbg = ogr.GetDriverByName("GeoJSON")
-    if os.path.exists(os.path.join(args.tmp, dam_path + "_cutline_points.json")):
-        os.remove(os.path.join(args.tmp, dam_path + "_cutline_points.json"))
+    if os.path.exists(os.path.join(tmp, dam_path + "_cutline_points.json")):
+        os.remove(os.path.join(tmp, dam_path + "_cutline_points.json"))
     dbg_ds = drv_dbg.CreateDataSource(
-        os.path.join(args.tmp, dam_path + "_cutline_points.json")
+        os.path.join(tmp, dam_path + "_cutline_points.json")
     )
     dbg_layer = dbg_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPoint)
     dbg_field_defn = ogr.FieldDefn("name", ogr.OFTString)
@@ -254,7 +217,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         "Currently processing: "
         + dam_name
         + "(id:"
-        + str(args.id)
+        + str(id)
         + ") [Lat: "
         + str(clat)
         + ", Lon: "
@@ -267,7 +230,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     else:
         # altcmd = (
         #     'gdallocationinfo -valonly -wgs84 "'
-        #     + args.dem
+        #     + dem
         #     + '" '
         #     + str(clon)
         #     + " "
@@ -275,7 +238,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         # )
         calt = float(
             os.popen(
-                'gdallocationinfo -valonly -wgs84 "%s" %s %s' % (args.dem, clon, clat)
+                'gdallocationinfo -valonly -wgs84 "%s" %s %s' % (dem, clon, clat)
             ).read()
         )
         logging.info("Alt from DEM: " + str(calt))
@@ -284,7 +247,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         "Currently processing: "
         + dam_name
         + "(id:"
-        + str(args.id)
+        + str(id)
         + ") [Lat: "
         + str(clat)
         + ", Lon: "
@@ -306,11 +269,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     else:
         logging.info("Alt Estimated from Watermap.")
         ext = otb.Registry.CreateApplication("ExtractROI")
-        ext.SetParameterString("in", args.dem)
-        ext.SetParameterString("out", os.path.join(args.out, "dem_pdb.tif"))
+        ext.SetParameterString("in", dem)
+        ext.SetParameterString("out", os.path.join(out, "dem_pdb.tif"))
         ext.SetParameterString("mode", "radius")
         ext.SetParameterString("mode.radius.unitr", "phy")
-        ext.SetParameterFloat("mode.radius.r", args.pdbradius)
+        ext.SetParameterFloat("mode.radius.r", pdbradius)
         ext.SetParameterString("mode.radius.unitc", "phy")
         ext.SetParameterFloat("mode.radius.cx", dam.GetX())
         ext.SetParameterFloat("mode.radius.cy", dam.GetY())
@@ -318,7 +281,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         extw = otb.Registry.CreateApplication("Superimpose")
         extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
-        extw.SetParameterString("inm", args.watermap)
+        extw.SetParameterString("inm", watermap)
         extw.Execute()
 
         bml = otb.Registry.CreateApplication("BandMath")
@@ -330,7 +293,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         np_bml = bml.GetImageAsNumpyArray("out")
         bml_alt = np.amax(np_bml)
 
-    targetelev = bml_alt + args.elevoffset
+    targetelev = bml_alt + elevoffset
     if calt_from_DB is True:
         logging.info("Extracted dam elevation= " + str(bml_alt) + "m")
     else:
@@ -340,13 +303,11 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # BEGIN:
     # Can be conflincting with other launcher mode
     # Set info to default is enough?
-    if args.info == "":  # is None:
+    if info == "":  # is None:
         drv = ogr.GetDriverByName("GeoJSON")
-        if os.path.exists(os.path.join(args.out, dam_path + "_daminfo.json")):
-            os.remove(os.path.join(args.out, dam_path + "_daminfo.json"))
-        dst_ds = drv.CreateDataSource(
-            os.path.join(args.out, dam_path + "_daminfo.json")
-        )
+        if os.path.exists(os.path.join(out, dam_path + "_daminfo.json")):
+            os.remove(os.path.join(out, dam_path + "_daminfo.json"))
+        dst_ds = drv.CreateDataSource(os.path.join(out, dam_path + "_daminfo.json"))
         dst_layer = dst_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPoint)
         field_defn = ogr.FieldDefn("name", ogr.OFTString)
         field_defnID = ogr.FieldDefn("ID", ogr.OFTInteger64)
@@ -359,9 +320,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         rad_l = []
         alt_l = []
-        for r in range(args.pdbradius, 1, -1 * args.pdbstep):
+        for r in range(pdbradius, 1, -1 * pdbstep):
             ext_l = otb.Registry.CreateApplication("ExtractROI")
-            ext_l.SetParameterString("in", args.dem)
+            ext_l.SetParameterString("in", dem)
             ext_l.SetParameterString("mode", "radius")
             ext_l.SetParameterString("mode.radius.unitr", "phy")
             ext_l.SetParameterFloat("mode.radius.r", r)
@@ -431,7 +392,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                         + str(i_d)
                     )
 
-        fig.savefig(os.path.join(args.tmp, "pdb_profile.png"))
+        fig.savefig(os.path.join(tmp, "pdb_profile.png"))
 
         if found_pdb is False:
             logging.error("404 - PDB not Found")
@@ -439,8 +400,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         # Retrieve PDB coordinates
         ext = otb.Registry.CreateApplication("ExtractROI")
-        ext.SetParameterString("in", args.dem)
-        ext.SetParameterString("out", os.path.join(args.out, "dem_pdb.tif"))
+        ext.SetParameterString("in", dem)
+        ext.SetParameterString("out", os.path.join(out, "dem_pdb.tif"))
         ext.SetParameterString("mode", "radius")
         ext.SetParameterString("mode.radius.unitr", "phy")
         ext.SetParameterFloat("mode.radius.r", rad_pdb)
@@ -462,7 +423,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
         #  print("X: "+str(indices[1][0]))
         #  print("Y: "+str(indices[0][0]))
 
-        ds = gdal.Open(os.path.join(args.out, "dem_pdb.tif"))
+        ds = gdal.Open(os.path.join(out, "dem_pdb.tif"))
         #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
         #  xoffset, px_w, rot1, yoffset, rot2, px_h = ds.GetGeoTransform()
         #  print(ds.GetGeoTransform())
@@ -485,8 +446,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
 
         pdbalt = float(
             os.popen(
-                'gdallocationinfo -valonly -wgs84 "%s" %s %s'
-                % (args.dem, pdblon, pdblat)
+                'gdallocationinfo -valonly -wgs84 "%s" %s %s' % (dem, pdblon, pdblat)
             ).read()
         )
         logging.debug("Coordinates (pixel): " + str(pX) + " - " + str(pY))
@@ -498,7 +458,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             "PDB detected: "
             + dam_name
             + "(id:"
-            + str(args.id)
+            + str(id)
             + ") [pdbLat: "
             + str(pdblat)
             + ", pdbLon: "
@@ -556,7 +516,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     else:
         # User-defined daminfo.json was provided
         logging.info("User-defined daminfo.json has been provided.")
-        with open(args.info) as i:
+        with open(info) as i:
             jsi = json.load(i)
         for feature in jsi["features"]:
             if feature["properties"]["name"] == "Dam":
@@ -580,7 +540,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                 pdbalt = float(
                     os.popen(
                         'gdallocationinfo -valonly -wgs84 "%s" %s %s'
-                        % (args.dem, pdblon, pdblat)
+                        % (dem, pdblon, pdblat)
                     ).read()
                 )
 
@@ -604,9 +564,9 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     # Search for Dam Line
     # TODO: fix confusion between radius and pdbradius needed here
     ext_r = otb.Registry.CreateApplication("ExtractROI")
-    ext_r.SetParameterString("in", args.dem)
+    ext_r.SetParameterString("in", dem)
     ext_r.SetParameterString(
-        "out", os.path.join(args.tmp, "extract@" + str(radius) + "mFromDam.tif")
+        "out", os.path.join(tmp, "extract@" + str(radius) + "mFromDam.tif")
     )
     ext_r.SetParameterString("mode", "radius")
     ext_r.SetParameterString("mode.radius.unitr", "phy")
@@ -617,7 +577,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     ext_r.ExecuteAndWriteOutput()
 
     r_ds = gdal.Open(
-        os.path.join(args.tmp, "extract@" + str(radius) + "mFromDam.tif"),
+        os.path.join(tmp, "extract@" + str(radius) + "mFromDam.tif"),
         gdal.GA_ReadOnly,
     )
     r_x, r_y = pixel(dam.GetX(), dam.GetY(), r_ds)
@@ -665,7 +625,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             masked_tmp = np.where(disk_out, np_r, 0)
             masked = np.where(~disk_in, masked_tmp, 0)
             # im_masked = Image.fromarray(masked)
-            # im_masked.save(os.path.join(args.tmp, "circle@"+str(radius)+".tif"))
+            # im_masked.save(os.path.join(tmp, "circle@"+str(radius)+".tif"))
 
             l_indices = np.where(masked == [np.amax(masked)])
             l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
@@ -697,8 +657,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             distance1 = currpoint.Distance(prevpoint1) / r_ds.GetGeoTransform()[1]
             distance2 = currpoint.Distance(prevpoint2) / r_ds.GetGeoTransform()[1]
             if (
-                (distance1 > radius * args.maxdist)
-                and (distance2 > radius * args.maxdist)
+                (distance1 > radius * maxdist)
+                and (distance2 > radius * maxdist)
                 and (lc_first_it is False)
             ):
                 logging.debug(
@@ -707,7 +667,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     + "too distant from previous one!"
                 )
                 #  logging.debug("radius    (px): " + str(radius))
-                #  logging.debug("maxdist   (px): " + str(radius*args.maxdist))
+                #  logging.debug("maxdist   (px): " + str(radius*maxdist))
                 #  logging.debug("distance1 (px): " + str(distance1))
                 #  logging.debug("distance2 (px): " + str(distance2))
                 # Search a local maxima:
@@ -760,10 +720,10 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             # Search for opposite relative max: mask half of the circle
             done_half = (
                 (x_grid - l_indices[1][0]) ** 2 + (y_grid - l_indices[0][0]) ** 2
-            ) <= (radius * args.mradius) ** 2
+            ) <= (radius * mradius) ** 2
             half_masked = np.where(~done_half, masked, 0)
             # im_hmasked = Image.fromarray(half_masked)
-            # im_hmasked.save(os.path.join(args.tmp, "half_circle@"+str(radius)+".tif"))
+            # im_hmasked.save(os.path.join(tmp, "half_circle@"+str(radius)+".tif"))
 
             l_indices = np.where(half_masked == [np.amax(half_masked)])
             l_posX, l_posY = coord(l_indices[1][0], l_indices[0][0], r_ds)
@@ -795,8 +755,8 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             distance3 = nextpoint.Distance(prevpoint1) / r_ds.GetGeoTransform()[1]
             distance4 = nextpoint.Distance(prevpoint2) / r_ds.GetGeoTransform()[1]
             if (
-                (distance3 > radius * args.maxdist)
-                and (distance4 > radius * args.maxdist)
+                (distance3 > radius * maxdist)
+                and (distance4 > radius * maxdist)
                 and (lc_first_it is False)
             ):
                 logging.debug(
@@ -805,7 +765,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
                     + "too distant from previous one!"
                 )
                 #  logging.debug("radius    (px): " + str(radius))
-                #  logging.debug("maxdist   (px): " + str(radius*args.maxdist))
+                #  logging.debug("maxdist   (px): " + str(radius*maxdist))
                 #  logging.debug("distance3 (px): " + str(distance3))
                 #  logging.debug("distance4 (px): " + str(distance4))
                 # Search a local maxima:
@@ -862,7 +822,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             prev1alt = float(
                 os.popen(
                     'gdallocationinfo -valonly -wgs84 "%s" %s %s'
-                    % (args.dem, prev1geo.GetY(), prev1geo.GetX())
+                    % (dem, prev1geo.GetY(), prev1geo.GetX())
                 ).read()
             )
             #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
@@ -883,7 +843,7 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
             prev2alt = float(
                 os.popen(
                     'gdallocationinfo -valonly -wgs84 "%s" %s %s'
-                    % (args.dem, str(prev2geo.GetY()), str(prev2geo.GetX()))
+                    % (dem, str(prev2geo.GetY()), str(prev2geo.GetX()))
                 ).read()
             )
             #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
@@ -969,5 +929,81 @@ def main(arguments):  # noqa: C901  #FIXME: Function is too complex
     print("End SZI_FROM_CONTOURLINE")
 
 
+def szi_from_contourline_parameters():
+    """Define parameters."""
+
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("-i", "--infile", help="Input file")
+    parser.add_argument("--id", help="Dam ID")
+    parser.add_argument("--id_db", help="Dam id field in database")
+    parser.add_argument("-w", "--watermap", help="Input water map file")
+    parser.add_argument("-d", "--dem", help="Input DEM")
+    parser.add_argument("-r", "--radius", default=5000, help="Extract radius (m)")
+    parser.add_argument(
+        "-s", "--pdbstep", type=int, default=5, help="Sampling step for pdb search"
+    )
+    parser.add_argument(
+        "-p", "--pdbradius", type=int, default=500, help="PDB Search Radius"
+    )
+    parser.add_argument(
+        "--mradius",
+        type=float,
+        default=1.7,
+        help="Masking radius for second point search wrt internal loop radius",
+    )
+    parser.add_argument(
+        "--maxdist",
+        type=float,
+        default=0.3,
+        help="Max distance between two concecutive points in the cutline wrt internal loop radius",
+    )
+    parser.add_argument(
+        "--elevoffset",
+        type=float,
+        default=50,
+        help="Elevation offset target for the cutline wrt the estimated dam elevation",
+    )
+    parser.add_argument(
+        "--elevsampling",
+        type=int,
+        default=1,
+        help="Elevation sampling step for contour lines generation.",
+    )
+    parser.add_argument(
+        "--info", help="Optional user-defined daminfo.json file", default=""
+    )
+
+    parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
+    parser.add_argument("-o", "--out", help="Output directory")
+    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
+    return parser
+
+
+def main():
+    """Cli for szi_from_contourline."""
+    parser = szi_from_contourline_parameters()
+    args = parser.parse_args()
+    szi_from_contourline(
+        args.infile,
+        args.id,
+        args.id_db,
+        args.watermap,
+        args.dem,
+        args.radius,
+        args.pdbstep,
+        args.pdbradius,
+        args.mradius,
+        args.maxdist,
+        args.elevoffset,
+        args.elevsampling,
+        args.info,
+        args.tmp,
+        args.out,
+        args.debug,
+    )
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())
