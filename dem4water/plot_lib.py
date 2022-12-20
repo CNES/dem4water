@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""
-Graph module.
-
-:author: Benjamin Tardy <benjamin.tardy@csgroup.eu>
-:organization: CS Group
-:copyright: 2022 CNES. All rights reserved.
-:license: see LICENSE file
-:created: 2022
-"""
+"""Graph module."""
 import math
 from statistics import median
 
@@ -317,4 +309,138 @@ def plot_vs(all_zi, all_szi, damelev, alpha, beta, damname, outfile):
     axv.yaxis.set_major_formatter(ticks_m3)
     plt.minorticks_on()
     plt.legend(prop={"size": 6}, loc="upper left")
+    plt.savefig(outfile, dpi=300)
+
+
+def plot_report_sz(
+    alt, sz_ref_scatter, sz_model_scatter, ref_zmax, damelev, damname, outfile
+):
+    """Plot Sz ref and model."""
+    ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
+    fig = plt.figure(dpi=300)
+    #  fig.subplots_adjust(hspace=0)
+    g_s = fig.add_gridspec(2, 1, height_ratios=[1, 1])
+
+    sz1 = plt.subplot(g_s[0])
+    sz1.plot(sz_ref_scatter, sz_ref_scatter, "r-")
+    sz1.scatter(
+        sz_ref_scatter, sz_model_scatter, label="S(z)_model = f(S(z)_reference)"
+    )
+    sz1.grid(b=True, which="major", linestyle="-")
+    sz1.grid(b=False, which="minor", linestyle="--")
+    sz1.set_xlabel("S(z)_reference (ha)", fontsize=6)
+    sz1.set_ylabel("S(z)_model (ha)", fontsize=6)
+    sz1.tick_params(axis="both", which="major", labelsize=6)
+    # Trick to display in Ha
+    sz1.xaxis.set_major_formatter(ticks_m2)
+    sz1.yaxis.set_major_formatter(ticks_m2)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    sz_comp = plt.subplot(g_s[1])
+    sz_comp.plot(alt, sz_ref_scatter, "r-", label="S(z)_reference")
+    sz_comp.plot(alt, sz_model_scatter, "g-", label="S(z)_model")
+    sz_comp.axvline(
+        x=float(ref_zmax), ls=":", lw=2, color="red", label="Reference Max Dam Z"
+    )
+    sz_comp.axvline(
+        x=float(damelev), ls=":", lw=2, color="green", label="Model Max Dam Z"
+    )
+    sz_comp.grid(b=True, which="major", linestyle="-")
+    sz_comp.grid(b=False, which="minor", linestyle="--")
+    sz_comp.set_xlabel("z (m)", fontsize=6)
+    sz_comp.set_ylabel("S(z) (ha)", fontsize=6)
+    sz_comp.tick_params(axis="both", which="major", labelsize=6)
+    # Trick to display in Ha
+    sz_comp.yaxis.set_major_formatter(ticks_m2)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    plt.suptitle(damname + ": S(z)", fontsize=10)
+    plt.savefig(outfile, dpi=300)
+
+
+def plot_report_vs(
+    surf, vs_ref_scatter, vs_model_scatter, s_r_zmax_m2, damname, outfile
+):
+    """Plot VS report."""
+    ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
+    ticks_m3 = ticker.FuncFormatter(lambda x, pos: f"{x / 1000000.0:g}")
+    fig = plt.figure(dpi=300)
+    #  fig.subplots_adjust(hspace=0)
+    g_v = fig.add_gridspec(2, 1, height_ratios=[1, 1])
+
+    vs1 = plt.subplot(g_v[0])
+    vs1.plot(vs_ref_scatter, vs_ref_scatter, "r-")
+    vs1.scatter(
+        vs_ref_scatter, vs_model_scatter, label="V(S)_model = f(V(S)_reference)"
+    )
+    vs1.grid(b=True, which="major", linestyle="-")
+    vs1.grid(b=False, which="minor", linestyle="--")
+    vs1.set_xlabel("V(S)_reference (hm3)", fontsize=6)
+    vs1.set_ylabel("V(S)_model (hm3)", fontsize=6)
+    vs1.tick_params(axis="both", which="major", labelsize=6)
+    # Trick to display in hm3
+    vs1.xaxis.set_major_formatter(ticks_m3)
+    vs1.yaxis.set_major_formatter(ticks_m3)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    vs_comp = plt.subplot(g_v[1])
+    vs_comp.plot(surf, vs_ref_scatter, "r-", label="V(S)_reference")
+    vs_comp.plot(surf, vs_model_scatter, "g-", label="V(S)_model")
+    vs_comp.axvline(x=s_r_zmax_m2, ls=":", lw=2, color="red", label="S(Zmax_ref)")
+    vs_comp.grid(visible=True, which="major", linestyle="-")
+    vs_comp.grid(visible=False, which="minor", linestyle="--")
+    vs_comp.set_xlabel("S (ha)", fontsize=6)
+    vs_comp.set_ylabel("V(S) (hm3)", fontsize=6)
+    vs_comp.tick_params(axis="both", which="major", labelsize=6)
+    # Trick to display in Ha
+    vs_comp.xaxis.set_major_formatter(ticks_m2)
+    vs_comp.yaxis.set_major_formatter(ticks_m3)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    plt.suptitle(damname + ": V(S)", fontsize=10)
+    plt.savefig(outfile, dpi=300)
+
+
+def plot_report_volume_rate(
+    surf, tx_ref_scatter, tx_model_scatter, s_r_zmax_m2, damname, outfile
+):
+    """Plot Volume Rate report."""
+    ticks_m2 = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
+    fig = plt.figure(dpi=300)
+    #  fig.subplots_adjust(hspace=0)
+    gt = fig.add_gridspec(2, 1, height_ratios=[1, 1])
+
+    tx1 = plt.subplot(gt[0])
+    tx1.plot(tx_ref_scatter, tx_ref_scatter, "r-")
+    tx1.scatter(
+        tx_ref_scatter, tx_model_scatter, label="Vr(S)_model = f(Vr(S)_reference)"
+    )
+    tx1.grid(b=True, which="major", linestyle="-")
+    tx1.grid(b=False, which="minor", linestyle="--")
+    tx1.set_xlabel("Vr(S)_reference (%)", fontsize=6)
+    tx1.set_ylabel("Vr(S)_model (%)", fontsize=6)
+    tx1.tick_params(axis="both", which="major", labelsize=6)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    tx_comp = plt.subplot(gt[1])
+    tx_comp.plot(surf, tx_ref_scatter, "r-", label="Vr(S)_reference")
+    tx_comp.plot(surf, tx_model_scatter, "g-", label="Vr(S)_model")
+    tx_comp.axvline(x=s_r_zmax_m2, ls=":", lw=2, color="red", label="S(Zmax_ref)")
+    tx_comp.grid(b=True, which="major", linestyle="-")
+    tx_comp.grid(b=False, which="minor", linestyle="--")
+    tx_comp.set_xlabel("S (ha)", fontsize=6)
+    tx_comp.set_ylabel("Vr(S) (%)", fontsize=6)
+    tx_comp.tick_params(axis="both", which="major", labelsize=6)
+    # Trick to display in Ha
+    tx_comp.xaxis.set_major_formatter(ticks_m2)
+    tx_comp.set_ylim(-0.1, 1.1)
+    plt.minorticks_on()
+    plt.legend(prop={"size": 6}, loc="upper left")
+
+    plt.suptitle(damname + ": Volume Rate", fontsize=10)
     plt.savefig(outfile, dpi=300)
