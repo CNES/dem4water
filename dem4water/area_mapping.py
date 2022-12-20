@@ -167,7 +167,7 @@ def area_mapping_args():
 
 
 def main():
-    """Cli funtion to launch area mapping."""
+    """Cli function to launch area mapping."""
     parser = area_mapping_args()
     args = parser.parse_args()
     area_mapping(
