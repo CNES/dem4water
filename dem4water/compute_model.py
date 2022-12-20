@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Module providing tools for computing models and filter points.
-"""
-# import argparse
-# import os
+"""Module providing tools for computing models and filter points."""
 import json
 import logging
 import math
@@ -16,7 +12,7 @@ import numpy as np
 import dem4water.water_body as wb
 
 
-def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
+def remove_jump_szi(infile, custom_szi=None, z_i=None, s_zi=None, jump_ratio=4):
     """Use a ratio to remove first jump found.
 
     PARAMETERS
@@ -27,11 +23,9 @@ def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
     jump_ratio: ratio between current and previous surface.
     """
     if z_i is None and s_zi is None:
-        if args.custom_szi is not None:
-            print("Dat file used : ", args.custom_szi)
-            infile = args.custom_szi
-        else:
-            infile = args.infile
+        if custom_szi is not None:
+            print("Dat file used : ", custom_szi)
+            infile = custom_szi
         data = np.loadtxt(infile)
 
         if data.size <= 2:
@@ -45,13 +39,13 @@ def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
     stop_i = 0
     break_found = False
     prev = s_zi[1]
-    for z, sz in zip(z_i, s_zi):
-        if sz != 0:
-            ratio = prev / sz
+    for s_z in s_zi:
+        if s_z != 0:
+            ratio = prev / s_z
         else:
             ratio = 1
         if ratio < jump_ratio:
-            prev = sz
+            prev = s_z
             stop_i = stop_i + 1
         else:
             break_found = True
@@ -69,14 +63,21 @@ def remove_jump_szi(args, z_i=None, s_zi=None, jump_ratio=4):
 
 
 def filter_szi(
-    args, damname, max_elev, min_elev, water_map_thres=0.05, area_threshold=15
+    infile,
+    custom_szi,
+    database,
+    watermap,
+    damname,
+    max_elev,
+    min_elev,
+    water_map_thres=0.05,
+    area_threshold=15,
 ):
     """Filter szi looking at the watermap."""
-    if args.custom_szi is not None:
-        print("Dat file used : ", args.custom_szi)
-        infile = args.custom_szi
-    else:
-        infile = args.infile
+    if custom_szi is not None:
+        print("Dat file used : ", custom_szi)
+        infile = custom_szi
+
     data = np.loadtxt(infile)
     if data.size <= 2:
         logging.error(f"Not enought S(Zi) data inside file {infile}")
@@ -84,11 +85,9 @@ def filter_szi(
 
     z_i = data[:, 0]
     s_zi = data[:, 1]
-    shp_wmap = wb.create_water_mask(args.watermap, water_map_thres)
-    # water_body_area = wb.compute_area_from_water_body(args.daminfo, shp_wmap)
-    water_body_area = wb.compute_area_from_database_geom(
-        args.database, damname, shp_wmap
-    )
+    shp_wmap = wb.create_water_mask(watermap, water_map_thres)
+    # water_body_area = wb.compute_area_from_water_body(daminfo, shp_wmap)
+    water_body_area = wb.compute_area_from_database_geom(database, damname, shp_wmap)
     logging.info(f"water body area: {water_body_area}")
     thres_wb = (water_body_area * area_threshold) / 100
     # zi[0] is the PDB
@@ -165,9 +164,9 @@ def compute_model(z_i, s_zi, z_0, s_z0):
     alpha = poly[0] * (math.pow(median(z_i) - z_0, 1 - beta)) / beta
 
     mae_sum = 0
-    for z, sz in zip(z_i, s_zi):
-        s = s_z0 + alpha * math.pow((z - z_0), beta)
-        mae_sum += abs(sz - s)
+    for alt, s_z in zip(z_i, s_zi):
+        surf = s_z0 + alpha * math.pow((alt - z_0), beta)
+        mae_sum += abs(s_z - surf)
     mae = mae_sum / len(z_i)
     logging.info(f"MAE computed: {mae}")
     return alpha, beta, mae, poly
