@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-:author: Aurélien Bricier <aurelien.bricier@csgroup.eu>
-:organization: CS Group
-:copyright: 2020 CS Group. All rights reserved.
-:license: see LICENSE file
-:created: 2020
-"""
+"""This module provides function to compute a validation score for cutlines."""
 
 
 import argparse
@@ -18,24 +12,14 @@ import numpy as np
 import otbApplication as otb
 
 
-def main(arguments):
-    """cutline_score.py
-    Qualify cutline quality by computing intersection with wmap
-    """
+def cutline_score(infile, watermap, out, debug=False):
+    """Qualify cutline quality by computing intersection with wmap."""
     t1_start = perf_counter()
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("-i", "--infile", help="Input json file")
-    parser.add_argument("-w", "--watermap", help="Input water map file")
-    parser.add_argument("-o", "--out", help="Output directory")
-    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
-    args = parser.parse_args(arguments)
 
     logging_format = (
         "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
     )
-    if args.debug is True:
+    if debug is True:
         logging.basicConfig(
             stream=sys.stdout, level=logging.DEBUG, format=logging_format
         )
@@ -46,43 +30,43 @@ def main(arguments):
     logging.info("Starting cutline_score.py")
 
     # Rasterize cutline on wmap
-    Rasterization = otb.Registry.CreateApplication("Rasterization")
-    Rasterization.SetParameterString("in", args.infile)
-    Rasterization.SetParameterString("im", args.watermap)
-    Rasterization.SetParameterString("out", os.path.join(args.out, "cutline_mask.tif"))
-    Rasterization.SetParameterFloat("background", 0)
-    Rasterization.SetParameterString("mode", "binary")
-    Rasterization.SetParameterFloat("mode.binary.foreground", 1)
-    Rasterization.Execute()
+    rasterization = otb.Registry.CreateApplication("Rasterization")
+    rasterization.SetParameterString("in", infile)
+    rasterization.SetParameterString("im", watermap)
+    rasterization.SetParameterString("out", os.path.join(out, "cutline_mask.tif"))
+    rasterization.SetParameterFloat("background", 0)
+    rasterization.SetParameterString("mode", "binary")
+    rasterization.SetParameterFloat("mode.binary.foreground", 1)
+    rasterization.Execute()
 
     # Compute nb pixel in cutline
-    np_mask = Rasterization.GetImageAsNumpyArray("out")
+    np_mask = rasterization.GetImageAsNumpyArray("out")
     np_mask_sum = np.sum(np_mask)
-    logging.info("np_mask_sum= " + str(np_mask_sum))
+    logging.info(f"np_mask_sum= {np_mask_sum}")
 
     # Compute sum of occurence in wmap on cutline
-    bm = otb.Registry.CreateApplication("BandMath")
-    bm.SetParameterStringList("il", [args.watermap])
-    bm.AddImageToParameterInputImageList(
-        "il", Rasterization.GetParameterOutputImage("out")
+    bandmath = otb.Registry.CreateApplication("BandMath")
+    bandmath.SetParameterStringList("il", [watermap])
+    bandmath.AddImageToParameterInputImageList(
+        "il", rasterization.GetParameterOutputImage("out")
     )
-    bm.SetParameterString("out", os.path.join(args.out, "cutline_wmap.tif"))
-    bm.SetParameterString("exp", "( (im2b1 == 1) ? im1b1 : 0 )")
-    bm.Execute()
+    bandmath.SetParameterString("out", os.path.join(out, "cutline_wmap.tif"))
+    bandmath.SetParameterString("exp", "( (im2b1 == 1) ? im1b1 : 0 )")
+    bandmath.Execute()
 
-    np_wmask = bm.GetImageAsNumpyArray("out")
+    np_wmask = bandmath.GetImageAsNumpyArray("out")
     np_wmask_sum = np.sum(np_wmask)
-    logging.info("np_wmask_sum= " + str(np_wmask_sum))
+    logging.info(f"np_wmask_sum= {np_wmask_sum}")
 
     # Normalize
     score = np_wmask_sum / np_mask_sum
 
     # Output result
-    logging.info("Score= " + str(score))
+    logging.info(f"Score= {score}")
 
-    if args.debug is True:
-        Rasterization.ExecuteAndWriteOutput()
-        bm.ExecuteAndWriteOutput()
+    if debug is True:
+        rasterization.ExecuteAndWriteOutput()
+        bandmath.ExecuteAndWriteOutput()
 
     # Cleanup tmp files
     t1_stop = perf_counter()
@@ -91,5 +75,24 @@ def main(arguments):
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
 
 
+def cutline_score_parameters():
+    """Define cutline_score.py parameters."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("-i", "--infile", help="Input json file")
+    parser.add_argument("-w", "--watermap", help="Input water map file")
+    parser.add_argument("-o", "--out", help="Output directory")
+    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
+    return parser
+
+
+def main():
+    """Cli function for cutline_score."""
+    parser = cutline_score_parameters()
+    args = parser.parse_args()
+    cutline_score(args.infile, args.watermap, args.out, args.debug)
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())
