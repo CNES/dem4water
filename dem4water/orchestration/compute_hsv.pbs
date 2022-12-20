@@ -10,7 +10,7 @@ cd "$WD" || exit
 # Set environnement
 module purge
 module load otb/7.4-python3.7.2
-source $WD/venv_dem/bin/activate
+source "$WD"/venv_dem/bin/activate
 
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
@@ -87,7 +87,7 @@ else
   CUTLINE_FILE="$CAMP_DIR/${DAM}/${DAM}_cutline.json"
 fi
 
-python3 cutline_score.py --debug                            \
+python3 ../cutline_score.py --debug                            \
         --watermap "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" \
         --infile   "${CUTLINE_FILE}"   \
         --out      "$CAMP_DIR/${DAM}/tmp"                   \
