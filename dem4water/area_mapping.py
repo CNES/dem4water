@@ -52,7 +52,7 @@ def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False)
 
         if str(int(feature.GetField(str(id_db)))) == str(dam_id):
             # Compute radius
-            if radius == "":
+            if radius is None:
                 geom = feature.GetGeometryRef()
                 bbox = geom.GetEnvelope()
                 radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
@@ -161,8 +161,9 @@ def area_mapping_args():
     parser.add_argument("--id_db", help="Dam id field in database")
     parser.add_argument("-w", "--watermap", help="Input water map file")
     parser.add_argument("-d", "--dem", help="Input DEM")
-    parser.add_argument("-r", "--radius", help="Extract radius (m)", default=2000)
+    parser.add_argument("-r", "--radius", help="Extract radius (m)")
     parser.add_argument("-o", "--out", help="Output directory")
+    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser
 
 
