@@ -139,7 +139,7 @@ def szi_from_contourline(
     for feature in layer:
         if str(int(feature.GetField(str(id_db)))) == str(dam_id):
             # Compute radius
-            if radius == "":
+            if radius is None:
                 geom = feature.GetGeometryRef()
                 bbox = geom.GetEnvelope()
                 radius = distance(bbox[2], bbox[0], bbox[3], bbox[1])
@@ -232,7 +232,7 @@ def szi_from_contourline(
         #     'gdallocationinfo -valonly -wgs84 "'
         #     + dem
         #     + '" '
-        #     + str(clon)
+        #     + str(clon)b
         #     + " "
         #     + str(clat)
         # )
@@ -303,7 +303,7 @@ def szi_from_contourline(
     # BEGIN:
     # Can be conflincting with other launcher mode
     # Set info to default is enough?
-    if info == "":  # is None:
+    if info is None:
         drv = ogr.GetDriverByName("GeoJSON")
         if os.path.exists(os.path.join(out, dam_path + "_daminfo.json")):
             os.remove(os.path.join(out, dam_path + "_daminfo.json"))
@@ -931,7 +931,6 @@ def szi_from_contourline(
 
 def szi_from_contourline_parameters():
     """Define parameters."""
-
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -940,7 +939,7 @@ def szi_from_contourline_parameters():
     parser.add_argument("--id_db", help="Dam id field in database")
     parser.add_argument("-w", "--watermap", help="Input water map file")
     parser.add_argument("-d", "--dem", help="Input DEM")
-    parser.add_argument("-r", "--radius", default=5000, help="Extract radius (m)")
+    parser.add_argument("-r", "--radius", help="Extract radius (m)")
     parser.add_argument(
         "-s", "--pdbstep", type=int, default=5, help="Sampling step for pdb search"
     )
@@ -971,11 +970,9 @@ def szi_from_contourline_parameters():
         default=1,
         help="Elevation sampling step for contour lines generation.",
     )
-    parser.add_argument(
-        "--info", help="Optional user-defined daminfo.json file", default=""
-    )
+    parser.add_argument("--info", help="Optional user-defined daminfo.json file")
 
-    parser.add_argument("-t", "--tmp", required=True, help="Temporary directory")
+    parser.add_argument("-t", "--tmp", help="Temporary directory")
     parser.add_argument("-o", "--out", help="Output directory")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser
