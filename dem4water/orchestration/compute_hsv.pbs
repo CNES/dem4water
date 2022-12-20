@@ -3,14 +3,15 @@
 #PBS -l select=1:ncpus=6:mem=30000MB:os=rh7
 #PBS -l walltime=0:50:00
 
-echo "Usage : qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
+echo "Usage : qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory,VENV=\$PWD/venv_dem/bin/activate
                       compute_hsv.pbs"
 cd "$WD" || exit
 
 # Set environnement
 module purge
 module load otb/7.4-python3.7.2
-source "$WD"/venv_dem/bin/activate
+VENV=${VENV:-"$WD/venv_dem/bin/activate"}
+source "$VENV"
 
 # Initialisation
 CAMP_DIR="${ROOT_DIR}/camp"
