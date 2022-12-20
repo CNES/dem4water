@@ -16,6 +16,33 @@ import numpy as np
 from matplotlib import ticker
 
 
+def plot_szi_points(r_elev, r_area, pdb_elev, damname, outfile):
+    """Plot the szi using area and altitudes."""
+    fig, ax1 = plt.subplots()
+    # Trick to display in Ha
+    ticks_y = ticker.FuncFormatter(lambda x, pos: f"{x/10000.0:g}")
+    ax1.yaxis.set_major_formatter(ticks_y)
+    ax1.plot(
+        r_elev[:-1],
+        r_area[:-1],
+        color="#ff7f0e",
+        marker="o",
+        linestyle="dashed",
+        markerfacecolor="blue",
+    )
+    ax1.set_ylim(bottom=0.0)
+    ax1.set(
+        xlabel="Virtual Water Surface Elevation (m)",
+        ylabel="Virtual Water Surface (ha)",
+    )
+    ax1.plot(pdb_elev, 0.0, "ro")
+    ax1.grid(visible=True, which="major", linestyle="-")
+    ax1.grid(visible=False, which="minor", linestyle="--")
+    plt.minorticks_on()
+    plt.title(damname + ": S(Z_i)")
+    fig.savefig(outfile)
+
+
 def plot_slope(
     model_zi,
     model_mae,
