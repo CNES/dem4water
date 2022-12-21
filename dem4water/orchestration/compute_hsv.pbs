@@ -140,32 +140,32 @@ fi
 echo "== SZI_TO_MODEL =="
 if [ -f "${SZIDAT}" ] ; then
   echo "== Custom SZI.dat file"
-  python3 szi_to_model.py --debug                             \
-          --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
-          --daminfo    "${DAM_FILE}" \
-		  --watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif"\
-		  --database   "${DB_PATH}"                           \
-          --zminoffset 10                                     \
-          --zmaxoffset 30                                     \
-          --maemode    "first"                                \
-		  --custom_szi "${SZIDAT}" \
-          --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
-		  --filter_area "${FILTER_AREA}" \
+  python3 szi_to_model.py -debug                               \
+          -szi_file     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
+          -daminfo    "${DAM_FILE}"                            \
+	  -watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" \
+	  -database   "${DB_PATH}"                             \
+          -zminoffset 10                                       \
+          -zmaxoffset 30                                       \
+          -maemode    "first"                                  \
+	  -custom_szi "${SZIDAT}"                              \
+          -outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"      \
+	  -filter_area "${FILTER_AREA}"                       \
       2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 else
 
-  python3 szi_to_model.py --debug                             \
-          --infile     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
-          --daminfo    "${DAM_FILE}" \
-		  --watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif"\
-		  --database   "${DB_PATH}"                           \
-          --zminoffset 10                                     \
-          --zmaxoffset 30                                     \
-          --maemode    "first"                                \
-		  --jump_ratio "$JUMP_RATIO"                          \
-		  --selection_mode "$SELECT_MODE"                     \
-		  --filter_area "${FILTER_AREA}" \
-          --outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"    \
+  python3 szi_to_model.py -debug                               \
+          -szi_file     "$CAMP_DIR/${DAM}/${DAM}_SZi.dat"      \
+          -daminfo    "${DAM_FILE}"                            \
+	  -watermap   "$EXTR_DIR/${DAM}/wmap_extract_$DAM.tif" \
+	  -database   "${DB_PATH}"                             \
+          -zminoffset 10                                       \
+          -zmaxoffset 30                                       \
+          -maemode    "first"                                  \
+	  -jump_ratio "$JUMP_RATIO"                            \
+	  -selection_mode "$SELECT_MODE"                       \
+	  -filter_area "${FILTER_AREA}"                        \
+          -outfile    "$CAMP_DIR/${DAM}/${DAM}_model.png"      \
       2>&1 | tee "$CAMP_DIR/${DAM}/log/szi_to_model.log"
 fi
 if [ -f "$REF_MODEL" ] ; then

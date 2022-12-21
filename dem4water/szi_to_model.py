@@ -193,7 +193,7 @@ def found_mae_hybrid(
 
 
 def szi_to_model(
-    infile,
+    szi_file,
     database,
     watermap,
     daminfo,
@@ -254,12 +254,12 @@ def szi_to_model(
     if filter_area == "enabled":
         logging.info("Filter small surfaces enabled.")
         z_i, s_zi = cm.filter_szi(
-            infile, custom_szi, database, watermap, damname, 100000, 0
+            szi_file, custom_szi, database, watermap, damname, 100000, 0
         )
     else:
         z_i = None
         s_zi = None
-    z_i, s_zi = cm.remove_jump_szi(infile, custom_szi, z_i, s_zi, int(jump_ratio))
+    z_i, s_zi = cm.remove_jump_szi(szi_file, custom_szi, z_i, s_zi, int(jump_ratio))
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
@@ -559,49 +559,46 @@ def szi_to_model_parameters():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument("-i", "--infile", help="Input file")
-    parser.add_argument("-d", "--daminfo", help="daminfo.json file")
-    parser.add_argument("-wa", "--watermap", help="Water map product")
+    parser.add_argument("-szi_file", help="Input file")
+    parser.add_argument("-daminfo", help="daminfo.json file")
+    parser.add_argument("-watermap", help="Water map product")
+    parser.add_argument("-database", help="The database geojson file with geometry")
     parser.add_argument(
-        "-db", "--database", help="The database geojson file with geometry"
+        "-winsize", type=int, default=11, help="S(Zi) used for model estimation."
     )
     parser.add_argument(
-        "-w", "--winsize", type=int, default=11, help="S(Zi) used for model estimation."
-    )
-    parser.add_argument(
-        "-z",
-        "--zmaxoffset",
+        "-zmaxoffset",
         type=int,
         default=30,
         help="Elevation offset on top of dam elevation used for ending optimal model search",
     )
     parser.add_argument(
-        "--zminoffset",
+        "-zminoffset",
         type=int,
         default=10,
         help="Elevation offset from dam elevation used for starting optimal model search",
     )
     list_of_mode = ["absolute", "first", "hybrid"]
-    parser.add_argument("-m", "--maemode", default="absolute", choices=list_of_mode)
+    parser.add_argument("-maemode", default="absolute", choices=list_of_mode)
     parser.add_argument(
-        "--dslopethresh",
+        "-dslopethresh",
         default=1000,
         help="Threshold used to identify slope breaks in hybrid model selection",
     )
     parser.add_argument(
-        "--custom_szi", type=str, default=None, help="Custom SZi.dat file"
+        "-custom_szi", type=str, default=None, help="Custom SZi.dat file"
     )
     parser.add_argument(
-        "--selection_mode", type=str, default="best", help="best, firsts"
+        "-selection_mode", type=str, default="best", help="best, firsts"
     )
     parser.add_argument(
-        "--jump_ratio", type=str, default=10, help="Ratio between two surface"
+        "-jump_ratio", type=str, default=10, help="Ratio between two surface"
     )
 
-    parser.add_argument("-o", "--outfile", help="Output file")
-    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
+    parser.add_argument("-outfile", help="Output file")
+    parser.add_argument("-debug", action="store_true", help="Activate Debug Mode")
     parser.add_argument(
-        "--filter_area",
+        "-filter_area",
         type=str,
         default="disabled",
         help="Enable the filtering of low szi",
@@ -615,7 +612,7 @@ def main():
     parser = szi_to_model_parameters()
     args = parser.parse_args()
     szi_to_model(
-        args.infile,
+        args.szi_file,
         args.database,
         args.watermap,
         args.daminfo,
