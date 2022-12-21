@@ -4,6 +4,14 @@
 
 The aim of dem4water is to estimate water surface elevation (Z), surface area (S) and volume (V) relationships of reservoirs. It uses as input a digital elevation model (DEM) acquired after the reservoir construction and a water occurrence map (watermap).
 
+## Installation
+
+```bash
+# source otbenv.profile or module load otb7.4/python3.7.2
+pip install -e .
+
+```
+
 ## Contributing
 
 The project rely on [pre-commit](https://pre-commit.com/) to apply a given set of coding rules and formating to insure a certain level of code quality.
@@ -26,12 +34,12 @@ Some cases can cause issues during exectution:
 - Special symbols : for instance "é,è,à,ç", but also "'"
 - Non unicode characters which can be interpreted like "@,!,#" and interfere with bash
 
-
 ### Fuse shapefile to geojson
 
 The script `convert_shp_to_geojson.py` fuse two shapefiles into one geojson database.
 
 The inputs are:
+
 - A shapefile containing polygones for water bodies
 - A shapefile containing points for DAM informations
 
@@ -48,18 +56,19 @@ This script requires the installation of `pygeos` to use the `sjoin_nearest` geo
 ## Execution
 
 The main script used to run the chain is [compute_hsv.pbs](compute_hsv.pbs), gathering all steps together to process an unique dam.
+
 ```sh
 qsub -v WD=\$PWD,DAM=dame_name,DAM_ID=dam_id,ID_FIELD=id_field,DB_PATH=database,DEM_PATH=dem,REF_MODEL=ref_model,WMAP_PATH=surfwater_map,ROOT_DIR=hsv_directory
                       compute_hsv.pbs
 ```
 
 with:
+
 - DAM: the dam name
 - ID_FIELD: the name of field containing DAM ID in the database
 - DB_PATH: the geojson database
 - DEM_PATH, WMAP_PATH: path to the DEM and the watermap vrt
 - ROOT_DIR: output path to store results
-
 
 It's also possible to use [run_processors.py](run_processors.py) in order to process a whole campaign and parallelize the execution by dam process :
 
@@ -251,15 +260,12 @@ To use this example replace all test-site occurences by the corresponding name s
    - test-site_ref.json : the reference data for all models to compare with
    - Note : some examples are available at perf/data for Occitanie/Andalousie dataset.
 
-
-
 #### Prepare working env
 
 - If not done clone the dem4water git repository.
 - Put your sources on the correct branch
 - Ensure you are using python3
 - Create an output folder in the location you want: /home/dev/dem4water_tests_campaign and the sub folder campaign, reports and dashboards
-
 
 #### Launch the campaigns and produce dashboard
 

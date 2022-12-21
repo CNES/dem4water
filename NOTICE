@@ -1,0 +1,35 @@
+dem4water Copyright (c) 2020 Centre National d'Etudes Spatiales (CNES).
+
+This software is distributed under the Apache Software License (ASL) v2.0, see
+LICENSE file or http://www.apache.org/licenses/LICENSE-2.0 for details.
+
+------------------
+dem4water Dependencies
+------------------
+
+
+Python: programming language that lets you work quickly and integrate systems more effectively.
+Copyright (c) 2001-2020 Python Software Foundation. All Rights reserved.
+Website: http://python.org/
+License: Python Software License.
+
+NumPy: The fundamental package for scientific computing with Python.
+Copyright (c) 2005-2020, NumPy Developers.
+Website: https://numpy.org/
+License: BSD 3 Clause.
+
+GDAL Python: open source X/MIT licensed translator library for raster and vector geospatial data formats.
+Copyright (c) 1998-2020 Frank Warmerdam, Even Rouault, and others
+Website: https://pypi.org/project/GDAL/
+License: MIT.
+
+Shapely: Manipulation and analysis of geometric objects
+Copyright (c) 2007, Sean C. Gillies
+Website: https://github.com/Toblerity/Shapely
+Version : non définie
+License: BSD 3 Clause.
+
+OTB Applications Python
+Copyright (c) 2005-2020, Centre National d'Etudes Spatiales (CNES).
+Website: https://www.orfeo-toolbox.org/
+License : Apache v2.0.
