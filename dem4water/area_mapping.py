@@ -16,7 +16,9 @@ from osgeo import gdal, ogr, osr
 from dem4water.tools.utils import distance
 
 
-def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False):
+def area_mapping(
+    infile, dam_id, id_db, watermap, dem, out_dem, out_wmap, radius=None, debug=False
+):
     """Extract dem and watermap according the in-situ information provided in the DB.
 
     Retrieve dam coordinate
@@ -45,7 +47,7 @@ def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False)
     clat = 0
     clon = 0
     dam_name = ""
-    dam_path = ""
+    # dam_path = ""
     dam_404 = True
 
     for feature in layer:
@@ -61,7 +63,7 @@ def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False)
             dam_404 = False
             logging.debug(feature.GetField("DAM_NAME"))
             dam_name = feature.GetField("DAM_NAME")
-            dam_path = dam_name.replace(" ", "-")
+            # dam_path = dam_name.replace(" ", "-")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
             logging.debug(f"Height of dam in meters: {feature.GetField('DAM_LVL_M')}")
@@ -99,24 +101,18 @@ def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False)
     extw.SetParameterString("mode.radius.unitc", "phy")
     extw.SetParameterFloat("mode.radius.cx", point.GetX())
     extw.SetParameterFloat("mode.radius.cy", point.GetY())
-    extw.SetParameterString(
-        "out", os.path.join(out, "wmap_extract_" + dam_path + ".tif")
-    )
+    extw.SetParameterString("out", out_wmap)
     extw.ExecuteAndWriteOutput()
 
     app = otb.Registry.CreateApplication("Superimpose")
-    app.SetParameterString(
-        "inr", os.path.join(out, "wmap_extract_" + dam_path + ".tif")
-    )
+    app.SetParameterString("inr", out_wmap)
     app.SetParameterString("inm", dem)
-    app.SetParameterString("out", os.path.join(out, "dem_extract_" + dam_path + ".tif"))
+    app.SetParameterString("out", out_dem)
     app.ExecuteAndWriteOutput()
 
     # Search dam bottom
     extw_bt = otb.Registry.CreateApplication("ExtractROI")
-    extw_bt.SetParameterString(
-        "in", os.path.join(out, "wmap_extract_" + dam_path + ".tif")
-    )
+    extw_bt.SetParameterString("in", out_wmap)
     extw_bt.SetParameterString("mode", "radius")
     extw_bt.SetParameterString("mode.radius.unitr", "phy")
     extw_bt.SetParameterFloat("mode.radius.r", 500)
@@ -127,9 +123,7 @@ def area_mapping(infile, dam_id, id_db, watermap, dem, radius, out, debug=False)
 
     extd_bt = otb.Registry.CreateApplication("Superimpose")
     extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
-    extd_bt.SetParameterString(
-        "inm", os.path.join(out, "dem_extract_" + dam_path + ".tif")
-    )
+    extd_bt.SetParameterString("inm", out_dem)
     extd_bt.Execute()
 
     bandmath = otb.Registry.CreateApplication("BandMath")
@@ -161,8 +155,9 @@ def area_mapping_args():
     parser.add_argument("--id_db", help="Dam id field in database")
     parser.add_argument("-w", "--watermap", help="Input water map file")
     parser.add_argument("-d", "--dem", help="Input DEM")
-    parser.add_argument("-r", "--radius", help="Extract radius (m)")
-    parser.add_argument("-o", "--out", help="Output directory")
+    # parser.add_argument("-r", "--radius", help="Extract radius (m)")
+    parser.add_argument("--out_dem", help="Extracted dem")
+    parser.add_argument("--out_wmap", help="Extracted wmap")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser
 
@@ -178,8 +173,9 @@ def main():
         args.watermap,
         args.dem,
         args.radius,
-        args.out,
-        args.debug,
+        args.out_dem,
+        args.out_wmap,
+        debug=args.debug,
     )
 
 
