@@ -73,7 +73,7 @@ def points_in_circle(circle, arr):
             yield arr[i][j]
 
 
-def szi_from_contourline(
+def find_pdb_and_cutline(
     infile,
     dam_id,
     id_db,
@@ -929,7 +929,7 @@ def szi_from_contourline(
     print("End SZI_FROM_CONTOURLINE")
 
 
-def szi_from_contourline_parameters():
+def find_pdb_and_cutline_parameters():
     """Define parameters."""
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -979,10 +979,10 @@ def szi_from_contourline_parameters():
 
 
 def main():
-    """Cli for szi_from_contourline."""
-    parser = szi_from_contourline_parameters()
+    """Cli for find_pdb_and_cutline."""
+    parser = find_pdb_and_cutline_parameters()
     args = parser.parse_args()
-    szi_from_contourline(
+    find_pdb_and_cutline(
         args.infile,
         args.id,
         args.id_db,
