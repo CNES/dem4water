@@ -65,7 +65,7 @@ else
 fi
 
 echo "== SZI_FROM_CONTOURLINE =="
-python3 ../szi_from_contourline.py --debug                         \
+python3 ../find_pdb_and_cutline.py --debug                         \
         --id           "${DAM_ID}"                              \
         --id_db        "${ID_FIELD}"                            \
         --infile       "${DB_PATH}"                             \

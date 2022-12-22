@@ -9,15 +9,26 @@ import sys
 from dem4water.area_mapping import area_mapping_args
 from dem4water.cut_contourlines import cut_countourlines_ars
 from dem4water.cutline_score import cutline_score_parameters
-from dem4water.szi_from_contourline import szi_from_contourline_parameters
+from dem4water.find_pdb_and_cutline import find_pdb_and_cutline_parameters
 from dem4water.szi_to_model import szi_to_model_parameters
 
 
 def get_all_parameters(output_path):
     """Create a json file from parameters."""
     all_parameters = {}
+    all_parameters["campaign"] = {
+        "output_path": None,
+        "watermap": None,
+        "dem": None,
+        "database": None,
+        "id_dam_column": None,
+        "dam_name_column": None,
+        "reference": None,
+        "customs_files": None,
+    }
     # area mapping
     parser = area_mapping_args()
+
     area_map_args = parser.parse_args()
     all_parameters["area_mapping"] = {}
 
@@ -27,14 +38,14 @@ def get_all_parameters(output_path):
             all_parameters["area_mapping"][arg] = value
 
     # szi_from_contourline
-    parser = szi_from_contourline_parameters()
+    parser = find_pdb_and_cutline_parameters()
     szi_cont_args = parser.parse_args()
-    all_parameters["szi_from_contourlines"] = {}
+    all_parameters["find_pdb_and_cutline"] = {}
 
     for arg in vars(szi_cont_args):
         value = getattr(szi_cont_args, arg)
         if value is not None:
-            all_parameters["szi_from_contourlines"][arg] = value
+            all_parameters["find_pdb_and_cutline"][arg] = value
 
     # cutline score
     parser = cutline_score_parameters()
@@ -67,7 +78,7 @@ def get_all_parameters(output_path):
             all_parameters["szi_to_model"][arg] = value
 
     with open(
-        os.path.join(output_path, "global.json"), "w", encoding="utf-8"
+        os.path.join(output_path, "campaign_template_file.json"), "w", encoding="utf-8"
     ) as write_file:
         json.dump(all_parameters, write_file, indent=4)
 
@@ -81,8 +92,11 @@ def main():
         "-o", "--output_path", help="Global json config file", required=True
     )
     args = parser_in.parse_args()
+    # DO NOT TOUCH THIS LINE
+    sys.argv = [sys.argv[0]]
     get_all_parameters(args.output_path)
 
 
 if __name__ == "__main__":
     sys.exit(main())
+# get_all_parameters("/home/btardy/Documents/activites/code/dem4water")
