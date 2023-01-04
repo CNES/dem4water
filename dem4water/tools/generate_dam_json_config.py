@@ -1,6 +1,8 @@
 """."""
+import glob
 import json
 import os
+import shutil
 import unicodedata
 
 from dem4water.tools.generate_list_from_DB import create_dam_list_from_db
@@ -20,7 +22,7 @@ def ensure_log_name(name):
     return out_name
 
 
-def genrerate_folders(output_path):
+def generate_folders(output_path):
     """."""
     create_folder(output_path)
 
@@ -34,14 +36,41 @@ def genrerate_folders(output_path):
     create_folder(log_path)
 
 
+def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
+    """Copy custom files is exists and rename it to the correct nomenclature."""
+    out_dam = None
+    out_cut = None
+    out_dat = None
+    out_json = None
+    if custom_path is not None:
+        dam_info = glob.glob(os.path.join(custom_path, f"{dam}_daminfo*.*json"))
+        if dam_info:
+            out_dam = os.path.join(dest_path, f"{dam}_daminfo_custom.json")
+            shutil.copy(dam_info[0], out_dam)
+        cutline = glob.glob(os.path.join(custom_path, f"{dam}_*cutline*.*json"))
+        if cutline:
+            out_cut = os.path.join(dest_path, f"{dam}_cutline_custom.geojson")
+            shutil.copy(cutline[0], out_cut)
+        szi_dat = glob.glob(os.path.join(custom_path, f"{dam}_SZi*.dat"))
+        if szi_dat:
+            out_dat = os.path.join(dest_path, f"{dam}_SZi_custom.dat")
+            shutil.copy(szi_dat[0], out_dat)
+        json_cust = glob.glob(os.path.join(custom_path, f"params_{dam}*.json"))
+        if json_cust:
+            out_json = os.path.join(dest_path, f"params_{dam}_custom.json")
+            shutil.copy(json_cust[0], out_json)
+    return out_dam, out_cut, out_dat, out_json
+
+
 def write_json(global_config_json):
     """."""
+    generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
         config = json.load(config_in)
         # Get functionnal parameters
         # Generate folder
         output_path = config["campaign"]["output_path"]
-        genrerate_folders(output_path)
+        generate_folders(output_path)
 
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
@@ -80,13 +109,36 @@ def write_json(global_config_json):
                 cached_cont_file = contourline_file
             else:
                 cached_cont_file = None
-            # TODO: handle customs
-            if customs_files is not None:
-                print(f"Looking for custom files for {dam}")
-            cutline_file = ""
-            daminfo_file = ""
-            szi_dat_file = ""
+            # Handle customs files
+            # If exists copy to camp folder
+            (
+                daminfo_file,
+                cutline_file,
+                szi_dat_file,
+                json_file,
+            ) = copy_customs_files_to_camp_folder(
+                customs_files, output_dam_camp_path, dam
+            )
+            if daminfo_file is None:
+                daminfo_file = os.path.join(output_dam_camp_path, f"{dam}_daminfo.json")
 
+            if cutline_file is None:
+                cutline_file = os.path.join(
+                    output_dam_camp_path, f"{dam}_cutline.geojson"
+                )
+            if szi_dat_file is None:
+                szi_dat_file = os.path.join(output_dam_camp_path, f"{dam}_SZi.dat")
+
+            dam_log = ensure_log_name(dam)
+            dict_dam["chain"] = {
+                "log_folder": os.path.join(output_path, "log"),
+                "log_out": os.path.join(
+                    output_path, "log", f"{dam_log}_{id_dam}_out.log"
+                ),
+                "log_err": os.path.join(
+                    output_path, "log", f"{dam_log}_{id_dam}_err.log"
+                ),
+            }
             dict_dam["area_mapping"] = {
                 "input_database": database,
                 "dam_id": id_dam,
@@ -135,12 +187,18 @@ def write_json(global_config_json):
 
             if reference is not None:
                 dict_dam["val_report"] = {}
+            json_out_file = os.path.join(output_dam_camp_path, f"params_{dam}.json")
             with open(
-                os.path.join(output_dam_camp_path, f"param_{dam}.json"),
+                json_out_file,
                 "w",
                 encoding="utf-8",
             ) as write_file:
                 json.dump(dict_dam, write_file, indent=4)
+            if json_file is not None:
+                generated_json.append(json_file)
+            else:
+                generated_json.append(json_out_file)
+    return generated_json
 
 
-write_json("/home/btardy/Documents/activites/code/dem4water/global.json")
+# write_json("/home/btardy/Documents/activites/code/dem4water/global.json")
