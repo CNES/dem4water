@@ -20,7 +20,7 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
     pbs_file = (
         f"#!/usr/bin/env bash\n"
         f"#PBS -l select=1:ncpus={cpu}:mem={ram}000MB:os=rh7\n"
-        f"#PBS -l walltime=0:{h_wall:02d}:{m_wall:02d}\n\n"
+        f"#PBS -l walltime={h_wall:02d}:{m_wall:02d}:0\n\n"
         f"#PBS -e {log_err}\n"
         f"#PBS -o {log_out}\n"
         "\nmodule purge\n"
@@ -42,6 +42,7 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
 def launch_campaign(json_campaign, scheduler):
     """Launch on PBS or local."""
     config_list = write_json(json_campaign)
+    # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
             launch_full_process(conf)
@@ -105,7 +106,7 @@ def process_parameters():
         "campaign", help="1- Campaign mode, runs the model estimations."
     )
     parser_camp.add_argument(
-        "-json_campaign", help="Configuration file for a complete campaign"
+        "-json_campaign", help="Configuration file for a complete campaign", required=True
     )
     parser_camp.add_argument("-scheduler", help="Local or PBS", default="PBS")
     # mode autovalidation
@@ -116,7 +117,7 @@ def process_parameters():
     parser_single = sub_parsers.add_parser(
         "single", help="2- Single mode, process one dam"
     )
-    parser_single.add_argument("-dam_json", help="Configuration for an unique dam")
+    parser_single.add_argument("-dam_json", help="Configuration for an unique dam", required=True)
     parser_single.add_argument("-scheduler", help="Local or PBS", default="PBS")
 
     return parser
