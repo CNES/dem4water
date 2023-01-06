@@ -194,20 +194,20 @@ def find_pdb_and_cutline(
 
     # Init output vector data files:
     shpDriver = ogr.GetDriverByName("GeoJSON")
-    if os.path.exists(os.path.join(out, dam_path + "_cutline.json")):
-        shpDriver.DeleteDataSource(os.path.join(out, dam_path + "_cutline.json"))
+    if os.path.exists(os.path.join(out, dam_path + "_cutline.geojson")):
+        shpDriver.DeleteDataSource(os.path.join(out, dam_path + "_cutline.geojson"))
     outDataSource = shpDriver.CreateDataSource(
-        os.path.join(out, dam_path + "_cutline.json")
+        os.path.join(out, dam_path + "_cutline.geojson")
     )
     outLayer = outDataSource.CreateLayer(
         "", srs=carto, geom_type=ogr.wkbMultiLineString
     )
 
     drv_dbg = ogr.GetDriverByName("GeoJSON")
-    if os.path.exists(os.path.join(tmp, dam_path + "_cutline_points.json")):
-        os.remove(os.path.join(tmp, dam_path + "_cutline_points.json"))
+    if os.path.exists(os.path.join(tmp, dam_path + "_cutline_points.geojson")):
+        os.remove(os.path.join(tmp, dam_path + "_cutline_points.geojson"))
     dbg_ds = drv_dbg.CreateDataSource(
-        os.path.join(tmp, dam_path + "_cutline_points.json")
+        os.path.join(tmp, dam_path + "_cutline_points.geojson")
     )
     dbg_layer = dbg_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPoint)
     dbg_field_defn = ogr.FieldDefn("name", ogr.OFTString)
@@ -939,7 +939,7 @@ def find_pdb_and_cutline_parameters():
     parser.add_argument("--id_db", help="Dam id field in database")
     parser.add_argument("-w", "--watermap", help="Input water map file")
     parser.add_argument("-d", "--dem", help="Input DEM")
-    parser.add_argument("-r", "--radius", help="Extract radius (m)")
+    parser.add_argument("-r", "--radius", help="Extract radius (m)", default=None)
     parser.add_argument(
         "-s", "--pdbstep", type=int, default=5, help="Sampling step for pdb search"
     )
