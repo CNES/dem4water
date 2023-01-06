@@ -153,12 +153,13 @@ def generate_countourlines(
     #     )
     # )
     os.system(
-        f"./gen_contourline_polygons.sh {dem} {int(pdb_elev - elev_margin)} "
+        f"./dem4water/gen_contourline_polygons.sh {dem} {int(pdb_elev - elev_margin)} "
         f"{elevsampling} {int(target_elev + elev_margin)} {contourline_fname} {tmp}"
     )
-    with open(contourline_fname, encoding="utf-8") as lvl:
-        jsl = json.load(lvl)
-    return jsl
+    return contourline_fname
+    # with open(contourline_fname, encoding="utf-8") as lvl:
+    #     jsl = json.load(lvl)
+    # return jsl
 
 
 def cut_countourlines(
@@ -214,7 +215,7 @@ def cut_countourlines(
     line = manage_cutline(jsc, lines, out, debug)
 
     if level is None:
-        jsl = generate_countourlines(
+        level = generate_countourlines(
             cache,
             dam_path,
             elevsampling,
@@ -224,11 +225,11 @@ def cut_countourlines(
             pdb_elev,
             tmp,
         )
-    else:
-        # If provided, load GeoJSON file containing contour lines
-        logging.debug("Using provided contour line file.")
-        with open(level, "r", encoding="utf-8") as lvl:
-            jsl = json.load(lvl)
+    # else:
+    # If provided, load GeoJSON file containing contour lines
+    logging.debug("Using provided contour line file.")
+    with open(level, "r", encoding="utf-8") as lvl:
+        jsl = json.load(lvl)
 
     r_id = 1
     r_elev = []
@@ -242,7 +243,7 @@ def cut_countourlines(
         # Combien d'éléments dans results?
         # l'indentation parait etrange.
         # a revoir
-        for poly in results:
+        for poly in results.geoms:
             if poly.contains(in_w):
                 max_area = poly.area
                 max_elev = float(feature["properties"]["ID"])
