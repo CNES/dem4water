@@ -12,7 +12,7 @@ import numpy as np
 import dem4water.water_body as wb
 
 
-def remove_jump_szi(infile, custom_szi=None, z_i=None, s_zi=None, jump_ratio=4):
+def remove_jump_szi(infile,  z_i=None, s_zi=None, jump_ratio=4):
     """Use a ratio to remove first jump found.
 
     PARAMETERS
@@ -23,9 +23,7 @@ def remove_jump_szi(infile, custom_szi=None, z_i=None, s_zi=None, jump_ratio=4):
     jump_ratio: ratio between current and previous surface.
     """
     if z_i is None and s_zi is None:
-        if custom_szi is not None:
-            print("Dat file used : ", custom_szi)
-            infile = custom_szi
+        print(infile)
         data = np.loadtxt(infile)
 
         if data.size <= 2:
@@ -64,7 +62,6 @@ def remove_jump_szi(infile, custom_szi=None, z_i=None, s_zi=None, jump_ratio=4):
 
 def filter_szi(
     infile,
-    custom_szi,
     database,
     watermap,
     damname,
@@ -74,10 +71,7 @@ def filter_szi(
     area_threshold=15,
 ):
     """Filter szi looking at the watermap."""
-    if custom_szi is not None:
-        print("Dat file used : ", custom_szi)
-        infile = custom_szi
-
+    
     data = np.loadtxt(infile)
     if data.size <= 2:
         logging.error(f"Not enought S(Zi) data inside file {infile}")

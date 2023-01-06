@@ -204,7 +204,6 @@ def szi_to_model(
     zminoffset,
     dslopethresh,
     selection_mode,
-    custom_szi,
     jump_ratio,
     filter_area,
     debug,
@@ -254,12 +253,12 @@ def szi_to_model(
     if filter_area == "enabled":
         logging.info("Filter small surfaces enabled.")
         z_i, s_zi = cm.filter_szi(
-            szi_file, custom_szi, database, watermap, damname, 100000, 0
+            szi_file, database, watermap, damname, 100000, 0
         )
     else:
         z_i = None
         s_zi = None
-    z_i, s_zi = cm.remove_jump_szi(szi_file, custom_szi, z_i, s_zi, int(jump_ratio))
+    z_i, s_zi = cm.remove_jump_szi(szi_file,  z_i, s_zi, int(jump_ratio))
     logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
@@ -585,9 +584,7 @@ def szi_to_model_parameters():
         default=1000,
         help="Threshold used to identify slope breaks in hybrid model selection",
     )
-    parser.add_argument(
-        "-custom_szi", type=str, default=None, help="Custom SZi.dat file"
-    )
+    
     parser.add_argument(
         "-selection_mode", type=str, default="best", help="best, firsts"
     )
@@ -623,7 +620,6 @@ def main():
         args.zminoffset,
         args.dslopethresh,
         args.selection_mode,
-        args.custom_szi,
         args.jump_ratio,
         args.filter_area,
         args.debug,
