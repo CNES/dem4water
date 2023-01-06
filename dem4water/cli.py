@@ -55,6 +55,19 @@ def launch_campaign(json_campaign, scheduler):
                 launch_pbs(conf, log_out, log_err)
 
 
+def launch_single(conf, scheduler):
+    """Launch a single dam on PBS or local mode."""
+    if scheduler == "local":
+
+        launch_full_process(conf)
+    else:
+        with open(conf, encoding="utf-8") as in_config:
+            config = json.load(in_config)
+            log_out = config["chain"]["log_out"]
+            log_err = config["chain"]["log_err"]
+            launch_pbs(conf, log_out, log_err)
+
+
 def launch_full_process(input_config_json):
     """Console script for dem4water."""
     # parser = argparse.ArgumentParser()
@@ -106,9 +119,13 @@ def process_parameters():
         "campaign", help="1- Campaign mode, runs the model estimations."
     )
     parser_camp.add_argument(
-        "-json_campaign", help="Configuration file for a complete campaign", required=True
+        "-json_campaign",
+        help="Configuration file for a complete campaign",
+        required=True,
     )
-    parser_camp.add_argument("-scheduler", help="Local or PBS", default="PBS")
+    parser_camp.add_argument(
+        "-scheduler", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+    )
     # mode autovalidation
     # lancer les 40  fichiers json andalousie & occitanie
 
@@ -117,8 +134,12 @@ def process_parameters():
     parser_single = sub_parsers.add_parser(
         "single", help="2- Single mode, process one dam"
     )
-    parser_single.add_argument("-dam_json", help="Configuration for an unique dam", required=True)
-    parser_single.add_argument("-scheduler", help="Local or PBS", default="PBS")
+    parser_single.add_argument(
+        "-dam_json", help="Configuration for an unique dam", required=True
+    )
+    parser_single.add_argument(
+        "-scheduler", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+    )
 
     return parser
 
@@ -131,7 +152,7 @@ def main():
     if args.mode == "campaign":
         launch_campaign(args.json_campaign, args.scheduler)
     elif args.mode == "single":
-        launch_full_process(args.dam_json)
+        launch_single(args.dam_json, args.scheduler)
 
 
 if __name__ == "__main__":
