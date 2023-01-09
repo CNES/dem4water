@@ -31,7 +31,7 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
         f"export GDAL_DATA={os.environ.get('GDAL_DATA')}\n"
         f"export GEOTIFF_CSV={os.environ.get('GEOTIFF_CSV')}\n"
         f"export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={cpu}\n\n"
-        f"dem4water single -dam_json {conf}"
+        f"dem4water single -dam_json {conf} -scheduler_type local"
     )
     out_file = log_out.replace(".log", ".pbs")
     with open(out_file, "w", encoding="utf-8") as ofile:
@@ -124,7 +124,7 @@ def process_parameters():
         required=True,
     )
     parser_camp.add_argument(
-        "-scheduler", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
     # mode autovalidation
     # lancer les 40  fichiers json andalousie & occitanie
@@ -138,7 +138,7 @@ def process_parameters():
         "-dam_json", help="Configuration for an unique dam", required=True
     )
     parser_single.add_argument(
-        "-scheduler", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
 
     return parser
@@ -150,9 +150,9 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "campaign":
-        launch_campaign(args.json_campaign, args.scheduler)
+        launch_campaign(args.json_campaign, args.scheduler_type)
     elif args.mode == "single":
-        launch_single(args.dam_json, args.scheduler)
+        launch_single(args.dam_json, args.scheduler_type)
 
 
 if __name__ == "__main__":
