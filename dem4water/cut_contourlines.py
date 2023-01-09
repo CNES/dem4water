@@ -152,8 +152,10 @@ def generate_countourlines(
     #         tmp,
     #     )
     # )
+    # path for auxillary script
+    script_path = os.path.dirname(__file__)
     os.system(
-        f"./dem4water/gen_contourline_polygons.sh {dem} {int(pdb_elev - elev_margin)} "
+        f"{script_path}/gen_contourline_polygons.sh {dem} {int(pdb_elev - elev_margin)} "
         f"{elevsampling} {int(target_elev + elev_margin)} {contourline_fname} {tmp}"
     )
     return contourline_fname
