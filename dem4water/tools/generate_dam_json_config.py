@@ -87,7 +87,7 @@ def write_json(global_config_json):
         )
         for dam, id_dam in dict_all_dams.items():
             dict_dam = {}
-            dam_path_name = dam.replace(" ", "_")
+            dam_path_name = dam.replace(" ", "-")
             output_dam_camp_path = os.path.join(output_path, "camp", dam_path_name)
             create_folder(output_dam_camp_path)
             output_dam_tmp = os.path.join(output_path, "camp", dam_path_name, "tmp")
