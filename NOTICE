@@ -11,6 +11,7 @@ dem4water Dependencies
 Python: programming language that lets you work quickly and integrate systems more effectively.
 Copyright (c) 2001-2020 Python Software Foundation. All Rights reserved.
 Website: http://python.org/
+Version: 3
 License: Python Software License.
 
 NumPy: The fundamental package for scientific computing with Python.
@@ -32,4 +33,12 @@ License: BSD 3 Clause.
 OTB Applications Python
 Copyright (c) 2005-2020, Centre National d'Etudes Spatiales (CNES).
 Website: https://www.orfeo-toolbox.org/
+Version: 7 or higher
 License : Apache v2.0.
+
+Geopandas
+
+
+Pandas
+
+Matplotlib

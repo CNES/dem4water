@@ -82,6 +82,10 @@ The other allowed value is `local`, then each dam is processed sequentially.
 At the end, you can find the output in the folder defined by `output_path` is the json file. Each dam is stored as `output_path/camp/dam_name`.
 The others folders `extracts/dam_name` and `log` contain the dem and watermap extract, and the PBS logs.
 
+#### Advanced parameters for campaign mode
+
+- `input_force_list`: allow the user to provide the file generate by `dem4water/tools/generate_list_from_DB.py` as an input. The main usage is to remove some dam from the processing list.
+
 ### Mode single
 
 The entry point allow to process a single dam too.
@@ -94,7 +98,7 @@ The `params_dam_name.json` is created by the campaign mode as it contains inform
 
 ### Mode autovalidation
 
-TODO
+This mode allow to launch the test dataset provided to the git folder.
 
 ## Contributing
 
