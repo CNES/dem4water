@@ -8,19 +8,20 @@ import logging
 import sys
 
 
-def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list):
+def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=False):
     """Parse geojson file and return the dam valid for processing."""
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     count_correct = 0
     count_incorrect = 0
     dam_to_process = {}
+    suf = "a" if concat else "w"
     # Read anw write id and dams names
     with open(dams_file, "r", encoding="utf-8") as json_file:
         reader = json.load(json_file)
         crs = reader["crs"]["properties"]["name"].split(":")[-1]
         if not crs == "CRS84":
             raise ValueError(f"CRS must be in WGS84/EPSG:4326, {crs} found.")
-        with open(output_list, "w", encoding="utf-8") as output_file:
+        with open(output_list, f"{suf}", encoding="utf-8") as output_file:
 
             for feature in reader["features"]:
                 # DAM_LVL_M is hard coded in dem4water

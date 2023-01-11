@@ -62,7 +62,7 @@ def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
     return out_dam, out_cut, out_dat, out_json
 
 
-def write_json(global_config_json, output_force_path = None, version_name=None):
+def write_json(global_config_json, output_force_path = None, version_name=None, concat=False):
     """."""
     generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
@@ -88,7 +88,7 @@ def write_json(global_config_json, output_force_path = None, version_name=None):
         # Ensure output path exists
         output_list = os.path.join(output_path, "dam_list.txt")
         dict_all_dams = create_dam_list_from_db(
-            database, dam_id_column, dam_name_column, output_list
+            database, dam_id_column, dam_name_column, output_list, concat
         )
         for dam, id_dam in dict_all_dams.items():
             dict_dam = {}
@@ -164,8 +164,6 @@ def write_json(global_config_json, output_force_path = None, version_name=None):
                 "watermap": extract_wmap,
                 "dem": extract_dem,
                 "out": output_dam_camp_path,
-                "radius": None,
-                # "out_cutline": cutline_file,
                 "info": daminfo_file,
                 "tmp": output_dam_tmp,
                 **config["find_pdb_and_cutline"],
