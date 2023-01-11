@@ -1,0 +1,46 @@
+{
+    "campaign": {
+        "output_path": "/work/scratch/tardybe/test_algo_dem4water/campaign/ref_camp_refac",
+        "watermap": "/work/OT/siaa/Work/SCO_StockWater/wmap/andalousie/wmap_all_Optical_cumul.vrt",
+        "dem": "/work/scratch/tardybe/vrt_dem/andalousie/espagne_dem.vrt",
+        "database": "/work/scratch/tardybe/SURFWATER/dem4water/data/andalousie/andalousie.geojson",
+        "id_dam_column": "ID_SWOT",
+        "dam_name_column": "DAM_NAME",
+        "reference": "/work/scratch/tardybe/SURFWATER/dem4water/data/andalousie/andalousie_ref.json",
+        "customs_files": null
+    },
+    "area_mapping": {
+        "debug": false
+    },
+    "find_pdb_and_cutline": {
+        "pdbstep": 5,
+        "pdbradius": 500,
+        "mradius": 1.7,
+        "maxdist": 0.3,
+        "elevoffset": 50,
+        "elevsampling": 1,
+        "debug": false
+    },
+    "cutline_score": {
+        "debug": false
+    },
+    "cut_contourlines": {
+        "elevoffset": 50,
+        "elevsampling": 1,
+        "debug": false
+    },
+    "szi_to_model": {
+        "winsize": 11,
+        "zmaxoffset": 30,
+        "zminoffset": 10,
+        "maemode": "absolute",
+        "dslopethresh": 1000,
+        "selection_mode": "best",
+        "jump_ratio": 10,
+        "debug": false,
+        "filter_area": "disabled"
+    },
+	"val_report": {
+        "debug": false
+    }
+}

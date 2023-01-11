@@ -62,16 +62,21 @@ def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
     return out_dam, out_cut, out_dat, out_json
 
 
-def write_json(global_config_json):
+def write_json(global_config_json, output_force_path = None, version_name=None):
     """."""
     generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
         config = json.load(config_in)
         # Get functionnal parameters
         # Generate folder
-        output_path = config["campaign"]["output_path"]
+        if output_force_path is not None:
+            output_path = os.path.join(output_force_path, version_name)
+        else:
+            output_path = config["campaign"]["output_path"]
         generate_folders(output_path)
-
+        if version_name:
+            with open(os.path.join(output_path, "version.txt"),"w") as version_file:
+                version_file.write(version_name)
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
         watermap = config["campaign"]["watermap"]
@@ -201,7 +206,7 @@ def write_json(global_config_json):
             }
 
             if reference is not None:
-                dict_dam["val_report"] = {}
+                dict_dam["val_report"] = {"infile": os.path.join(output_dam_camp_path, f"{dam_path_name}_model.json"), "outfile": os.path.join(output_dam_camp_path,f"{dam_path_name}_report.png"), "reffile": reference, **config["val_report"]}
             json_out_file = os.path.join(
                 output_dam_camp_path, f"params_{dam_path_name}.json"
             )
