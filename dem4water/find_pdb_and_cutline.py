@@ -79,7 +79,6 @@ def find_pdb_and_cutline(
     id_db,
     watermap,
     dem,
-    radius,
     pdbstep,
     pdbradius,
     mradius,
@@ -89,6 +88,7 @@ def find_pdb_and_cutline(
     info,
     tmp,
     out,
+    radius=None,
     debug=False,
 ):  # noqa: C901  #FIXME: Function is too complex
     """Find the PDB and create the cutline."""
@@ -988,7 +988,6 @@ def main():
         args.id_db,
         args.watermap,
         args.dem,
-        args.radius,
         args.pdbstep,
         args.pdbradius,
         args.mradius,
@@ -998,6 +997,7 @@ def main():
         args.info,
         args.tmp,
         args.out,
+        args.radius,
         args.debug,
     )
 
