@@ -47,9 +47,9 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
     os.system(f"qsub {out_file}")
 
 
-def launch_campaign(json_campaign, scheduler, walltime_hour, walltime_minutes, ram, cpu):
+def launch_campaign(json_campaign, scheduler, walltime_hour, walltime_minutes, ram, cpu, input_force_list):
     """Launch on PBS or local."""
-    config_list = write_json(json_campaign)
+    config_list = write_json(json_campaign, input_force_list)
     # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
@@ -63,7 +63,7 @@ def launch_campaign(json_campaign, scheduler, walltime_hour, walltime_minutes, r
                 launch_pbs(conf, log_out, log_err, h_wall=walltime_hour, m_wall=walltime_minutes, ram=ram, cpu=cpu)
 
 
-def launch_reference_validation_campaign(targets, output_folder, campaign_name, scheduler, walltime_hour, walltime_minutes, ram, cpu):
+def launch_reference_validation_campaign(targets, output_folder, campaign_name, scheduler, walltime_hour, walltime_minutes, ram, cpu, only_ref):
     """Launch andalousie or occitanie reference campaign."""
     config_list = []
     git_folder = os.path.dirname(__file__)
@@ -74,13 +74,13 @@ def launch_reference_validation_campaign(targets, output_folder, campaign_name, 
             print(f"Trying to access {json_campaign_andalousie} but not found.")
         else:
             print(f"Using {json_campaign_andalousie}")
-            config_list += write_json(json_campaign_andalousie, output_folder, campaign_name)
+            config_list += write_json(json_campaign_andalousie, output_folder, campaign_name, ref_only=only_ref)
     if "occitanie" in targets:        
         if not os.path.exists(json_campaign_occitanie):
             print(f"Trying to access {json_campaign_occitanie} but not found.")
         else:
             print(f"Using {json_campaign_occitanie}")
-            config_list += write_json(json_campaign_occitanie, output_folder, campaign_name, concat=True)
+            config_list += write_json(json_campaign_occitanie, output_folder, campaign_name, concat=True, ref_only=only_ref)
         
     # config_list = [config_list[0]]
     if scheduler == "local":
@@ -168,6 +168,7 @@ def process_parameters():
     parser_camp.add_argument(
         "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
+    parser_camp.add_argument("-input_force_list", help="Text file containing id_dam,dam_name to force the processing of these dams.", default=None)
     # mode autovalidation
     # lancer les 40  fichiers json andalousie & occitanie
     parser_ref = sub_parsers.add_parser("camp_ref", help="3- Launch the pre-designed Andalousie and /or Occitanie campaign.")
@@ -179,6 +180,7 @@ def process_parameters():
                             default=["occitanie", "andalousie"],
                             help="Paths to mega-site direcories",
     )
+    parser_ref.add_argument("-only_ref", action="store_true", help="Launch only dams with a ref." )
     parser_ref.add_argument(
         "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
@@ -203,11 +205,11 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "campaign":
-        launch_campaign(args.json_campaign, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu)
+        launch_campaign(args.json_campaign, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu, args.input_force_list)
     elif args.mode == "single":
         launch_single(args.dam_json, args.scheduler_type,args.walltime_hour, args.walltime_minutes, args.ram, args.cpu)
     elif args.mode == "camp_ref":
-        launch_reference_validation_campaign(args.sites, args.output_folder, args.name, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu)
+        launch_reference_validation_campaign(args.sites, args.output_folder, args.name, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu, args.only_ref)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,14 @@ def ensure_log_name(name):
     out_name = out_name.decode("utf-8")
     return out_name
 
+def read_list_file(input_file):
+    """Read the output of generate_list_from_DB."""
+    with open(input_file, "r", encoding="utf-8") as file_name:
+        dams_to_process = file_name.readlines()
+        for dam in dams_to_process:
+            dams_dict[dam.split(",")[1].rstrip()] = dam.split(",")[0]
+        return dams_dict
+
 
 def generate_folders(output_path):
     """."""
@@ -62,7 +70,7 @@ def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
     return out_dam, out_cut, out_dat, out_json
 
 
-def write_json(global_config_json, output_force_path = None, version_name=None, concat=False, ref_only=False):
+def write_json(global_config_json, output_force_path = None, version_name=None, concat=False, ref_only=False, input_force_list=None):
     """."""
     generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
@@ -87,10 +95,14 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
 
         # Ensure output path exists
         output_list = os.path.join(output_path, "dam_list.txt")
-        dict_all_dams = create_dam_list_from_db(
+        if input_force_list is not None:
+            dict_all_dams = read_list_file(input_force_list)
+        else:
+            dict_all_dams = create_dam_list_from_db(
             database, dam_id_column, dam_name_column, output_list, concat
         )
 
+            
         keys_ref = []
         if reference is not None:
             with open(reference) as ref_file:
@@ -234,5 +246,3 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
                 generated_json.append(json_out_file)
     return generated_json
 
-
-# write_json("/home/btardy/Documents/activites/code/dem4water/global.json")
