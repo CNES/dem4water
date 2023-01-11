@@ -155,7 +155,6 @@ def area_mapping_args():
     parser.add_argument("--id_db", help="Dam id field in database")
     parser.add_argument("-w", "--watermap", help="Input water map file")
     parser.add_argument("-d", "--dem", help="Input DEM")
-    # parser.add_argument("-r", "--radius", help="Extract radius (m)")
     parser.add_argument("--out_dem", help="Extracted dem")
     parser.add_argument("--out_wmap", help="Extracted wmap")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")

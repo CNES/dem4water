@@ -13,6 +13,7 @@ from dem4water.find_pdb_and_cutline import find_pdb_and_cutline_parameters
 from dem4water.szi_to_model import szi_to_model_parameters
 from dem4water.val_report import val_report_parameters
 
+
 def get_all_parameters(output_path):
     """Create a json file from parameters."""
     all_parameters = {}
@@ -26,6 +27,8 @@ def get_all_parameters(output_path):
         "reference": None,
         "customs_files": None,
     }
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
     # area mapping
     parser = area_mapping_args()
 
@@ -77,7 +80,6 @@ def get_all_parameters(output_path):
         if value is not None:
             all_parameters["szi_to_model"][arg] = value
 
-
     # val report
     parser = val_report_parameters()
     report_args = parser.parse_args()
@@ -86,7 +88,7 @@ def get_all_parameters(output_path):
         value = getattr(report_args, arg)
         if value is not None:
             all_parameters["val_report"][arg] = value
-            
+
     with open(
         os.path.join(output_path, "campaign_template_file.json"), "w", encoding="utf-8"
     ) as write_file:
@@ -109,4 +111,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-# get_all_parameters("/home/btardy/Documents/activites/code/dem4water")

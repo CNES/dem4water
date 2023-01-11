@@ -133,8 +133,6 @@ def val_report(infile, outfile, reffile, debug):
     z_min = max(int(float(z_0)), int(float(ref_z0)))
     alt = range(z_min, int(float(damelev) * 1.1))
 
-    #  z_ref = range(int(float(ref_z_0)), int(float(damelev)*1.1))
-    #  s_m_Zmax = S0 + alpha * math.pow((float(damelev) - z_0), beta)
     s_m_zmax = s_0 + alpha * math.pow((float(ref_zmax) - z_0), beta)
 
     s_r_zmax_m2 = ref_s0 + ref_alpha * math.pow((float(ref_zmax) - ref_z0), ref_beta)

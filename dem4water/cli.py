@@ -3,8 +3,8 @@ import argparse
 import json
 import logging
 import os
-import sys
 import subprocess
+import sys
 
 from dem4water.area_mapping import area_mapping
 from dem4water.cut_contourlines import cut_countourlines
@@ -14,11 +14,17 @@ from dem4water.szi_to_model import szi_to_model
 from dem4water.tools.generate_dam_json_config import write_json
 from dem4water.val_report import val_report
 
+
 def get_current_git_rev():
+    """Get the current revision number from git sources."""
     git_folder = os.path.join(os.path.dirname(__file__), "..", ".git")
-    
+
     return (
-        subprocess.check_output(["git",f"--git-dir={git_folder}", "rev-parse", "--short", "HEAD"]).decode("ascii").strip()
+        subprocess.check_output(
+            ["git", f"--git-dir={git_folder}", "rev-parse", "--short", "HEAD"]
+        )
+        .decode("ascii")
+        .strip()
     )
 
 
@@ -47,7 +53,15 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
     os.system(f"qsub {out_file}")
 
 
-def launch_campaign(json_campaign, scheduler, walltime_hour, walltime_minutes, ram, cpu, input_force_list):
+def launch_campaign(
+    json_campaign,
+    scheduler,
+    walltime_hour,
+    walltime_minutes,
+    ram,
+    cpu,
+    input_force_list,
+):
     """Launch on PBS or local."""
     config_list = write_json(json_campaign, input_force_list)
     # config_list = [config_list[0]]
@@ -60,28 +74,61 @@ def launch_campaign(json_campaign, scheduler, walltime_hour, walltime_minutes, r
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
                 log_err = config["chain"]["log_err"]
-                launch_pbs(conf, log_out, log_err, h_wall=walltime_hour, m_wall=walltime_minutes, ram=ram, cpu=cpu)
+                launch_pbs(
+                    conf,
+                    log_out,
+                    log_err,
+                    h_wall=walltime_hour,
+                    m_wall=walltime_minutes,
+                    ram=ram,
+                    cpu=cpu,
+                )
 
 
-def launch_reference_validation_campaign(targets, output_folder, campaign_name, scheduler, walltime_hour, walltime_minutes, ram, cpu, only_ref):
+def launch_reference_validation_campaign(
+    targets,
+    output_folder,
+    campaign_name,
+    scheduler,
+    walltime_hour,
+    walltime_minutes,
+    ram,
+    cpu,
+    only_ref,
+):
     """Launch andalousie or occitanie reference campaign."""
     config_list = []
     git_folder = os.path.dirname(__file__)
-    json_campaign_andalousie = os.path.join(git_folder, "..", "data", "andalousie", "campaign_andalousie_params.json")
-    json_campaign_occitanie = os.path.join(git_folder, "..", "data", "occitanie", "campaign_occitanie_params.json")
+    json_campaign_andalousie = os.path.join(
+        git_folder, "..", "data", "andalousie", "campaign_andalousie_params.json"
+    )
+    json_campaign_occitanie = os.path.join(
+        git_folder, "..", "data", "occitanie", "campaign_occitanie_params.json"
+    )
     if "andalousie" in targets:
         if not os.path.exists(json_campaign_andalousie):
             print(f"Trying to access {json_campaign_andalousie} but not found.")
         else:
             print(f"Using {json_campaign_andalousie}")
-            config_list += write_json(json_campaign_andalousie, output_folder, campaign_name, ref_only=only_ref)
-    if "occitanie" in targets:        
+            config_list += write_json(
+                json_campaign_andalousie,
+                output_folder,
+                campaign_name,
+                ref_only=only_ref,
+            )
+    if "occitanie" in targets:
         if not os.path.exists(json_campaign_occitanie):
             print(f"Trying to access {json_campaign_occitanie} but not found.")
         else:
             print(f"Using {json_campaign_occitanie}")
-            config_list += write_json(json_campaign_occitanie, output_folder, campaign_name, concat=True, ref_only=only_ref)
-        
+            config_list += write_json(
+                json_campaign_occitanie,
+                output_folder,
+                campaign_name,
+                concat=True,
+                ref_only=only_ref,
+            )
+
     # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
@@ -92,7 +139,16 @@ def launch_reference_validation_campaign(targets, output_folder, campaign_name, 
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
                 log_err = config["chain"]["log_err"]
-                launch_pbs(conf, log_out, log_err, h_wall=walltime_hour, m_wall=walltime_minutes, ram=ram, cpu=cpu)
+                launch_pbs(
+                    conf,
+                    log_out,
+                    log_err,
+                    h_wall=walltime_hour,
+                    m_wall=walltime_minutes,
+                    ram=ram,
+                    cpu=cpu,
+                )
+
 
 def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
     """Launch a single dam on PBS or local mode."""
@@ -104,7 +160,15 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
             config = json.load(in_config)
             log_out = config["chain"]["log_out"]
             log_err = config["chain"]["log_err"]
-            launch_pbs(conf, log_out, log_err,h_wall=walltime_hour, m_wall=walltime_minutes, ram=ram, cpu=cpu)
+            launch_pbs(
+                conf,
+                log_out,
+                log_err,
+                h_wall=walltime_hour,
+                m_wall=walltime_minutes,
+                ram=ram,
+                cpu=cpu,
+            )
 
 
 def launch_full_process(input_config_json):
@@ -138,16 +202,18 @@ def launch_full_process(input_config_json):
 
 
 def process_parameters():
-    """."""
+    """Define all parameters."""
     # CLI
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     parser.add_argument("--walltime_hour", help="Job duration for PBS: hour", default=1)
-    parser.add_argument("--walltime_minutes", help="Job duration for PBS: minutes", default=0)
-    parser.add_argument("--cpu", help="PBS number of CPU ressource", default = 12)
-    parser.add_argument("--ram", help="PBS ram value (in GB)", default = 60)
+    parser.add_argument(
+        "--walltime_minutes", help="Job duration for PBS: minutes", default=0
+    )
+    parser.add_argument("--cpu", help="PBS number of CPU ressource", default=12)
+    parser.add_argument("--ram", help="PBS ram value (in GB)", default=60)
     # create sub-parser
     sub_parsers = parser.add_subparsers(
         title="Modes",
@@ -168,19 +234,32 @@ def process_parameters():
     parser_camp.add_argument(
         "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
-    parser_camp.add_argument("-input_force_list", help="Text file containing id_dam,dam_name to force the processing of these dams.", default=None)
+    parser_camp.add_argument(
+        "-input_force_list",
+        help="Text file containing id_dam,dam_name to force the processing of these dams.",
+        default=None,
+    )
     # mode autovalidation
     # lancer les 40  fichiers json andalousie & occitanie
-    parser_ref = sub_parsers.add_parser("camp_ref", help="3- Launch the pre-designed Andalousie and /or Occitanie campaign.")
-    parser_ref.add_argument("-name", help="name the output folder",
-                            default=get_current_git_rev())
-    parser_ref.add_argument("-output_folder", help="path to store outputs", required=True)
-    parser_ref.add_argument("-sites",
-                            nargs="+",
-                            default=["occitanie", "andalousie"],
-                            help="Paths to mega-site direcories",
+    parser_ref = sub_parsers.add_parser(
+        "camp_ref",
+        help="3- Launch the pre-designed Andalousie and /or Occitanie campaign.",
     )
-    parser_ref.add_argument("-only_ref", action="store_true", help="Launch only dams with a ref." )
+    parser_ref.add_argument(
+        "-name", help="name the output folder", default=get_current_git_rev()
+    )
+    parser_ref.add_argument(
+        "-output_folder", help="path to store outputs", required=True
+    )
+    parser_ref.add_argument(
+        "-sites",
+        nargs="+",
+        default=["occitanie", "andalousie"],
+        help="Paths to mega-site direcories",
+    )
+    parser_ref.add_argument(
+        "-only_ref", action="store_true", help="Launch only dams with a ref."
+    )
     parser_ref.add_argument(
         "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
     )
@@ -205,11 +284,36 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "campaign":
-        launch_campaign(args.json_campaign, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu, args.input_force_list)
+        launch_campaign(
+            args.json_campaign,
+            args.scheduler_type,
+            args.walltime_hour,
+            args.walltime_minutes,
+            args.ram,
+            args.cpu,
+            args.input_force_list,
+        )
     elif args.mode == "single":
-        launch_single(args.dam_json, args.scheduler_type,args.walltime_hour, args.walltime_minutes, args.ram, args.cpu)
+        launch_single(
+            args.dam_json,
+            args.scheduler_type,
+            args.walltime_hour,
+            args.walltime_minutes,
+            args.ram,
+            args.cpu,
+        )
     elif args.mode == "camp_ref":
-        launch_reference_validation_campaign(args.sites, args.output_folder, args.name, args.scheduler_type, args.walltime_hour, args.walltime_minutes, args.ram, args.cpu, args.only_ref)
+        launch_reference_validation_campaign(
+            args.sites,
+            args.output_folder,
+            args.name,
+            args.scheduler_type,
+            args.walltime_hour,
+            args.walltime_minutes,
+            args.ram,
+            args.cpu,
+            args.only_ref,
+        )
 
 
 if __name__ == "__main__":

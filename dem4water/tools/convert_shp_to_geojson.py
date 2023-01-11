@@ -1,11 +1,7 @@
 #!/usr/bin/python
 #  -*- coding: utf-8 -*-
 """
-:author: Benjamin TARDY
-:organization: CNES
-:copyright: 2021 CNES. All rights reserved.
-:license: see LICENSE file
-:created: 2022
+Merge a csv and a geometry file to create a geojson database.
 
 Avant d'utiliser ce script:
 - assurer que le csv n'est pas corrompu
@@ -15,6 +11,7 @@ Avant d'utiliser ce script:
 - les colonnes sont censées être fixées pour dem4water
 """
 import argparse
+import sys
 import unicodedata
 
 import geopandas as gpd
@@ -22,11 +19,12 @@ import pandas as pd
 
 
 def normalize_list_str(list_str):
+    """Remove special letters from names."""
     out_list = []
     for name in list_str:
         if name is None:
             out_list.append(None)
-        elif not type(name) == str:
+        elif not isinstance(name, str):
             out_list.append(None)
         else:
             tmp_name = unicodedata.normalize("NFKD", name)
@@ -39,15 +37,16 @@ def normalize_list_str(list_str):
 
 
 def normalize_list_float(list_float):
+    """Ensure float are correctly encoded."""
     out_list = []
     for value in list_float:
         if value is None:
             out_list.append(None)
         else:
-            if type(value) == str:
+            if isinstance(value, str):
                 value = value.replace(",", ".")
                 out_list.append(value)
-            elif type(value) == float:
+            elif isinstance(value, float):
                 out_list.append(value)
             else:
                 try:
@@ -59,11 +58,8 @@ def normalize_list_float(list_float):
     return out_list
 
 
-if __name__ == "__main__":
-    """
-    Usage : python generate_list_from_DB.py dams_file dam_id dam_name ouput_list
-    """
-
+def main():
+    """Launch function."""
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -78,11 +74,11 @@ if __name__ == "__main__":
     list_of_fields_str = ["RES_NAME", "DAM_NAME", "MAIN_USE", "NEAR_CITY"]
     list_of_fields_float = ["DAM_LVL_M"]
     gdf = gpd.GeoDataFrame().from_file(args.dams_file)
-    df = pd.read_csv(args.dams_csv)
+    df_csv = pd.read_csv(args.dams_csv)
     gdf2 = gpd.GeoDataFrame().from_file(args.reservoirs_file)
 
     for field in list_of_fields_str:
-        list_values = list(df[field])
+        list_values = list(df_csv[field])
         corrected_values = normalize_list_str(list_values)
         gdf[field] = corrected_values
 
@@ -96,3 +92,8 @@ if __name__ == "__main__":
     out_gdf = out_gdf.drop(["index_right"], axis="columns")
     out_gdf = out_gdf.to_crs("EPSG:4326")
     out_gdf.to_file(args.output_file)
+
+
+if __name__ == "__main__":
+
+    sys.exit(main())
