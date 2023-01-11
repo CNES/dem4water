@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+import subprocess
 
 from dem4water.area_mapping import area_mapping
 from dem4water.cut_contourlines import cut_countourlines
@@ -12,6 +13,13 @@ from dem4water.find_pdb_and_cutline import find_pdb_and_cutline
 from dem4water.szi_to_model import szi_to_model
 from dem4water.tools.generate_dam_json_config import write_json
 from dem4water.val_report import val_report
+
+def get_current_git_rev():
+    return (
+        subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+        .decode("ascii")
+        .strip()
+    )
 
 
 def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
@@ -54,6 +62,37 @@ def launch_campaign(json_campaign, scheduler):
                 log_err = config["chain"]["log_err"]
                 launch_pbs(conf, log_out, log_err)
 
+
+def launch_reference_validation_campaign(targets, output_folder, campaign_name, scheduler):
+    """Launch andalousie or occitanie reference campaign."""
+    config_list = []
+    git_folder = os.path.dirname(__file__)
+    json_campaign_andalousie = os.path.join(git_folder, "..", "data", "andalousie", "campaign_andalousie_params.json")
+    json_campaign_occitanie = os.path.join(git_folder, "..", "data", "occitanie", "campaign_occitanie_params.json")
+    if "andalousie" in targets:
+        if not os.path.exists(json_campaign_andalousie):
+            print(f"Trying to access {json_campaign_andalousie} but not found.")
+        else:
+            print(f"Using {json_campaign_andalousie}")
+            config_list += write_json(json_campaign_andalousie, output_folder, campaign_name)
+    if "occitanie" in targets:        
+        if not os.path.exists(json_campaign_occitanie):
+            print(f"Trying to access {json_campaign_occitanie} but not found.")
+        else:
+            print(f"Using {json_campaign_occitanie}")
+            config_list += write_json(json_campaign_occitanie, output_folder, campaign_name)
+        
+    # config_list = [config_list[0]]
+    if scheduler == "local":
+        for conf in config_list:
+            launch_full_process(conf)
+    else:
+        for conf in config_list:
+            with open(conf, encoding="utf-8") as in_config:
+                config = json.load(in_config)
+                log_out = config["chain"]["log_out"]
+                log_err = config["chain"]["log_err"]
+                launch_pbs(conf, log_out, log_err)
 
 def launch_single(conf, scheduler):
     """Launch a single dam on PBS or local mode."""
@@ -128,7 +167,18 @@ def process_parameters():
     )
     # mode autovalidation
     # lancer les 40  fichiers json andalousie & occitanie
-
+    parser_ref = sub_parsers.add_parser("camp_ref", help="3- Launch the pre-designed Andalousie and /or Occitanie campaign.")
+    parser_ref.add_argument("-name", help="name the output folder",
+                            default=get_current_git_rev())
+    parser_ref.add_argument("-output_folder", help="path to store outputs", required=True)
+    parser_ref.add_argument("-sites",
+                            nargs="+",
+                            default=["occitanie", "andalousie"],
+                            help="Paths to mega-site direcories",
+    )
+    parser_ref.add_argument(
+        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+    )
     # mode DAM unique
     # dem4water --json agly.json
     parser_single = sub_parsers.add_parser(
@@ -153,6 +203,8 @@ def main():
         launch_campaign(args.json_campaign, args.scheduler_type)
     elif args.mode == "single":
         launch_single(args.dam_json, args.scheduler_type)
+    elif args.mode == "camp_ref":
+        launch_reference_validation_campaign(args.sites, args.output_folder, args.name, args.scheduler_type)
 
 
 if __name__ == "__main__":
