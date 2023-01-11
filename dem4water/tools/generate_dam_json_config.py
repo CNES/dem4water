@@ -62,7 +62,7 @@ def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
     return out_dam, out_cut, out_dat, out_json
 
 
-def write_json(global_config_json, output_force_path = None, version_name=None, concat=False):
+def write_json(global_config_json, output_force_path = None, version_name=None, concat=False, ref_only=False):
     """."""
     generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
@@ -90,7 +90,20 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
         dict_all_dams = create_dam_list_from_db(
             database, dam_id_column, dam_name_column, output_list, concat
         )
+
+        keys_ref = []
+        if reference is not None:
+            with open(reference) as ref_file:
+                ref_cont = json.load(ref_file)
+                dict_ref = dict(ref_cont)
+                keys_ref = dict_ref.keys()
+                keys_ref = [int(key) for key in keys_ref]
         for dam, id_dam in dict_all_dams.items():
+            if ref_only and keys_ref:
+                if id_dam not in keys_ref:
+                    print(f"{dam} {id_dam} not in reference")
+                    print(keys_ref)
+                    continue
             dict_dam = {}
             dam_path_name = dam.replace(" ", "-")
             output_dam_camp_path = os.path.join(output_path, "camp", dam_path_name)
@@ -214,6 +227,7 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
                 encoding="utf-8",
             ) as write_file:
                 json.dump(dict_dam, write_file, indent=4)
+
             if json_file is not None:
                 generated_json.append(json_file)
             else:
