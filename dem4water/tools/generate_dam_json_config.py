@@ -21,8 +21,10 @@ def ensure_log_name(name):
     out_name = out_name.decode("utf-8")
     return out_name
 
+
 def read_list_file(input_file):
     """Read the output of generate_list_from_DB."""
+    dams_dict = {}
     with open(input_file, "r", encoding="utf-8") as file_name:
         dams_to_process = file_name.readlines()
         for dam in dams_to_process:
@@ -70,7 +72,14 @@ def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
     return out_dam, out_cut, out_dat, out_json
 
 
-def write_json(global_config_json, output_force_path = None, version_name=None, concat=False, ref_only=False, input_force_list=None):
+def write_json(
+    global_config_json,
+    output_force_path=None,
+    version_name=None,
+    concat=False,
+    ref_only=False,
+    input_force_list=None,
+):
     """."""
     generated_json = []
     with open(global_config_json, encoding="utf-8") as config_in:
@@ -83,7 +92,9 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
             output_path = config["campaign"]["output_path"]
         generate_folders(output_path)
         if version_name:
-            with open(os.path.join(output_path, "version.txt"),"w") as version_file:
+            with open(
+                os.path.join(output_path, "version.txt"), "w", encoding="utf-8"
+            ) as version_file:
                 version_file.write(version_name)
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
@@ -99,13 +110,12 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
             dict_all_dams = read_list_file(input_force_list)
         else:
             dict_all_dams = create_dam_list_from_db(
-            database, dam_id_column, dam_name_column, output_list, concat
-        )
+                database, dam_id_column, dam_name_column, output_list, concat
+            )
 
-            
         keys_ref = []
         if reference is not None:
-            with open(reference) as ref_file:
+            with open(reference, encoding="utf-8") as ref_file:
                 ref_cont = json.load(ref_file)
                 dict_ref = dict(ref_cont)
                 keys_ref = dict_ref.keys()
@@ -229,7 +239,16 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
             }
 
             if reference is not None:
-                dict_dam["val_report"] = {"infile": os.path.join(output_dam_camp_path, f"{dam_path_name}_model.json"), "outfile": os.path.join(output_dam_camp_path,f"{dam_path_name}_report.png"), "reffile": reference, **config["val_report"]}
+                dict_dam["val_report"] = {
+                    "infile": os.path.join(
+                        output_dam_camp_path, f"{dam_path_name}_model.json"
+                    ),
+                    "outfile": os.path.join(
+                        output_dam_camp_path, f"{dam_path_name}_report.png"
+                    ),
+                    "reffile": reference,
+                    **config["val_report"],
+                }
             json_out_file = os.path.join(
                 output_dam_camp_path, f"params_{dam_path_name}.json"
             )
@@ -245,4 +264,3 @@ def write_json(global_config_json, output_force_path = None, version_name=None, 
             else:
                 generated_json.append(json_out_file)
     return generated_json
-

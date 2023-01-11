@@ -141,17 +141,6 @@ def generate_countourlines(
             f"Start elevation {start_elev} is upper than target_elev {end_elev}"
         )
 
-    # os.system(
-    #     './gen_contourline_polygons.sh "%s" "%s" "%s" "%s" "%s" "%s"'
-    #     % (
-    #         dem,
-    #         str(int(pdb_elev - elev_margin)),
-    #         str(elevsampling),
-    #         str(int(target_elev + elev_margin)),
-    #         contourline_fname,
-    #         tmp,
-    #     )
-    # )
     # path for auxillary script
     script_path = os.path.dirname(__file__)
     os.system(
@@ -159,9 +148,6 @@ def generate_countourlines(
         f"{elevsampling} {int(target_elev + elev_margin)} {contourline_fname} {tmp}"
     )
     return contourline_fname
-    # with open(contourline_fname, encoding="utf-8") as lvl:
-    #     jsl = json.load(lvl)
-    # return jsl
 
 
 def cut_countourlines(
@@ -227,7 +213,7 @@ def cut_countourlines(
             pdb_elev,
             tmp,
         )
-    # else:
+
     # If provided, load GeoJSON file containing contour lines
     logging.debug("Using provided contour line file.")
     with open(level, "r", encoding="utf-8") as lvl:
@@ -242,9 +228,6 @@ def cut_countourlines(
         found = False
         max_area = -10000
         max_elev = -10000
-        # Combien d'éléments dans results?
-        # l'indentation parait etrange.
-        # a revoir
         for poly in results.geoms:
             if poly.contains(in_w):
                 max_area = poly.area

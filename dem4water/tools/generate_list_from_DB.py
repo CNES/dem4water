@@ -54,7 +54,8 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
     return dam_to_process
 
 
-if __name__ == "__main__":
+def main():
+    """Launch function."""
     desc = (
         "Usage : python generate_list_from_DB.py dams_file dam_id dam_name ouput_list."
     )
@@ -72,3 +73,7 @@ if __name__ == "__main__":
     create_dam_list_from_db(
         args.dams_file, args.dam_id, args.dam_name, args.output_list
     )
+
+
+if __name__ == "__main__":
+    sys.exit(main())
