@@ -100,6 +100,21 @@ The `params_dam_name.json` is created by the campaign mode as it contains inform
 
 This mode allow to launch the test dataset provided to the git folder.
 
+### Use PBS launcher
+
+It is possible to choose PBS ressources values for all modes. There is 4 arguments and they must be placed before the mode parameter.
+
+- `-ram` : the amount of RAM per job, in GB (default = 60)
+- `-cpu` : the amount of CPU per job (default = 12)
+- `-walltime_hour`: indicate the hour for walltime (default = 1)
+- `-walltime_minutes` : indicate the minutes for walltime (default = 0)
+
+Exemple for the campaign mode:
+
+```bash
+dem4water -ram 50 -walltime_hour 4 campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
+```
+
 ## Contributing
 
 See Contributing.md for all the information.
