@@ -15,6 +15,7 @@ import sys
 import unicodedata
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 
 
@@ -41,12 +42,12 @@ def normalize_list_float(list_float):
     out_list = []
     for value in list_float:
         if value is None:
-            out_list.append(None)
+            out_list.append(np.nan)
         else:
             if isinstance(value, str):
                 value = value.replace(",", ".")
-                out_list.append(value)
-            elif isinstance(value, float):
+                # out_list.append(value)
+            if isinstance(value, float):
                 out_list.append(value)
             else:
                 try:
@@ -54,7 +55,7 @@ def normalize_list_float(list_float):
                     out_list.append(value)
                 except ValueError:
                     # The value is unexpected replace by None for futher process
-                    out_list.append(None)
+                    out_list.append(np.nan)
     return out_list
 
 
@@ -72,7 +73,7 @@ def main():
     args = parser.parse_args()
 
     list_of_fields_str = ["RES_NAME", "DAM_NAME", "MAIN_USE", "NEAR_CITY"]
-    list_of_fields_float = ["DAM_LVL_M"]
+    list_of_fields_float = ["DAM_LVL_M", "AREA_HA"]
     gdf = gpd.GeoDataFrame().from_file(args.dams_file)
     df_csv = pd.read_csv(args.dams_csv)
     gdf2 = gpd.GeoDataFrame().from_file(args.reservoirs_file)
@@ -86,7 +87,7 @@ def main():
         list_values = list(gdf[field])
         corrected_values = normalize_list_float(list_values)
         gdf[field] = corrected_values
-
+        # input(gdf[field])
     gdf = gdf.to_crs("EPSG:2154")
     out_gdf = gpd.sjoin_nearest(gdf2, gdf, how="left")
     out_gdf = out_gdf.drop(["index_right"], axis="columns")
