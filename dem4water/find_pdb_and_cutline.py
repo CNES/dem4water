@@ -153,6 +153,7 @@ def find_pdb_and_cutline(
             # dam_path = dam_path.replace("-","_")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
+            # extraire l'altitude directement depuis le MNT
             if bool(feature.GetField("DAM_LVL_M")):
                 calt = float(feature.GetField("DAM_LVL_M"))
                 calt_from_DB = True
@@ -825,7 +826,10 @@ def find_pdb_and_cutline(
                     % (dem, prev1geo.GetY(), prev1geo.GetX())
                 ).read()
             )
-            #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
+            #  logging.debug("Currently processing prev1 @radius: "+
+            # str(radius) +"
+            # [Lat: "+ str(prev1geo.GetX()) +", Lon: "+
+            # str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
             if (prev1alt > targetelev) and (stop_side_1 is False):
                 stop_side_1 = True
                 logging.info(
@@ -846,7 +850,9 @@ def find_pdb_and_cutline(
                     % (dem, str(prev2geo.GetY()), str(prev2geo.GetX()))
                 ).read()
             )
-            #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
+            #  logging.debug("Currently processing prev2 @radius: "+
+            # str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+
+            # str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
             if (prev2alt > targetelev) and (stop_side_2 is False):
                 stop_side_2 = True
                 logging.info(

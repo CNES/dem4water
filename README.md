@@ -112,7 +112,7 @@ It is possible to choose PBS ressources values for all modes. There is 4 argumen
 Exemple for the campaign mode:
 
 ```bash
-dem4water -ram 50 -walltime_hour 4 campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
+dem4water --ram 50 --walltime_hour 4 campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
 ```
 
 ## Contributing
