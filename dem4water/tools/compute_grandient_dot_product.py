@@ -88,22 +88,43 @@ def compute_gradient_product(water_binary_mask, dem_extract, output_raster):
 
 
 compute_gradient_product(
-    "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Laparan.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/laparan_bin.tif",
-)
-compute_gradient_product(
-    "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Marne.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_no_holes.tif",
     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/marne_giffaumont_bin.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_surfwater_no_holes.tif",
 )
-compute_gradient_product(
-    "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Naussac.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/naussac_bin.tif",
-)
-compute_gradient_product(
-    "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Vaufrey.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/dem_extract_Vaufrey.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/vaufrey_bin.tif",
-)
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_grand.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_grand.tif",
+# )
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_pekel.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_pekel.tif",
+# )
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surf.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_surf.tif",
+# )
+
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Laparan.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/laparan_bin.tif",
+# )
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Marne.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/marne_giffaumont_bin.tif",
+# )
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Naussac.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/naussac_bin.tif",
+# )
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/bin_wholes/Vaufrey.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/dem_extract_Vaufrey.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_wholes/vaufrey_bin.tif",
+# )
