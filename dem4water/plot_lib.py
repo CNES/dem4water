@@ -29,7 +29,7 @@ def plot_szi_points(r_elev, r_area, pdb_elev, damname, outfile):
     )
     ax1.plot(pdb_elev, 0.0, "ro")
     ax1.grid(visible=True, which="major", linestyle="-")
-    ax1.grid(visible=False, which="minor", linestyle="--")
+    ax1.grid(visible=True, which="minor", linestyle="--")
     plt.minorticks_on()
     plt.title(damname + ": S(Z_i)")
     fig.savefig(outfile)
@@ -74,7 +74,7 @@ def plot_slope(
         label="Absolute min(MAE)",
     )
     maeax.grid(visible=True, which="major", linestyle="-")
-    maeax.grid(visible=False, which="minor", linestyle="--")
+    maeax.grid(visible=True, which="minor", linestyle="--")
     maeax.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local MAE (ha)")
     maeax.set_xlim(alt[0], alt[-1] + 10)
     maeax.set_yscale("log")
@@ -100,8 +100,8 @@ def plot_slope(
         color="#ff7f0e",
         label="Selected min(MAE)",
     )
-    slpax.grid(b=True, which="major", linestyle="-")
-    slpax.grid(b=False, which="minor", linestyle="--")
+    slpax.grid(visible=True, which="major", linestyle="-")
+    slpax.grid(visible=True, which="minor", linestyle="--")
     slpax.set(xlabel="Virtual Water Surface Elevation (m)", ylabel="Local Slope")
     slpax.set_xlim(alt[0], alt[-1] + 10)
     # Trick to display in Ha
@@ -112,7 +112,7 @@ def plot_slope(
     dslpax.axvline(x=float(damelev), ls="--", lw=1, color="teal", label="Dam elevation")
     dslpax.plot(der_z, der_s, marker=".", color="blue", label="dSlope")
     dslpax.grid(visible=True, which="major", linestyle="-")
-    dslpax.grid(visible=False, which="minor", linestyle="--")
+    dslpax.grid(visible=True, which="minor", linestyle="--")
     dslpax.set(
         xlabel="Virtual Water Surface Elevation (m)", ylabel="Local Slope Derivative"
     )
@@ -174,7 +174,7 @@ def plot_model_combo(
         markerfacecolor="#ff7f0e",
     )
     maeax0.grid(visible=True, which="major", linestyle="-")
-    maeax0.grid(visible=False, which="minor", linestyle="--")
+    maeax0.grid(visible=True, which="minor", linestyle="--")
     maeax0.set(
         xlabel="Virtual Water Surface Elevation (m)",
         ylabel="Virtual Water Surface (ha)",
@@ -249,7 +249,7 @@ def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
     #  ax.plot(z, reg_abs(z), 'b-')
     #  ax.plot(z, reg_best(z), 'g-')
     axe.grid(visible=True, which="major", linestyle="-")
-    axe.grid(visible=False, which="minor", linestyle="--")
+    axe.grid(visible=True, which="minor", linestyle="--")
     axe.set(
         xlabel="Virtual Water Surface Elevation (m)",
         ylabel="Virtual Water Surface (ha)",
@@ -292,7 +292,7 @@ def plot_vs(all_zi, all_szi, damelev, alpha, beta, damname, outfile):
     axv.axvline(x=s_dam, ls=":", lw=2, color="teal", label="Max Dam Surface")
     axv.plot(surf, vol_s, "r-", label="V(S)")
     axv.grid(visible=True, which="major", linestyle="-")
-    axv.grid(visible=False, which="minor", linestyle="--")
+    axv.grid(visible=True, which="minor", linestyle="--")
     axv.set(
         xlabel="Estimated Water Surface (ha)", ylabel="Modelized Water Volume (hm3)"
     )
@@ -326,8 +326,8 @@ def plot_report_sz(
     sz1.scatter(
         sz_ref_scatter, sz_model_scatter, label="S(z)_model = f(S(z)_reference)"
     )
-    sz1.grid(b=True, which="major", linestyle="-")
-    sz1.grid(b=False, which="minor", linestyle="--")
+    sz1.grid(visible=True, which="major", linestyle="-")
+    sz1.grid(visible=True, which="minor", linestyle="--")
     sz1.set_xlabel("S(z)_reference (ha)", fontsize=6)
     sz1.set_ylabel("S(z)_model (ha)", fontsize=6)
     sz1.tick_params(axis="both", which="major", labelsize=6)
@@ -346,8 +346,8 @@ def plot_report_sz(
     sz_comp.axvline(
         x=float(damelev), ls=":", lw=2, color="green", label="Model Max Dam Z"
     )
-    sz_comp.grid(b=True, which="major", linestyle="-")
-    sz_comp.grid(b=False, which="minor", linestyle="--")
+    sz_comp.grid(visible=True, which="major", linestyle="-")
+    sz_comp.grid(visible=True, which="minor", linestyle="--")
     sz_comp.set_xlabel("z (m)", fontsize=6)
     sz_comp.set_ylabel("S(z) (ha)", fontsize=6)
     sz_comp.tick_params(axis="both", which="major", labelsize=6)
@@ -375,8 +375,8 @@ def plot_report_vs(
     vs1.scatter(
         vs_ref_scatter, vs_model_scatter, label="V(S)_model = f(V(S)_reference)"
     )
-    vs1.grid(b=True, which="major", linestyle="-")
-    vs1.grid(b=False, which="minor", linestyle="--")
+    vs1.grid(visible=True, which="major", linestyle="-")
+    vs1.grid(visible=True, which="minor", linestyle="--")
     vs1.set_xlabel("V(S)_reference (hm3)", fontsize=6)
     vs1.set_ylabel("V(S)_model (hm3)", fontsize=6)
     vs1.tick_params(axis="both", which="major", labelsize=6)
@@ -391,7 +391,7 @@ def plot_report_vs(
     vs_comp.plot(surf, vs_model_scatter, "g-", label="V(S)_model")
     vs_comp.axvline(x=s_r_zmax_m2, ls=":", lw=2, color="red", label="S(Zmax_ref)")
     vs_comp.grid(visible=True, which="major", linestyle="-")
-    vs_comp.grid(visible=False, which="minor", linestyle="--")
+    vs_comp.grid(visible=True, which="minor", linestyle="--")
     vs_comp.set_xlabel("S (ha)", fontsize=6)
     vs_comp.set_ylabel("V(S) (hm3)", fontsize=6)
     vs_comp.tick_params(axis="both", which="major", labelsize=6)
@@ -419,8 +419,8 @@ def plot_report_volume_rate(
     tx1.scatter(
         tx_ref_scatter, tx_model_scatter, label="Vr(S)_model = f(Vr(S)_reference)"
     )
-    tx1.grid(b=True, which="major", linestyle="-")
-    tx1.grid(b=False, which="minor", linestyle="--")
+    tx1.grid(visible=True, which="major", linestyle="-")
+    tx1.grid(visible=True, which="minor", linestyle="--")
     tx1.set_xlabel("Vr(S)_reference (%)", fontsize=6)
     tx1.set_ylabel("Vr(S)_model (%)", fontsize=6)
     tx1.tick_params(axis="both", which="major", labelsize=6)
@@ -431,8 +431,8 @@ def plot_report_volume_rate(
     tx_comp.plot(surf, tx_ref_scatter, "r-", label="Vr(S)_reference")
     tx_comp.plot(surf, tx_model_scatter, "g-", label="Vr(S)_model")
     tx_comp.axvline(x=s_r_zmax_m2, ls=":", lw=2, color="red", label="S(Zmax_ref)")
-    tx_comp.grid(b=True, which="major", linestyle="-")
-    tx_comp.grid(b=False, which="minor", linestyle="--")
+    tx_comp.grid(visible=True, which="major", linestyle="-")
+    tx_comp.grid(visible=True, which="minor", linestyle="--")
     tx_comp.set_xlabel("S (ha)", fontsize=6)
     tx_comp.set_ylabel("Vr(S) (%)", fontsize=6)
     tx_comp.tick_params(axis="both", which="major", labelsize=6)
