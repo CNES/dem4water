@@ -4,15 +4,15 @@
 import argparse
 import sys
 from dataclasses import dataclass
-import rasterio
+import rasterio as rio
 from rasterio.windows import Window
 from math import ceil, floor
 
 DTYPE = {
-    "uint8": rasterio.uint8,
-    "uint16": rasterio.uint16,
-    "uint32": rasterio.uint32,
-    "float": rasterio.float32,
+    "uint8": rio.uint8,
+    "uint16": rio.uint16,
+    "uint32": rio.uint32,
+    "float": rio.float32,
 }
 
 
@@ -21,12 +21,12 @@ class ExtractROIParam:
     """Class providing parameters for extract roi functions."""
 
     mode: str
-    mode_radius_r: int
-    mode_radius_unitr: str
     mode_radius_cx: int
     mode_radius_cy: int
-    mode_radius_unitc: str
-    dtype: str
+    mode_radius_r: int =  0
+    mode_radius_unitr: str = "phy"
+    mode_radius_unitc: str = "phy"
+    dtype: str ="uint32"
 
 
 def coord_phys_to_pixel(
@@ -38,19 +38,22 @@ def coord_phys_to_pixel(
 
     Parameters
     ----------
-
     in_raster:str
     """
-    with rasterio.open(in_raster) as src:
-        x_pixel, y_pixel = src.index(
-            ExtractROI_parameters.mode_radius_cx, ExtractROI_parameters.mode_radius_cy
-        )
-        return x_pixel, y_pixel
+    x_pixel, y_pixel = in_raster.index(
+    ExtractROI_parameters.mode_radius_cx, ExtractROI_parameters.mode_radius_cy
+    )
+    return x_pixel, y_pixel
+
+
+def extract_roi_save_raster(in_raster: rio.io.DatasetReader,output_path :str,ExtractROI_parameters: ExtractROIParam):
+    profile = in_raster.profile
+    with rio.open(output_path, "w", dtypes=ExtractROI_parameters.dtype, **profile) as dst:
+        dst.write(in_raster.read())
 
 
 def extract_roi(
-    in_raster: str,
-    out_raster: str,
+    in_raster: rio.io.DatasetReader,
     ExtractROI_parameters: ExtractROIParam,
 ):
     """
@@ -58,49 +61,54 @@ def extract_roi(
 
     Parameters
     ----------
+    in_raster:rio.io.DatasetReader
 
-    in_raster:str
-
-    out_raster:str
+    ExtractROI_parameters: ExtractROIParam,
     """
+   
     if ExtractROI_parameters.mode == "radius":
         if (
             ExtractROI_parameters.mode_radius_unitr == "phy"
             and ExtractROI_parameters.mode_radius_unitc == "phy"
         ):
-            with rasterio.open(in_raster) as src:
-                resolution = src.res[0]
-                dist_radius = ExtractROI_parameters.mode_radius_r / resolution
+            
+            resolution = in_raster.res[0]
+            dist_radius = ExtractROI_parameters.mode_radius_r / resolution
+               
+            x_pixel, y_pixel = coord_phys_to_pixel(in_raster, ExtractROI_parameters)
 
-                x_pixel, y_pixel = coord_phys_to_pixel(in_raster, ExtractROI_parameters)
+            width = (dist_radius) * 2 + 1
+            height = (dist_radius) * 2 + 1
 
-                width = (dist_radius) * 2 + 1
-                height = (dist_radius) * 2 + 1
-
-                if (dist_radius % 2) == 0:
-                    col_off, row_off = (
-                        x_pixel - dist_radius,
-                        y_pixel - dist_radius,
-                    )
-                else:
-                    col_off, row_off = (
-                        ceil(x_pixel - dist_radius),
-                        floor(y_pixel - dist_radius),
-                    )
-
-                window = Window(row_off, col_off, width, height)
-                data = src.read(window=window)
-                transform = rasterio.windows.transform(window, src.transform)
-
-                profile = src.profile
-                profile.update(
-                    {"height": height, "width": width, "transform": transform}
+            if (dist_radius % 2) == 0:
+                col_off, row_off = (
+                    x_pixel - dist_radius,
+                    y_pixel - dist_radius,
+                )
+            else:
+                col_off, row_off = (
+                    ceil(x_pixel - dist_radius),
+                    floor(y_pixel - dist_radius),
                 )
 
-                with rasterio.open(
-                    out_raster, "w", dtypes=ExtractROI_parameters.dtype, **profile
-                ) as dst:
-                    dst.write(data)
+            window = Window(row_off, col_off, width, height)
+
+            data = in_raster.read(window=window)
+            transform = rio.windows.transform(window, in_raster.transform)
+
+            profile = in_raster.profile
+            profile.update(
+                {"height": height, "width": width, "transform": transform}
+            )
+
+            with rio.MemoryFile() as memfile:
+                with memfile.open(dtypes=ExtractROI_parameters.dtype, **profile) as dataset:
+                    dataset.write(data)
+                dataset_reader = memfile.open()
+
+                return dataset_reader
+
+           
 
 
 def main():
