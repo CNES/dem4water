@@ -54,11 +54,11 @@ def compute_gradient_product(water_binary_mask, dem_extract, output_raster):
             # wmap_array = cv2.resize(
             #     wmap_array.astype(float), (250, 250), interpolation=cv2.INTER_LINEAR
             # )
-            profile = wmap.profile
-            with rio.open(
-                output_raster.replace(".tif", "bin_wmap.tif"), "w", **profile
-            ) as output:
-                output.write(wmap_array.astype(rio.float64), 1)
+            profile = dem.profile
+            # with rio.open(
+            #     output_raster.replace(".tif", "bin_wmap.tif"), "w", **profile
+            # ) as output:
+            #     output.write(wmap_array.astype(rio.float64), 1)
             mask_lisse = scipy.ndimage.gaussian_filter(wmap_array, sigma=5)
             dx_mask_sobel = scipy.ndimage.sobel(mask_lisse, axis=0, mode="constant")
             dy_mask_sobel = scipy.ndimage.sobel(mask_lisse, axis=1, mode="constant")
@@ -87,11 +87,11 @@ def compute_gradient_product(water_binary_mask, dem_extract, output_raster):
                 output.write(im_produit_sobel.astype(rio.float64), 1)
 
 
-compute_gradient_product(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_no_holes.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_surfwater_no_holes.tif",
-)
+# compute_gradient_product(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_no_holes.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/tests_bds/marne_giffaumont_bin_surfwater_no_holes.tif",
+# )
 # compute_gradient_product(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_grand.tif",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",

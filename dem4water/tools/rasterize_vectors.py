@@ -70,7 +70,11 @@ def binary_rasterize(
 
     """
     ref_proj = raster.crs.to_epsg()
-    vector = prepare_vector(in_vector, ref_proj)
+    if isinstance(in_vector, str):
+        vector = prepare_vector(in_vector, ref_proj)
+    else:
+        # If geodataframe
+        vector = in_vector
     # Convert dataframe into a list for rasterize input format
     # no pair value means a binary rasterization
     geom = list(vector.geometry)
