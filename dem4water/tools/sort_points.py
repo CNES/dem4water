@@ -59,9 +59,7 @@ def sort_and_filter_points(in_points, out_file):
     df["idx"] = range(len(df.index))
     print(df)
     gdf2 = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.x, df.y), crs=gdf.crs)
-    # gdf2.to_file(
-    #     "/home/btardy/Documents/activites/WATER/GDP/tests_bds/test_sort_points.geojson"
-    # )
+    gdf2.to_file(out_file.replace(".geojson", "points.geojson"))
     lines = gdf2.groupby(["ident"])["geometry"].apply(lambda x: LineString(x.tolist()))
 
     # store as a GeodataFrame and add 'ID' as a column (currently stored as the 'index')
