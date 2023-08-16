@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Superimpose"""
+"""Superimpose."""
 import argparse
 import sys
 from dataclasses import dataclass
-import rasterio as rio
-from rasterio.warp import reproject, Resampling
+from math import ceil
+from typing import Optional, Union
+
 import numpy as np
-from math import ceil, floor
+import rasterio as rio
+from rasterio.warp import Resampling, reproject
+
+from dem4water.tools.save_raster import save_image
+
 DTYPE = {
     "uint8": rio.uint8,
     "uint16": rio.uint16,
@@ -19,16 +24,18 @@ DTYPE = {
 @dataclass
 class SuperimposeParam:
     """Class providing parameters for superimpose function."""
-    interpolator: str 
-    dtype: str 
+
+    interpolator: str
+    dtype: str
 
 
-def get_interpolator(Superimpose_parameters: SuperimposeParam):
-    if Superimpose_parameters.interpolator == "nn":
+def get_interpolator(superimpose_parameters: SuperimposeParam):
+    """Convert str name to rio object."""
+    if superimpose_parameters.interpolator == "nn":
         resampling = Resampling.nearest
-    if Superimpose_parameters.interpolator == "bco":
+    if superimpose_parameters.interpolator == "bco":
         resampling = Resampling.cubic
-    if Superimpose_parameters.interpolator == "linear":
+    if superimpose_parameters.interpolator == "linear":
         resampling = Resampling.bilinear
     return resampling
 
@@ -36,67 +43,84 @@ def get_interpolator(Superimpose_parameters: SuperimposeParam):
 def superimpose_ndarray(
     input_image,
     input_image_profile,
-    image_ref,
     input_ref_profile,
-    Superimpose_parameters: SuperimposeParam,
-)-> rio.io.DatasetReader:
+    superimpose_parameters: SuperimposeParam,
+) -> rio.io.DatasetReader:
     """
-    Poject an image into the geometry of another one
+    Poject an image into the geometry of another one.
 
     Parameters
     ----------
-
     input_image_path:str
     image_ref:str
     output_image_path:str
     """
-   
-    resampling = get_interpolator(Superimpose_parameters)
-    output_image=input_image.astype(Superimpose_parameters.dtype)
+    resampling = get_interpolator(superimpose_parameters)
+    output_image = input_image.astype(superimpose_parameters.dtype)
     result, _ = reproject(
         source=input_image,
         destination=output_image,
-        src_transform=input_image_profile['transform'],
-        src_crs=input_image_profile['crs'],
-        dst_crs=input_ref_profile['crs'],
-        dst_transform=input_ref_profile['transform'],
+        src_transform=input_image_profile["transform"],
+        src_crs=input_image_profile["crs"],
+        dst_crs=input_ref_profile["crs"],
+        dst_transform=input_ref_profile["transform"],
         resampling=resampling,
-        )
-    h= ceil(input_ref_profile['height'])
-    w= ceil(input_ref_profile['width'])
-    
+    )
+    height = ceil(input_ref_profile["height"])
+    width = ceil(input_ref_profile["width"])
 
-    result = result[:, 0 : h, 0 :w]
+    result = result[:, 0:height, 0:width]
     profile = input_ref_profile
     profile.update(
-        {"count": input_image_profile['count'], "dtype":DTYPE[Superimpose_parameters.dtype],  "driver" :"GTiff"}
-            )
+        {
+            "count": input_image_profile["count"],
+            "dtype": DTYPE[superimpose_parameters.dtype],
+            "driver": "GTiff",
+        }
+    )
     return result, profile
 
-def superimpose(input_image, image_ref, Superimpose_parameters: SuperimposeParam,  input_ref_profile=None, input_image_profile =None)-> rio.io.DatasetReader:
-    
-    if not isinstance(input_image, np.ndarray):
 
-        raster_input =input_image.read()
-        raster_profile_input=input_image.profile
-    else :
-        raster_input =input_image
-        raster_profile_input=input_image_profile
+def superimpose(
+    input_image: Union[np.ndarray, rio.DatasetReader],
+    image_ref: Union[np.ndarray, rio.DatasetReader],
+    superimpose_parameters: SuperimposeParam,
+    out_image: Optional[str] = None,
+    input_ref_profile: Optional[rio.DatasetReader.profile] = None,
+    input_image_profile: Optional[rio.DatasetReader.profile] = None,
+) -> rio.io.DatasetReader:
+    """Reproject a image according a reference.
 
-    if not isinstance(image_ref, np.ndarray):
-        raster_ref =image_ref.read()
-        raster_profile_ref=image_ref.profile
-    else :
-        raster_ref =image_ref
-        raster_profile_ref=input_ref_profile
-    data, profile =superimpose_ndarray(
+    Parameters
+    ----------
+    input_image
+    """
+    if isinstance(input_image, rio.DatasetReader):
+        raster_input = input_image.read()
+        raster_profile_input = input_image.profile
+    elif isinstance(input_image, np.ndarray):
+        raster_input = input_image
+        raster_profile_input = input_image_profile
+    else:
+        raise ValueError(
+            f"{type(input_image)} not handled. Only ndarray or rio.DatasetReader"
+        )
+    if isinstance(image_ref, rio.DatasetReader):
+        raster_profile_ref = image_ref.profile
+    elif isinstance(image_ref, np.ndarray):
+        raster_profile_ref = input_ref_profile
+    else:
+        raise ValueError(
+            f"{type(image_ref)} not handled. Only ndarray or rio.DatasetReader"
+        )
+    data, profile = superimpose_ndarray(
         raster_input,
         raster_profile_input,
-        raster_ref,
         raster_profile_ref,
-        Superimpose_parameters
-        )
-   
+        superimpose_parameters,
+    )
+    if out_image is not None:
+        save_image(data, profile, out_image)
     return data, profile
 
 
@@ -134,7 +158,9 @@ def main():
         args.interpolator,
         DTYPE[args.dtype],
     )
-    superimpose(rio.open(args.im), rio.open(args.imref), args.outim, params)
+    with rio.open(args.im) as image:
+        with rio.open(args.imref) as reference:
+            superimpose(image, reference, args.outim, params)
 
 
 if __name__ == "__main__":

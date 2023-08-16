@@ -4,12 +4,14 @@
 import argparse
 import sys
 from dataclasses import dataclass
+from typing import Optional
 
 import geopandas as gpd
-import numpy as np
 import rasterio as rio
 from rasterio import features
 from rasterio.enums import MergeAlg
+
+from dem4water.tools.save_raster import save_image
 
 DTYPE = {
     "uint8": rio.uint8,
@@ -26,7 +28,7 @@ class RasterizarionParams:
     mode: str
     binary_foreground_value: int
     background_value: int
-    column_field: str = None 
+    column_field: str = None
     dtype: str = "float"
 
 
@@ -45,11 +47,10 @@ def prepare_vector(in_vector: str, ref_proj: int) -> gpd.GeoDataFrame:
         The reprojected geodataframe
     """
     # Read in vector
-   
+
     vector = gpd.read_file(in_vector)
     vector = vector.to_crs(ref_proj)
     return vector
-
 
 
 def binary_rasterize(
@@ -86,10 +87,8 @@ def binary_rasterize(
         dtype=rasterize_params.dtype,
     )
     profile = raster.profile
-    profile.update(
-        {"dtype":DTYPE[rasterize_params.dtype],  "driver" :"GTiff"}
-            )
-   
+    profile.update({"dtype": DTYPE[rasterize_params.dtype], "driver": "GTiff"})
+
     return vector_rasterized, profile
 
 
@@ -103,15 +102,12 @@ def attribute_rasterize(
     Parameters
     ----------
     in_vector: str
-
+        the input vector file
     in_raster: str
-
-    out_raster: str
-
+        the reference image
     column_attribute: str
 
     """
-   
     ref_proj = raster.crs.to_epsg()
     vector = prepare_vector(in_vector, ref_proj)
     # Convert dataframe into a list of pair (geometry, value)
@@ -131,16 +127,16 @@ def attribute_rasterize(
         dtype=None,
     )
     profile = raster.profile
-    profile.update(
-        {"dtype":DTYPE[rasterize_params.dtype],  "driver" :"GTiff"}
-            )
-   
+    profile.update({"dtype": DTYPE[rasterize_params.dtype], "driver": "GTiff"})
+
     return vector_rasterized, profile
 
 
-
 def rasterize(
-    in_vector, raster, rasterization_params: RasterizarionParams
+    in_vector: str,
+    raster: rio.DatasetReader,
+    rasterization_params: RasterizarionParams,
+    out_raster: Optional[str] = None,
 ) -> None:
     """Rasterize a vector file according a reference image.
 
@@ -150,21 +146,18 @@ def rasterize(
         the input vector file
     in_raster:
         the reference image
+    rasterization_params: RasterizarionParams
+        dataclass containing all parameters for rasterization
     out_raster:
         the output file
-    mode:
-        the rasterization mode ('attribute' or 'binary')
-    user_type:
-        the type of out_raster image
-    column_attribute:
-        the field to rasterize in 'attribute' mode
-    binary_foreground_value:
-        the foreground value for 'binary' mode
+
     """
     if rasterization_params.mode == "attribute":
-        vector_rasterized, profile=attribute_rasterize(in_vector, raster, rasterization_params)
+        vector_rasterized, profile = attribute_rasterize(
+            in_vector, raster, rasterization_params
+        )
     elif rasterization_params.mode == "binary":
-        vector_rasterized, profile=binary_rasterize(
+        vector_rasterized, profile = binary_rasterize(
             in_vector,
             raster,
             rasterization_params,
@@ -174,6 +167,8 @@ def rasterize(
             f"{rasterization_params.mode} is not supported."
             " Only 'attribute' or 'binary' are allowed"
         )
+    if out_raster is not None:
+        save_image(vector_rasterized, profile, out_raster)
     return vector_rasterized, profile
 
 
@@ -217,7 +212,8 @@ def main():
     params = RasterizarionParams(
         args.mode, args.foreground, args.background, args.field, DTYPE[args.dtype]
     )
-    rasterize(args.invector, args.imref, params)
+    with rio.open(args.imref) as imref:
+        rasterize(args.invector, imref, params, args.oraster)
 
 
 if __name__ == "__main__":
