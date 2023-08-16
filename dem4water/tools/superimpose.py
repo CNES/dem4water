@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Extract ROI from an image"""
+"""Superimpose"""
 import argparse
 import sys
 from dataclasses import dataclass
 import rasterio as rio
 from rasterio.warp import reproject, Resampling
-
-
+import numpy as np
+from math import ceil, floor
 DTYPE = {
     "uint8": rio.uint8,
     "uint16": rio.uint16,
@@ -19,9 +19,8 @@ DTYPE = {
 @dataclass
 class SuperimposeParam:
     """Class providing parameters for superimpose function."""
-
-    interpolator: str ="bco"
-    dtype: str ="uint32"
+    interpolator: str 
+    dtype: str 
 
 
 def get_interpolator(Superimpose_parameters: SuperimposeParam):
@@ -34,23 +33,11 @@ def get_interpolator(Superimpose_parameters: SuperimposeParam):
     return resampling
 
 
-def superimpose_save_raster(raster_out:rio.io.DatasetReader, output_path:str, Superimpose_parameters: SuperimposeParam):
-    with rio.open(
-        output_path, 
-        "w",
-        driver="GTiff",
-        height=raster_out.height,
-        width=raster_out.width,
-        count=raster_out.count,
-        dtype=Superimpose_parameters.dtype,
-        crs=raster_out.crs,
-        transform=raster_out.transform,
-        ) as dataset:
-            dataset.write(raster_out.read())
-    
-def superimpose(
-    input_image:rio.io.DatasetReader,
-    image_ref:rio.io.DatasetReader,
+def superimpose_ndarray(
+    input_image,
+    input_image_profile,
+    image_ref,
+    input_ref_profile,
     Superimpose_parameters: SuperimposeParam,
 )-> rio.io.DatasetReader:
     """
@@ -63,32 +50,54 @@ def superimpose(
     image_ref:str
     output_image_path:str
     """
+   
     resampling = get_interpolator(Superimpose_parameters)
+    output_image=input_image.astype(Superimpose_parameters.dtype)
     result, _ = reproject(
-        source=input_image.read(),
-        destination=input_image.read(),
-        src_transform=input_image.transform,
-        src_crs=input_image.crs,
-        dst_crs=image_ref.crs,
-        dst_transform=image_ref.transform,
+        source=input_image,
+        destination=output_image,
+        src_transform=input_image_profile['transform'],
+        src_crs=input_image_profile['crs'],
+        dst_crs=input_ref_profile['crs'],
+        dst_transform=input_ref_profile['transform'],
         resampling=resampling,
         )
-    result = result[:, 0 : image_ref.height, 0 : image_ref.width]
-           
-    with rio.MemoryFile() as memfile:
-        with memfile.open(
-            driver="GTiff",
-            height=image_ref.height,
-            width=image_ref.width,
-            count=input_image.count,
-            dtype=result.dtype,
-            crs=image_ref.crs,
-            transform=image_ref.transform,
-        ) as dataset:
-            dataset.write(result)
-        dataset_reader = memfile.open()
+    h= ceil(input_ref_profile['height'])
+    w= ceil(input_ref_profile['width'])
+    
 
-        return dataset_reader
+    result = result[:, 0 : h, 0 :w]
+    profile = input_ref_profile
+    profile.update(
+        {"count": input_image_profile['count'], "dtype":DTYPE[Superimpose_parameters.dtype],  "driver" :"GTiff"}
+            )
+    return result, profile
+
+def superimpose(input_image, image_ref, Superimpose_parameters: SuperimposeParam,  input_ref_profile=None, input_image_profile =None)-> rio.io.DatasetReader:
+    
+    if not isinstance(input_image, np.ndarray):
+
+        raster_input =input_image.read()
+        raster_profile_input=input_image.profile
+    else :
+        raster_input =input_image
+        raster_profile_input=input_image_profile
+
+    if not isinstance(image_ref, np.ndarray):
+        raster_ref =image_ref.read()
+        raster_profile_ref=image_ref.profile
+    else :
+        raster_ref =image_ref
+        raster_profile_ref=input_ref_profile
+    data, profile =superimpose_ndarray(
+        raster_input,
+        raster_profile_input,
+        raster_ref,
+        raster_profile_ref,
+        Superimpose_parameters
+        )
+   
+    return data, profile
 
 
 def main():
@@ -125,7 +134,7 @@ def main():
         args.interpolator,
         DTYPE[args.dtype],
     )
-    superimpose(args.im, args.imref, args.outim, params)
+    superimpose(rio.open(args.im), rio.open(args.imref), args.outim, params)
 
 
 if __name__ == "__main__":

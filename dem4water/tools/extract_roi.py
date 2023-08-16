@@ -26,7 +26,7 @@ class ExtractROIParam:
     mode_radius_r: int =  0
     mode_radius_unitr: str = "phy"
     mode_radius_unitc: str = "phy"
-    dtype: str ="uint32"
+    dtype: str ="float"
 
 
 def coord_phys_to_pixel(
@@ -44,12 +44,6 @@ def coord_phys_to_pixel(
     ExtractROI_parameters.mode_radius_cx, ExtractROI_parameters.mode_radius_cy
     )
     return x_pixel, y_pixel
-
-
-def extract_roi_save_raster(in_raster: rio.io.DatasetReader,output_path :str,ExtractROI_parameters: ExtractROIParam):
-    profile = in_raster.profile
-    with rio.open(output_path, "w", dtypes=ExtractROI_parameters.dtype, **profile) as dst:
-        dst.write(in_raster.read())
 
 
 def extract_roi(
@@ -71,7 +65,6 @@ def extract_roi(
             ExtractROI_parameters.mode_radius_unitr == "phy"
             and ExtractROI_parameters.mode_radius_unitc == "phy"
         ):
-            
             resolution = in_raster.res[0]
             dist_radius = ExtractROI_parameters.mode_radius_r / resolution
                
@@ -79,13 +72,15 @@ def extract_roi(
 
             width = (dist_radius) * 2 + 1
             height = (dist_radius) * 2 + 1
-
             if (dist_radius % 2) == 0:
+            
                 col_off, row_off = (
                     x_pixel - dist_radius,
                     y_pixel - dist_radius,
                 )
+                
             else:
+                
                 col_off, row_off = (
                     ceil(x_pixel - dist_radius),
                     floor(y_pixel - dist_radius),
@@ -98,15 +93,9 @@ def extract_roi(
 
             profile = in_raster.profile
             profile.update(
-                {"height": height, "width": width, "transform": transform}
+                {"height": height, "width": width, "transform": transform, "driver" :"GTiff"}
             )
-
-            with rio.MemoryFile() as memfile:
-                with memfile.open(dtypes=ExtractROI_parameters.dtype, **profile) as dataset:
-                    dataset.write(data)
-                dataset_reader = memfile.open()
-
-                return dataset_reader
+            return data, profile
 
            
 
@@ -172,7 +161,7 @@ def main():
         args.mode_radius_unitc,
         DTYPE[args.dtype],
     )
-    extract_roi(args.imref, args.outim, params)
+    extract_roi(args.imref, params)
 
 
 if __name__ == "__main__":
