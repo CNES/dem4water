@@ -85,7 +85,6 @@ def superimpose(
     input_image: Union[np.ndarray, rio.DatasetReader],
     image_ref: Union[np.ndarray, rio.DatasetReader],
     superimpose_parameters: SuperimposeParam,
-    out_image: Optional[str] = None,
     input_ref_profile: Optional[rio.DatasetReader.profile] = None,
     input_image_profile: Optional[rio.DatasetReader.profile] = None,
 ) -> rio.io.DatasetReader:
@@ -119,8 +118,7 @@ def superimpose(
         raster_profile_ref,
         superimpose_parameters,
     )
-    if out_image is not None:
-        save_image(data, profile, out_image)
+
     return data, profile
 
 
@@ -160,7 +158,8 @@ def main():
     )
     with rio.open(args.im) as image:
         with rio.open(args.imref) as reference:
-            superimpose(image, reference, args.outim, params)
+            data, profile = superimpose(image, reference, params)
+            save_image(data, profile, args.outim)
 
 
 if __name__ == "__main__":
