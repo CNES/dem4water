@@ -3,9 +3,9 @@ import os
 import geopandas as gpd
 import pandas as pd
 import rasterio
+from shapely.geometry import LineString
 
-from dem4water.tools.compute_grandient_dot_product import \
-    compute_gradient_product
+from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
 from dem4water.tools.polygonize_raster import PolygonizeParams, polygonize
 from dem4water.tools.rasterize_vectors import RasterizarionParams, rasterize
 from dem4water.tools.remove_holes_in_shapes import close_holes
@@ -78,7 +78,7 @@ def poly_to_points(feature, poly):
     return {feature: poly.exterior.coords}
 
 
-def convert_geodataframe_poly_to_points(in_gdf, id_col):
+def convert_geodataframe_poly_to_points(in_gdf, id_col, out_id_name, ident_gdp=None):
     """."""
     in_gdf["points"] = in_gdf.apply(
         lambda p: poly_to_points(p[id_col], p["geometry"]), axis=1
@@ -93,19 +93,79 @@ def convert_geodataframe_poly_to_points(in_gdf, id_col):
         for _, points in poly.items():
             for idx, point in enumerate(points[:-1]):
                 fidx.append(idx)
-                ident.append(i)
+                if ident_gdp is None:
+                    ident.append(i)
+                else:
+                    ident.append(ident_gdp)
                 coordx.append(point[0])
                 coordy.append(point[1])
     df_coords = pd.DataFrame()
     df_coords["x"] = coordx
     df_coords["y"] = coordy
     df_coords[id_col] = ident
-    df_coords["id_point"] = fidx  # range(len(df_coords.index))
-
+    df_coords[out_id_name] = fidx  # range(len(df_coords.index))
     gdf = gpd.GeoDataFrame(
         df_coords, geometry=gpd.points_from_xy(df_coords.x, df_coords.y), crs=in_gdf.crs
     )
     return gdf
+
+
+def draw_lines(gdf_wb_points, gdf_gdp_poly):
+    gdf = gpd.sjoin_nearest(gdf_gdp_poly, gdf_wb_points)
+    list_df = []
+    for ident in gdf.gdp_unique_id.unique():
+        gdf_work = gdf[gdf.gdp_unique_id == ident]
+        if len(gdf_work) == 1:
+            print(f"No enought points to start cutline search for gdp n°{ident}")
+            continue
+        wb_ident = gdf_work.wb_unique_id.unique()
+        if len(wb_ident) > 1:
+            print("Impossible to match the gdp with a unique water body.")
+        else:
+            wb_ident = wb_ident[0]
+            max_indices_wb = gdf_wb_points[
+                gdf_wb_points.wb_unique_id == wb_ident
+            ].id_point.max()
+        min_indices_gdp = gdf_work.id_point.min()
+        max_indices_gdp = gdf_work.id_point.max()
+        if min_indices_gdp < 100 and max_indices_gdp > max_indices_wb - 100:
+            print("passe par l'origine")
+            gdf_points = convert_geodataframe_poly_to_points(
+                gdf_work.iloc[[0]], "gdp_unique_id", "gdp_point", ident
+            )
+            print("*" * 10)
+            print(gdf_points)
+            gdf_points_contour = gpd.GeoDataFrame(
+                gdf_work[["wb_unique_id", "id_point"]],
+                geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
+                crs=gdf_work.crs,
+            )
+            inter = gpd.sjoin_nearest(gdf_points_contour, gdf_points)
+            gdf_temp = inter.sort_values("gdp_point")
+            gdf_work = gdf_temp.reset_index(drop=True)
+            gdf_temp = gpd.GeoDataFrame(
+                gdf_temp[["gdp_unique_id", "wb_unique_id", "id_point"]],
+                geometry=gpd.points_from_xy(gdf_temp.x, gdf_temp.y),
+                crs=gdf_work.crs,
+            )
+            list_df.append(gdf_temp)
+        else:
+            print("no zero")
+            gdf_work = gdf_work.sort_values("id_point")
+            gdf_work = gdf_work.reset_index(drop=True)
+            gdf_temp = gpd.GeoDataFrame(
+                gdf_work[["gdp_unique_id", "wb_unique_id", "id_point"]],
+                geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
+                crs=gdf_work.crs,
+            )
+            list_df.append(gdf_temp)
+    gdf_n = gpd.GeoDataFrame(pd.concat(list_df, ignore_index=True), crs=list_df[0].crs)
+    lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
+        lambda x: LineString(x.tolist())
+    )
+    lines = gpd.GeoDataFrame(lines, geometry="geometry", crs=gdf.crs)
+    lines.reset_index(inplace=True)
+    return lines
 
 
 # ##############################################
@@ -113,6 +173,8 @@ def convert_geodataframe_poly_to_points(in_gdf, id_col):
 # ##############################################
 def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size):
     """."""
+    if not os.path.exists(work_dir):
+        os.mkdir(work_dir)
     with rasterio.open(mnt_raster) as src:
         epsg = src.crs.to_epsg()
     # 1 Handle mutlipolygons
@@ -157,13 +219,38 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size):
     gdf_gdp = filter_by_convex_hull(gdf_gdp, work_dir, "gdp_unique_id")
     # 8 Convertir la BD en points
     gdf_bd["wb_unique_id"] = range(len(gdf_bd.index))
-    gdf_wb_points = convert_geodataframe_poly_to_points(gdf_bd, "wb_unique_id")
+    gdf_wb_points = convert_geodataframe_poly_to_points(
+        gdf_bd, "wb_unique_id", "id_point"
+    )
     gdf_wb_points.to_file(os.path.join(work_dir, "contour_points.geojson"))
+
+    # 9 Draw line
+    lines = draw_lines(gdf_wb_points, gdf_gdp)
+    lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
 prepare_inputs(
     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/test_chain_2",
+    "/home/btardy/Documents/activites/WATER/GDP/Marne_chain",
+    100,
+)
+
+prepare_inputs(
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Laparan_chain",
+    100,
+)
+prepare_inputs(
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/vaufrey_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/dem_extract_Vaufrey.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Vaufrey_chain",
+    100,
+)
+prepare_inputs(
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/naussac_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain",
     100,
 )
