@@ -1,8 +1,10 @@
 import os
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import rasterio
+from rasterio.mask import mask
 from shapely.geometry import LineString
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
@@ -164,8 +166,55 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly):
         lambda x: LineString(x.tolist())
     )
     lines = gpd.GeoDataFrame(lines, geometry="geometry", crs=gdf.crs)
+    # Remove useless points by simplying each line
+    lines.geometry = lines.simplify(1)
     lines.reset_index(inplace=True)
     return lines
+
+
+# ##############################################
+# Find higher altitude to complete cutline
+# ##############################################
+
+
+def search_line(init_point, gdf_lines, mnt_raster, buffer_size):
+    """."""
+    gdf = gpd.GeoDataFrame(
+        {"init_point": 1},
+        geometry=gpd.points_from_xy(init_point[0], init_point[1]),
+        crs=gdf_lines.crs,
+    )
+    gdf.geometry = gdf.geometry.buffer(buffer_size)
+    geoms = gdf.geometry.values
+    with rasterio.open(mnt_raster) as mnt:
+        out_image, out_transform = mask(mnt, geoms, crop=True)
+        no_data = mnt.nodata
+        data = out_image[0, :, :]
+        row, col = np.where(data != no_data)
+        vals = np.extract(data != no_data, data)
+        x_coords, y_coords = rasterio.transform.xy(
+            out_transform, row, cols, offset="center"
+        )
+        gdf = gpd.GeoDataFrame(
+            {"row": row, "col": col, "atlitude": vals},
+            geometry=gpd.points_from_xy(x_coords, y_coords),
+            crs=gdf_lines.crs,
+        )
+
+
+def fill_cutline(gdf_line):
+    """."""
+
+    # Extraire chaque ligne du dataframe
+    for i in gdf_line.index:
+        line = list(gdf_line.iloc[i].geometry.coords)
+        left_point = line[0]
+        right_point = line[-1]
+    # Prendre les 2 points extrème de chaque cotés
+
+    # Chercher dans un radius de N le point le plus haut
+
+    # Assurer qu'on ne revient pas en arrière
 
 
 # ##############################################
