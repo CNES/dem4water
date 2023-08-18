@@ -56,7 +56,7 @@ def superimpose_ndarray(
     output_image_path:str
     """
     resampling = get_interpolator(superimpose_parameters)
-    output_image = input_image.astype(superimpose_parameters.dtype)
+    output_image= np.ones(np.shape(input_image), DTYPE[Superimpose_parameters.dtype])
     result, _ = reproject(
         source=input_image,
         destination=output_image,
@@ -65,6 +65,8 @@ def superimpose_ndarray(
         dst_crs=input_ref_profile["crs"],
         dst_transform=input_ref_profile["transform"],
         resampling=resampling,
+        src_nodata=input_image_profile["nodata"],
+        dst_nodata=input_image_profile["nodata"]
     )
     height = ceil(input_ref_profile["height"])
     width = ceil(input_ref_profile["width"])
@@ -76,6 +78,7 @@ def superimpose_ndarray(
             "count": input_image_profile["count"],
             "dtype": DTYPE[superimpose_parameters.dtype],
             "driver": "GTiff",
+            "nodata": input_image_profile["nodata"]
         }
     )
     return result, profile
@@ -85,8 +88,8 @@ def superimpose(
     input_image: Union[np.ndarray, rio.DatasetReader],
     image_ref: Union[np.ndarray, rio.DatasetReader],
     superimpose_parameters: SuperimposeParam,
-    input_ref_profile: Optional[rio.DatasetReader.profile] = None,
-    input_image_profile: Optional[rio.DatasetReader.profile] = None,
+    input_ref_profile: Optional[rio._base.DatasetBase] = None,
+    input_image_profile: Optional[rio._base.DatasetBase] = None,
 ) -> rio.io.DatasetReader:
     """Reproject a image according a reference.
 
