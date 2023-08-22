@@ -12,9 +12,11 @@ from time import perf_counter
 import numpy as np
 import otbApplication as otb
 from osgeo import gdal, ogr, osr
-
+import rasterio as rio
 from dem4water.tools.utils import distance
-
+from dem4water.tools.save_raster import save_image
+from dem4water.tools.extract_roi import ExtractROIParam,  extract_roi
+from dem4water.tools.superimpose import SuperimposeParam, superimpose
 
 def area_mapping(
     infile, dam_id, id_db, watermap, dem, out_dem, out_wmap, radius=None, debug=False
@@ -24,7 +26,6 @@ def area_mapping(
     Retrieve dam coordinate
     """
     t1_start = perf_counter()
-
     # Silence VRT related error (bad magic number)
     gdal.PushErrorHandler("CPLQuietErrorHandler")
 
@@ -93,52 +94,44 @@ def area_mapping(
     point.Transform(coord_trans)
     logging.debug(f"Coordinates: {point.GetX()} - {point.GetY()}")
 
-    extw = otb.Registry.CreateApplication("ExtractROI")
-    extw.SetParameterString("in", watermap)
-    extw.SetParameterString("mode", "radius")
-    extw.SetParameterString("mode.radius.unitr", "phy")
-    extw.SetParameterFloat("mode.radius.r", float(radius))
-    extw.SetParameterString("mode.radius.unitc", "phy")
-    extw.SetParameterFloat("mode.radius.cx", point.GetX())
-    extw.SetParameterFloat("mode.radius.cy", point.GetY())
-    extw.SetParameterString("out", out_wmap)
-    extw.ExecuteAndWriteOutput()
-
-    app = otb.Registry.CreateApplication("Superimpose")
-    app.SetParameterString("inr", out_wmap)
-    app.SetParameterString("inm", dem)
-    app.SetParameterString("out", out_dem)
-    app.ExecuteAndWriteOutput()
+    extract_roi_parameters_extw=ExtractROIParam(
+        mode="radius",
+        mode_radius_r= float(radius),   
+        mode_radius_unitr="phy", 
+        mode_radius_unitc="phy", 
+        mode_radius_cx=point.GetX(),
+        mode_radius_cy= point.GetY(), 
+        dtype='float')
+    
+  
+    extw, profile_etw = extract_roi(rio.open(watermap),extract_roi_parameters_extw)
+    save_image(extw, profile_etw, out_wmap)
+    superimpose_app=SuperimposeParam(interpolator ="bco",dtype= 'float')
+    app, profile_app=superimpose(rio.open(dem), rio.open(out_wmap), superimpose_app)
+    save_image( app, profile_app, out_dem)
 
     # Search dam bottom
-    extw_bt = otb.Registry.CreateApplication("ExtractROI")
-    extw_bt.SetParameterString("in", out_wmap)
-    extw_bt.SetParameterString("mode", "radius")
-    extw_bt.SetParameterString("mode.radius.unitr", "phy")
-    extw_bt.SetParameterFloat("mode.radius.r", 500)
-    extw_bt.SetParameterString("mode.radius.unitc", "phy")
-    extw_bt.SetParameterFloat("mode.radius.cx", point.GetX())
-    extw_bt.SetParameterFloat("mode.radius.cy", point.GetY())
-    extw_bt.Execute()
+    extract_roi_parameter_extw_bt=ExtractROIParam(
+        mode="radius",
+        mode_radius_r= 500,   
+        mode_radius_unitr="phy", 
+        mode_radius_unitc="phy", 
+        mode_radius_cx=point.GetX(),
+        mode_radius_cy= point.GetY(),
+        dtype='float')
+    
+    extw_bt, profile_extw_bt = extract_roi(rio.open(out_wmap), extract_roi_parameter_extw_bt)
+   
+    superimpose_extd_bt=SuperimposeParam(interpolator ="bco",dtype= 'float')
+ 
+    extd_bt,profile_extd_bt =superimpose(rio.open(out_dem), extw_bt, superimpose_extd_bt, profile_extw_bt)
 
-    extd_bt = otb.Registry.CreateApplication("Superimpose")
-    extd_bt.SetParameterInputImage("inr", extw_bt.GetParameterOutputImage("out"))
-    extd_bt.SetParameterString("inm", out_dem)
-    extd_bt.Execute()
-
-    bandmath = otb.Registry.CreateApplication("BandMath")
-    bandmath.AddImageToParameterInputImageList(
-        "il", extw_bt.GetParameterOutputImage("out")
-    )
-    bandmath.AddImageToParameterInputImageList(
-        "il", extd_bt.GetParameterOutputImage("out")
-    )
-    bandmath.SetParameterString("exp", "( im1b1  > 0.50 ) ? im2b1 : " + str(calt))
-    bandmath.Execute()
-
-    np_surf = bandmath.GetImageAsNumpyArray("out")
+    np_surf=np.where(extw_bt > 0.50, extd_bt, str(calt))
+    np_surf= np_surf.astype('float')
+ 
     bt_alt = np.amin(np_surf)
     logging.info(f"Bottom Alt: {bt_alt}")
+    
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
 

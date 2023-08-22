@@ -56,7 +56,7 @@ def superimpose_ndarray(
     output_image_path:str
     """
     resampling = get_interpolator(superimpose_parameters)
-    output_image= np.ones(np.shape(input_image), DTYPE[Superimpose_parameters.dtype])
+    output_image= np.ones(np.shape(input_image), DTYPE[superimpose_parameters.dtype])
     result, _ = reproject(
         source=input_image,
         destination=output_image,
