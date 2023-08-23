@@ -3,16 +3,16 @@
 """Save Image"""
 import argparse
 import sys
+
 import rasterio as rio
 
 
 def save_image(raster, profile, output_path):
-    with rio.open(output_path, 
-        "w",
-        **profile) as dataset:
+    print(profile)
+    with rio.open(output_path, "w", **profile) as dataset:
         dataset.write(raster)
 
-           
+
 def main():
     """Define parameters."""
     parser = argparse.ArgumentParser(
