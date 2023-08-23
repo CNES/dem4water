@@ -8,8 +8,8 @@ import pandas as pd
 import rasterio
 from shapely.geometry import LineString
 
-from dem4water.tools.compute_grandient_dot_product import \
-    compute_gradient_product
+from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
+
 # from dem4water.tools.concave_hull import concave_hull
 from dem4water.tools.polygonize_raster import PolygonizeParams, polygonize
 from dem4water.tools.rasterize_vectors import RasterizarionParams, rasterize
@@ -329,11 +329,11 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size):
     gdp_raster = os.path.join(work_dir, "gdp_raster.tif")
     compute_gradient_product(waterbody_bin, mnt_raster, gdp_raster)
     # 6 Vectorize
-    params_poly = PolygonizeParams(
-        layer_name="output", field_name="DN", driver="GeoJson", overwrite=True
-    )
+    # params_poly = PolygonizeParams(
+    #     layer_name="output", field_name="DN", driver="GeoJson", overwrite=True
+    # )
     gdp_vector = os.path.join(work_dir, "gdp_vector.geojson")
-    polygonize(gdp_raster, gdp_vector, params_poly)
+    polygonize(gdp_raster, gdp_vector)
     gdf_gdp = clear_polygonize(gdp_vector, epsg)
     # 7 Relier les polygones GDP proches
     # TODO compute area w.r.t the waterbody whole area

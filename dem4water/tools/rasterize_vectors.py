@@ -30,6 +30,7 @@ class RasterizarionParams:
     background_value: int
     column_field: str = None
     dtype: str = "float"
+    nodata: int = 0
 
 
 def prepare_vector(in_vector: str, ref_proj: int) -> gpd.GeoDataFrame:
@@ -91,8 +92,14 @@ def binary_rasterize(
         dtype=rasterize_params.dtype,
     )
     profile = raster.profile
-    profile.update({"dtype": DTYPE[rasterize_params.dtype], "driver": "GTiff"})
-
+    profile.update(
+        {
+            "dtype": DTYPE[rasterize_params.dtype],
+            "driver": "GTiff",
+            "nodata": 0,
+        }
+    )
+    vector_rasterized = vector_rasterized[None, :, :]
     return vector_rasterized, profile
 
 
