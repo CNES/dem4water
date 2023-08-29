@@ -6,8 +6,10 @@ import numpy as np
 import pandas as pd
 import rasterio
 import shapely
-from rasterio.mask import mask
-from shapely.geometry import LineString
+
+# from rasterio.mask import mask
+from shapely.geometry import LineString, MultiLineString
+from shapely.ops import linemerge
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
 from dem4water.tools.polygonize_raster import polygonize
@@ -81,15 +83,24 @@ def poly_to_points(feature, poly):
     return {feature: poly.exterior.coords}
 
 
+def linestring_to_points(feature, line):
+    return {feature: line.coords}
+
+
 def convert_geodataframe_poly_to_points(
-    in_gdf, id_col, out_id_name, ident_gdp=None, suffix=None
+    in_gdf, id_col, out_id_name, ident_gdp=None, suffix=None, type_geom="poly"
 ):
     """."""
     suffix = suffix if suffix is not None else ""
     # input(suffix)
-    in_gdf["points"] = in_gdf.apply(
-        lambda p: poly_to_points(p[id_col], p["geometry"]), axis=1
-    )
+    if type_geom == "poly":
+        in_gdf["points"] = in_gdf.apply(
+            lambda p: poly_to_points(p[id_col], p["geometry"]), axis=1
+        )
+    else:
+        in_gdf["points"] = in_gdf.apply(
+            lambda p: linestring_to_points(p[id_col], p["geometry"]), axis=1
+        )
     list_points = list(in_gdf.points)
 
     ident = []
@@ -119,13 +130,53 @@ def convert_geodataframe_poly_to_points(
     return gdf
 
 
-def draw_lines(gdf_wb_points, gdf_gdp_poly):
+def manage_small_subset_of_points(gdf_work, gdf_gdp_poly, gdf_wb_poly, gdp_ident):
+    """."""
+    # first_point = gdf.iloc[0]
+    # last_point = gdf.iloc[-1]
+    # print(gdf)
+    # print(first_point)
+    # print(last_point)
+    print(gdf_work)
+    print("Too small")
+    gdf_gdp_poly.geometry = gdf_gdp_poly.geometry.buffer(30)
+    gdf_wb = gdf_wb_poly.copy()
+    gdf_wb.geometry = gdf_wb.exterior
+    gdf_in = gpd.overlay(gdf_wb, gdf_gdp_poly)
+    convert = []
+    for line in gdf_in.geometry.values:
+        if isinstance(line, MultiLineString):
+            convert += [i for i in line.geoms]
+        else:
+            convert.append(line)
+    gdf = gpd.GeoDataFrame(
+        {"ident": range(len(convert)), "gdp_unique_id": gdp_ident},
+        geometry=convert,
+        crs=gdf_in.crs,
+    )
+    print(gdf)
+    gdf = convert_geodataframe_poly_to_points(
+        gdf,
+        "gdp_unique_id",
+        "gdp_point",
+        ident_gdp=gdp_ident,
+        suffix=None,
+        type_geom="line",
+    )
+    print(gdf)
+    # input("wait gdf")
+    return gdf
+
+
+def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
+    # gdf_temp = gdf_gdp_poly.copy()
+    # gdf_temp.geometry = gdf_temp.geometry.buffer(30)
     gdf = gpd.sjoin_nearest(
         gdf_gdp_poly, gdf_wb_points, max_distance=300, distance_col="distance"
     )
-    gdf.to_file(
-        "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain/sjoin_nearest.geojson"
-    )
+    # gdf.to_file(
+    #     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain/sjoin_nearest.geojson"
+    # )
     list_df = []
     for ident in gdf.gdp_unique_id.unique():
         gdf_work = gdf[gdf.gdp_unique_id == ident]
@@ -144,20 +195,19 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly):
         max_indices_gdp = gdf_work.id_point.max()
         if min_indices_gdp < 100 and max_indices_gdp > max_indices_wb - 100:
             print("passe par l'origine")
-            # gdf_points = convert_geodataframe_poly_to_points(
-            #     gdf_work.iloc[[0]], "gdp_unique_id", "gdp_point", ident
+            gdf_points = convert_geodataframe_poly_to_points(
+                gdf_work.iloc[[0]], "gdp_unique_id", "gdp_point", ident
+            )
+            gdf_points_contour = gpd.GeoDataFrame(
+                gdf_work[["wb_unique_id", "id_point"]],
+                geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
+                crs=gdf_work.crs,
+            )
+            inter = gpd.sjoin_nearest(gdf_points_contour, gdf_points)
+            # gdf_temp = gdf_work.sort_values(
+            #     "gdp_point"
             # )
-            print("*" * 10)
-            print(gdf_work)
-            # gdf_points_contour = gpd.GeoDataFrame(
-            #     gdf_work[["wb_unique_id", "id_point"]],
-            #     geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
-            #     crs=gdf_work.crs,
-            # )
-            # inter = gpd.sjoin_nearest(gdf_points_contour, gdf_points)
-            gdf_temp = gdf_work.sort_values(
-                "gdp_point"
-            )  # inter.sort_values("gdp_point")
+            gdf_temp = inter.sort_values("gdp_point")
             gdf_work = gdf_temp.reset_index(drop=True)
             gdf_temp = gpd.GeoDataFrame(
                 gdf_temp[["gdp_unique_id", "wb_unique_id", "id_point"]],
@@ -167,13 +217,40 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly):
             list_df.append(gdf_temp)
         else:
             print("no zero")
+            gdf_work = gdf_work.drop_duplicates(["x", "y"])
+
+            print(
+                compute_distance(
+                    (list(gdf_work.x)[0], list(gdf_work.y)[0]),
+                    (list(gdf_work.x)[1], list(gdf_work.y)[1]),
+                )
+            )
+
             gdf_work = gdf_work.sort_values("id_point")
             gdf_work = gdf_work.reset_index(drop=True)
-            gdf_temp = gpd.GeoDataFrame(
-                gdf_work[["gdp_unique_id", "wb_unique_id", "id_point"]],
-                geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
-                crs=gdf_work.crs,
+            # gdf_work.geometry = gdf_work.simplify(1)
+
+            # if len(gdf_work.index) < 5:
+            # print("2 points")
+            gdf_poly = gdf_gdp_poly.loc[gdf_gdp_poly.gdp_unique_id == ident]
+            radius = gdf_poly.geometry.minimum_bounding_radius().values[0]
+
+            print("radius : ", radius)
+            distance = compute_distance(
+                (gdf_work.iloc[0].x, gdf_work.iloc[0].y),
+                (gdf_work.iloc[1].x, gdf_work.iloc[-1].y),
             )
+            print("len of base ", distance)
+            if distance < radius * 0.1:
+                gdf_temp = manage_small_subset_of_points(
+                    gdf_work, gdf_poly, gdf_wb_poly, ident
+                )
+            else:
+                gdf_temp = gpd.GeoDataFrame(
+                    gdf_work[["gdp_unique_id", "wb_unique_id", "id_point"]],
+                    geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
+                    crs=gdf_work.crs,
+                )
             list_df.append(gdf_temp)
     gdf_n = gpd.GeoDataFrame(pd.concat(list_df, ignore_index=True), crs=list_df[0].crs)
     lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
@@ -183,6 +260,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly):
     # Remove useless points by simplying each line
     lines.geometry = lines.simplify(1)
     lines.reset_index(inplace=True)
+    # input("wait")
     return lines
 
 
@@ -476,7 +554,14 @@ def fill_cutline(
             j += 1
         all_lines.append(row.geometry)
         print(all_lines)
-    gdf_out.geometry = all_lines
+    # gdf_out.geometry = all_lines
+    if len(all_lines) > 1:
+        lines_merged = linemerge(all_lines)
+        all_lines = list(lines_merged.geoms)
+
+    gdf_final = gpd.GeoDataFrame(
+        {"id_cutline": range(len(all_lines))}, geometry=all_lines, crs=gdf_out.crs
+    )
     # gdf_out = filter_by_convex_hull(gdf_out, work_dir, "gdp_unique_id")
     #     left_part = search_line(left_point, gdf_line, mnt_raster, buffer_size, alt_max)
     #     left_part.reverse()
@@ -491,7 +576,7 @@ def fill_cutline(
     #     # Assurer qu'on ne revient pas en arrière
     # gdf_out.geometry = all_lines
     # print(gdf_out)
-    return gdf_out
+    return gdf_final
 
 
 # ##############################################
@@ -556,13 +641,13 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         gdf_gdp_points = convert_geodataframe_poly_to_points(
             gdf_gdp, "gdp_unique_id", "gdp_point", suffix="_gdp"
         )
-        lines = draw_lines(gdf_wb_points, gdf_gdp_points)
+        gdf_gdp_points.to_file(os.path.join(work_dir, "pdb_contour.geojson"))
+        lines = draw_lines(gdf_wb_points, gdf_gdp, gdf_bd)  # _points)
         lines.to_file(os.path.join(work_dir, "cutline_base.geojson"))
         lines = fill_cutline(lines, mnt_raster, waterbody_bin, work_dir, alt_max)
         lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
-# OK
 prepare_inputs(
     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
@@ -594,12 +679,18 @@ prepare_inputs(
     420,
 )
 
-# fill_cutline(
+# lines = fill_cutline(
 #     gpd.GeoDataFrame().from_file(
-#         "/home/btardy/Documents/activites/WATER/GDP/test_chain_3/cutline_simplified.geojson"
+#         "/home/btardy/Documents/activites/WATER/GDP/Marne_chain/snap_test.geojson"
 #     ),
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
 #     "/home/btardy/Documents/activites/WATER/GDP/test_chain_3/waterbody_bin.tif",
 #     "/home/btardy/Documents/activites/WATER/GDP/test_chain_3/",
 #     alt_max=170,
+# )
+# lines.to_file(
+#     os.path.join(
+#         "/home/btardy/Documents/activites/WATER/GDP/test_chain_3/",
+#         "cutline_snap.geojson",
+#     )
 # )
