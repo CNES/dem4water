@@ -139,6 +139,8 @@ def manage_small_subset_of_points(gdf_work, gdf_gdp_poly, gdf_wb_poly, gdp_ident
     # print(last_point)
     print(gdf_work)
     print("Too small")
+    # TODO: 30m peut poser des problèmes sur les petits courts d'eau
+    # ex Vauffrey mais en post barrage ?
     gdf_gdp_poly.geometry = gdf_gdp_poly.geometry.buffer(30)
     gdf_wb = gdf_wb_poly.copy()
     gdf_wb.geometry = gdf_wb.exterior
@@ -146,7 +148,11 @@ def manage_small_subset_of_points(gdf_work, gdf_gdp_poly, gdf_wb_poly, gdp_ident
     convert = []
     for line in gdf_in.geometry.values:
         if isinstance(line, MultiLineString):
-            convert += [i for i in line.geoms]
+            new_line = linemerge(line)
+            if isinstance(new_line, MultiLineString):
+                convert += [i for i in new_line.geoms]
+            else:
+                convert.append(new_line)
         else:
             convert.append(line)
     gdf = gpd.GeoDataFrame(
@@ -186,6 +192,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
         wb_ident = gdf_work.wb_unique_id.unique()
         if len(wb_ident) > 1:
             print("Impossible to match the gdp with a unique water body.")
+
         else:
             wb_ident = wb_ident[0]
             max_indices_wb = gdf_wb_points[
@@ -241,7 +248,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
                 (gdf_work.iloc[1].x, gdf_work.iloc[-1].y),
             )
             print("len of base ", distance)
-            if distance < radius * 0.1:
+            if True:  # distance < radius * 0.1:
                 gdf_temp = manage_small_subset_of_points(
                     gdf_work, gdf_poly, gdf_wb_poly, ident
                 )
@@ -316,7 +323,15 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
 
 
 def search_point(
-    init_point, prev_point, row, direction, mnt_raster, search_radius, alt, alt_max
+    init_point,
+    prev_point,
+    row,
+    direction,
+    mnt_raster,
+    search_radius,
+    alt,
+    alt_max,
+    water_body,
 ):
     """."""
     with rasterio.open(mnt_raster) as mnt:
@@ -379,9 +394,27 @@ def search_point(
                     print("Stop")
         if not stop:
             if direction == "left":
-                # input(type(row))
+                # TODO: ensure that we are not crossing the water
+                left_line = LineString(
+                    [(new_x[0], new_y[0]), list(row.geometry.coords)[0]]
+                )
+                print(left_line.length)
+                if left_line.length > 1000:
+                    print("Point to far")
+                    stop = True
+                    return row, stop, alt
+                inter = shapely.intersection(left_line, water_body.geometry.values[0])
+                print("inter", inter)
+                if isinstance(inter, shapely.geometry.LineString) or isinstance(
+                    inter, shapely.geometry.MultiLineString
+                ):
+                    if not inter.is_empty:
+                        print("J'ai traversé l'eau")
+                        stop = True
+                        return row, stop, alt
+
                 s = shapely.intersection(
-                    LineString([(new_x[0], new_y[0]), list(row.geometry.coords)[0]]),
+                    left_line,
                     row.geometry,
                 )
                 # If another point than the origin is found as intersection
@@ -394,8 +427,26 @@ def search_point(
                         [(new_x[0], new_y[0])] + list(row.geometry.coords)
                     )
             else:
+                right_line = LineString(
+                    [(new_x[0], new_y[0]), list(row.geometry.coords)[-1]]
+                )
+
+                if right_line.length > 1000:
+                    print("Point to far")
+                    stop = True
+                    return row, stop, alt
+                inter = shapely.intersection(right_line, water_body.geometry.values[0])
+                print("inter", inter)
+                if isinstance(inter, shapely.geometry.LineString) or isinstance(
+                    inter, shapely.geometry.MultiLineString
+                ):
+                    if not inter.is_empty:
+                        print("J'ai traversé l'eau")
+                        stop = True
+                        return row, stop, alt
+
                 s = shapely.intersection(
-                    LineString([(new_x[0], new_y[0]), list(row.geometry.coords)[-1]]),
+                    right_line,
                     row.geometry,
                 )
                 if isinstance(s, shapely.geometry.MultiPoint):
@@ -463,7 +514,13 @@ def compute_distance(point1, point2, thresholding: Optional[str] = None):
 
 
 def fill_cutline(
-    gdf_line, mnt_raster, water_body_raster, work_dir, alt_max, resolution=10
+    gdf_line,
+    mnt_raster,
+    water_body_raster,
+    work_dir,
+    alt_max,
+    water_body,
+    resolution=10,
 ):
     """."""
     gdf_out = gdf_line.copy()
@@ -520,6 +577,7 @@ def fill_cutline(
                 search_distance,
                 alt,
                 alt_max,
+                water_body,
             )
             j += 1
         # search right
@@ -550,6 +608,7 @@ def fill_cutline(
                 search_distance,
                 alt,
                 alt_max,
+                water_body,
             )
             j += 1
         all_lines.append(row.geometry)
@@ -644,40 +703,59 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         gdf_gdp_points.to_file(os.path.join(work_dir, "pdb_contour.geojson"))
         lines = draw_lines(gdf_wb_points, gdf_gdp, gdf_bd)  # _points)
         lines.to_file(os.path.join(work_dir, "cutline_base.geojson"))
-        lines = fill_cutline(lines, mnt_raster, waterbody_bin, work_dir, alt_max)
+        lines = fill_cutline(
+            lines, mnt_raster, waterbody_bin, work_dir, alt_max, gdf_bd
+        )
         lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Laparan_chain",
-    100,
-    1700,
-)
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Laparan_chain",
+#     100,
+#     1700,
+# )
+
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/naussac_bd.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain",
+#     100,
+#     10000,
+# )
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain",
+#     100,
+#     157,
+# )
 
 prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/naussac_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/banegon_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/dem_extract_Banegon.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Banegon_chain",
     100,
-    10000,
+    1500,
 )
 prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Marne_chain",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/Montbel_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/dem_extract_Montbel.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Montbel_chain",
     100,
-    157,
+    1000,
 )
 
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/vaufrey_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/dem_extract_Vaufrey.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Vaufrey_chain",
-    100,
-    420,
-)
+
+# Pb de polygone pour le GDP
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/vaufrey_bd.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Vaufrey/dem_extract_Vaufrey.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Vaufrey_chain",
+#     100,
+#     420,
+# )
 
 # lines = fill_cutline(
 #     gpd.GeoDataFrame().from_file(
