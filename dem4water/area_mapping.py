@@ -16,6 +16,7 @@ import otbApplication as otb
 from osgeo import gdal, ogr, osr
 from bmi_topography import Topography
 from dem4water.tools.utils import distance
+import rasterio as rio
 
 
 def area_mapping(
@@ -84,10 +85,10 @@ def area_mapping(
     params = Topography.DEFAULT.copy()
     params = {
         "dem_type": "COP30",
-        "south": bbox[2] - long_radius,
-        "north": bbox[3] + long_radius,
-        "west": bbox[0] - lat_radius,
-        "east": bbox[1] + lat_radius,
+        "south": bbox[2] - 2*long_radius,
+        "north": bbox[3] + 2*long_radius,
+        "west": bbox[0] - 2*lat_radius,
+        "east": bbox[1] + 2*lat_radius,
         "output_format": "GTiff",
         "cache_dir": output_download_path,
     }
@@ -135,14 +136,13 @@ def area_mapping(
         print(url + " not found")
 
     watermap = glob.glob(os.path.join(output_download_path, "occurrence*"))[0]
-
     watermap_reproject = watermap.replace(".tif", "_reproject.tif")
     dst_crs = "EPSG:32630"
     src_ds = gdal.Open(watermap)
 
     largeur = src_ds.RasterXSize
     hauteur = src_ds.RasterYSize
-    gdal.Warp(watermap_reproject, src_ds, dstSRS=dst_crs, width=largeur, height=hauteur)
+    gdal.Warp(watermap_reproject, src_ds, dstSRS=dst_crs, width=largeur, height=hauteur, resampleAlg=gdal.GRA_Cubic)
 
     src = osr.SpatialReference()
 
@@ -198,7 +198,7 @@ def area_mapping(
     bandmath.AddImageToParameterInputImageList(
         "il", extd_bt.GetParameterOutputImage("out")
     )
-    bandmath.SetParameterString("exp", "( im1b1  > 0.50 ) ? im2b1 : " + str(calt))
+    bandmath.SetParameterString("exp", "( im1b1  > 50 ) ? im2b1 : " + str(calt))
     bandmath.Execute()
 
     np_surf = bandmath.GetImageAsNumpyArray("out")
