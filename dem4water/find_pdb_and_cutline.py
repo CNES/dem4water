@@ -12,7 +12,6 @@ from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
-import otbApplication as otb
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
 import rasterio as rio

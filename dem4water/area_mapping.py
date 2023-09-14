@@ -8,18 +8,31 @@ import logging
 import os
 import sys
 from time import perf_counter
-
+import glob
+import urllib.request
+import shutil
 import numpy as np
-import otbApplication as otb
 from osgeo import gdal, ogr, osr
 import rasterio as rio
 from dem4water.tools.utils import distance
 from dem4water.tools.save_raster import save_image
 from dem4water.tools.extract_roi import ExtractROIParam,  extract_roi
 from dem4water.tools.superimpose import SuperimposeParam, superimpose
+from bmi_topography import Topography
+from dem4water.tools.utils import distance
+import rasterio as rio
+
+
 
 def area_mapping(
-    infile, dam_id, id_db, watermap, dem, out_dem, out_wmap, radius=None, debug=False
+    infile,
+    dam_id,
+    id_db,
+    out_dem,
+    out_wmap,
+    output_download_path,
+    radius=None,
+    debug=False,
 ):
     """Extract dem and watermap according the in-situ information provided in the DB.
 
@@ -52,7 +65,6 @@ def area_mapping(
     dam_404 = True
 
     for feature in layer:
-
         if str(int(feature.GetField(str(id_db)))) == str(dam_id):
             # Compute radius
             if radius is None:
@@ -70,6 +82,24 @@ def area_mapping(
             logging.debug(f"Height of dam in meters: {feature.GetField('DAM_LVL_M')}")
             break
     layer.ResetReading()
+    
+    # Download DEM
+    long_radius = abs(bbox[2] - bbox[3])
+    lat_radius = abs(bbox[0] - bbox[1])
+    params = Topography.DEFAULT.copy()
+    params = {
+        "dem_type": "COP30",
+        "south": bbox[2] - 2*long_radius,
+        "north": bbox[3] + 2*long_radius,
+        "west": bbox[0] - 2*lat_radius,
+        "east": bbox[1] + 2*lat_radius,
+        "output_format": "GTiff",
+        "cache_dir": output_download_path,
+    }
+    boulder = Topography(**params)
+    boulder.fetch()
+    
+    dem = glob.glob(os.path.join(output_download_path, "COP30*"))[0]
 
     if dam_404 is True:
         logging.error("404 - Dam Not Found: {dam_id} is not present in {infile}")
@@ -79,13 +109,53 @@ def area_mapping(
     logging.info(
         f"Currently processing: {dam_name} (ID: {dam_id}) [Lat: {clat}, Lon: {clon}, Alt: {calt}]"
     )
+    
+    # Download occurence
+    DATASET_NAME = "occurrence"
+    lg = abs(bbox[0])
+    lt = abs(bbox[2])
 
+    long = int(lg // 10 * 10) + 10
+    lat = int(lt // 10 * 10) + 10
+
+    if bbox[0] < 0 and bbox[1] < 0:
+        long = str(long) + "W"
+    elif bbox[0] > 0 and bbox[1] > 0:
+        long = str(long) + "E"
+    if bbox[2] < 0 and bbox[3] < 0:
+        lat = str(lat) + "S"
+    if bbox[2] > 0 and bbox[3] > 0:
+        lat = str(lat) + "N"
+
+    filename = DATASET_NAME + "_" + str(long) + "_" + str(lat) + "v1_4_2021.tif"
+    url = os.path.join(
+        "https://storage.googleapis.com/global-surface-water/downloads2021",
+        DATASET_NAME,
+        filename,
+    )
+    code = urllib.request.urlopen(url).getcode()
+    if code != 404:
+        print("Downloading " + url + ")")
+        urllib.request.urlretrieve(url, os.path.join(output_download_path, filename))
+    else:
+        print(url + " not found")
+   
+    watermap = glob.glob(os.path.join(output_download_path, "occurrence*"))[0]
+    watermap_reproject = watermap.replace(".tif", "_reproject.tif")
+       
+    dst_crs = "EPSG:32630"
+    src_ds = gdal.Open(watermap)
+
+    largeur = src_ds.RasterXSize
+    hauteur = src_ds.RasterYSize
+    gdal.Warp(watermap_reproject, src_ds, dstSRS=dst_crs, width=largeur, height=hauteur, resampleAlg=gdal.GRA_Cubic)
+   
     src = osr.SpatialReference()
-
+    
     src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
     src.ImportFromEPSG(4326)
-    dataset = gdal.Open(watermap, gdal.GA_ReadOnly)
+    dataset = gdal.Open(watermap_reproject, gdal.GA_ReadOnly)
     dst = osr.SpatialReference(wkt=dataset.GetProjection())
     coord_trans = osr.CoordinateTransformation(src, dst)
     point = ogr.Geometry(ogr.wkbPoint)
@@ -104,7 +174,7 @@ def area_mapping(
         dtype='float')
     
   
-    extw, profile_etw = extract_roi(rio.open(watermap),extract_roi_parameters_extw)
+    extw, profile_etw = extract_roi(rio.open(watermap_reproject),extract_roi_parameters_extw)
     save_image(extw, profile_etw, out_wmap)
     superimpose_app=SuperimposeParam(interpolator ="bco",dtype= 'float')
     app, profile_app=superimpose(rio.open(dem), rio.open(out_wmap), superimpose_app)
@@ -125,11 +195,14 @@ def area_mapping(
     superimpose_extd_bt=SuperimposeParam(interpolator ="bco",dtype= 'float')
  
     extd_bt,profile_extd_bt =superimpose(rio.open(out_dem), extw_bt, superimpose_extd_bt, profile_extw_bt)
-
+    extd_bt=extd_bt[:, :extw_bt.shape[1], :extw_bt.shape[2]]
     np_surf=np.where(extw_bt > 0.50, extd_bt, str(calt))
     np_surf= np_surf.astype('float')
- 
     bt_alt = np.amin(np_surf)
+    """
+    if os.path.isdir(output_download_path):
+        shutil.rmtree(output_download_path)
+    """
     logging.info(f"Bottom Alt: {bt_alt}")
     
     t1_stop = perf_counter()
@@ -162,15 +235,13 @@ def main():
         args.infile,
         args.id,
         args.id_db,
-        args.watermap,
-        args.dem,
         args.radius,
         args.out_dem,
         args.out_wmap,
+        args.output_download_path,
         debug=args.debug,
     )
 
 
 if __name__ == "__main__":
-
     sys.exit(main())
