@@ -86,13 +86,17 @@ def area_mapping(
     # Download DEM
     long_radius = abs(bbox[2] - bbox[3])
     lat_radius = abs(bbox[0] - bbox[1])
+    if long_radius > lat_radius:
+        rad=long_radius
+    else:
+        rad=lat_radius
     params = Topography.DEFAULT.copy()
     params = {
         "dem_type": "COP30",
-        "south": bbox[2] - 2*long_radius,
-        "north": bbox[3] + 2*long_radius,
-        "west": bbox[0] - 2*lat_radius,
-        "east": bbox[1] + 2*lat_radius,
+        "south": bbox[2] - 2*rad,
+        "north": bbox[3] + 2*rad,
+        "west": bbox[0] - 2*rad,
+        "east": bbox[1] + 2*rad,
         "output_format": "GTiff",
         "cache_dir": output_download_path,
     }
@@ -145,7 +149,7 @@ def area_mapping(
        
     dst_crs = "EPSG:32630"
     src_ds = gdal.Open(watermap)
-
+    
     largeur = src_ds.RasterXSize
     hauteur = src_ds.RasterYSize
     gdal.Warp(watermap_reproject, src_ds, dstSRS=dst_crs, width=largeur, height=hauteur, resampleAlg=gdal.GRA_Cubic)
