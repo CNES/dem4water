@@ -39,9 +39,7 @@ drive.mount('/content/drive')
 ### Test your installation
 
 ```bash
-
-# then try to access entry point
-dem4water -h
+!dem4water -h
 
 ```
 
@@ -56,7 +54,6 @@ For keeping results, output folder must be in Mydrive
 You can launch with :
 
 ```bash
-
 !dem4water campaign -json_campaign /~/campaign_andalousie_params.json -scheduler_type local
 
 ```
