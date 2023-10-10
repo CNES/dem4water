@@ -15,6 +15,15 @@ from dem4water.tools.generate_dam_json_config import write_json
 from dem4water.val_report import val_report
 
 
+def run_command(args):
+    """"""
+    output = subprocess.run(args, capture_output=True)
+    print("###############")
+    print("Return code:", output.returncode)
+    # use decode function to convert to string
+    print("Output:", output.stdout.decode("utf-8"))
+
+
 def get_current_git_rev():
     """Get the current revision number from git sources."""
     git_folder = os.path.join(os.path.dirname(__file__), "..", ".git")
@@ -50,7 +59,48 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
     out_file = log_out.replace(".log", ".pbs")
     with open(out_file, "w", encoding="utf-8") as ofile:
         ofile.write(pbs_file)
-    os.system(f"qsub {out_file}")
+    run_command(["qsub", out_file])
+
+
+def launch_slurm(
+    conf,
+    log_out,
+    log_err,
+    cpu=12,
+    ram=60,
+    h_wall=1,
+    m_wall=0,
+    account="cnes_level2",
+):
+    """Submit a job to pbs."""
+    # Export system variables simulating loading modules and venv
+    pbs_file = (
+        "#!/bin/bash\n"
+        f"#SBATCH --job-name T31TCJ_s2_retrieve"
+        "#SBATCH -N 1\n"
+        "#SBATCH --ntasks=1\n"
+        f"#SBATCH --cpus-per-task={cpu}\n"
+        f"#SBATCH --mem={ram}gb\n"
+        f"#SBATCH --time={int(h_wall):02d}:{int(m_wall):02d}:00\n"
+        "#SBATCH --error={log_err}"
+        "#SBATCH --output={log_out}"
+        "#SBATCH --partition=cpu_2022"
+        "#SBATCH --account={account}"
+        "\nmodule purge\n"
+        f"export PYTHONPATH={os.environ.get('PYTHONPATH')}\n"
+        f"export PATH={os.environ.get('PATH')}\n"
+        f"export LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH')}\n"
+        "export OTB_APPLICATION_PATH="
+        f"{os.environ.get('OTB_APPLICATION_PATH')}\n"
+        f"export GDAL_DATA={os.environ.get('GDAL_DATA')}\n"
+        f"export GEOTIFF_CSV={os.environ.get('GEOTIFF_CSV')}\n"
+        f"export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={cpu}\n\n"
+        f"dem4water single -dam_json {conf} -scheduler_type local"
+    )
+    out_file = log_out.replace(".log", ".slurm")
+    with open(out_file, "w", encoding="utf-8") as ofile:
+        ofile.write(pbs_file)
+    run_command(["sbatch", out_file])
 
 
 def launch_campaign(
@@ -74,15 +124,26 @@ def launch_campaign(
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
                 log_err = config["chain"]["log_err"]
-                launch_pbs(
-                    conf,
-                    log_out,
-                    log_err,
-                    h_wall=walltime_hour,
-                    m_wall=walltime_minutes,
-                    ram=ram,
-                    cpu=cpu,
-                )
+                if scheduler == "PBS":
+                    launch_pbs(
+                        conf,
+                        log_out,
+                        log_err,
+                        h_wall=walltime_hour,
+                        m_wall=walltime_minutes,
+                        ram=ram,
+                        cpu=cpu,
+                    )
+                elif scheduler == "Slurm":
+                    launch_slurm(
+                        conf,
+                        log_out,
+                        log_err,
+                        h_wall=walltime_hour,
+                        m_wall=walltime_minutes,
+                        ram=ram,
+                        cpu=cpu,
+                    )
 
 
 def launch_reference_validation_campaign(
@@ -232,7 +293,10 @@ def process_parameters():
         required=True,
     )
     parser_camp.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or PBS",
+        default="Slurm",
+        choices=["local", "Slurm"],
     )
     parser_camp.add_argument(
         "-input_force_list",
@@ -261,7 +325,10 @@ def process_parameters():
         "-only_ref", action="store_true", help="Launch only dams with a ref."
     )
     parser_ref.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or PBS",
+        default="Slurm",
+        choices=["local", "PBS", "Slurm"],
     )
     # mode DAM unique
     # dem4water --json agly.json
@@ -272,7 +339,10 @@ def process_parameters():
         "-dam_json", help="Configuration for an unique dam", required=True
     )
     parser_single.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or PBS",
+        default="Slurm",
+        choices=["local", "PBS", "Slurm"],
     )
 
     return parser
