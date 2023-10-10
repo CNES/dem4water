@@ -8,7 +8,8 @@ import sys
 
 from dem4water.area_mapping import area_mapping
 from dem4water.cut_contourlines import cut_countourlines
-from dem4water.cutline_score import cutline_score
+
+# from dem4water.cutline_score import cutline_score
 from dem4water.find_pdb_and_cutline import find_pdb_and_cutline
 from dem4water.szi_to_model import szi_to_model
 from dem4water.tools.generate_dam_json_config import write_json
@@ -70,22 +71,26 @@ def launch_slurm(
     ram=60,
     h_wall=1,
     m_wall=0,
-    account="cnes_level2",
+    account="campus",
+    dam_name=None,
 ):
     """Submit a job to pbs."""
     # Export system variables simulating loading modules and venv
+    if dam_name is None:
+        name = "dem4water"
+    else:
+        name = f"d4w_{dam_name}"
     pbs_file = (
         "#!/bin/bash\n"
-        f"#SBATCH --job-name T31TCJ_s2_retrieve"
+        f"#SBATCH --job-name {name}"
         "#SBATCH -N 1\n"
         "#SBATCH --ntasks=1\n"
         f"#SBATCH --cpus-per-task={cpu}\n"
         f"#SBATCH --mem={ram}gb\n"
         f"#SBATCH --time={int(h_wall):02d}:{int(m_wall):02d}:00\n"
-        "#SBATCH --error={log_err}"
-        "#SBATCH --output={log_out}"
-        "#SBATCH --partition=cpu_2022"
-        "#SBATCH --account={account}"
+        f"#SBATCH --error={log_err}\n"
+        f"#SBATCH --output={log_out}\n"
+        f"#SBATCH --account={account}\n"
         "\nmodule purge\n"
         f"export PYTHONPATH={os.environ.get('PYTHONPATH')}\n"
         f"export PATH={os.environ.get('PATH')}\n"
@@ -100,6 +105,7 @@ def launch_slurm(
     out_file = log_out.replace(".log", ".slurm")
     with open(out_file, "w", encoding="utf-8") as ofile:
         ofile.write(pbs_file)
+    print("Submit slurm job ", out_file)
     run_command(["sbatch", out_file])
 
 
@@ -120,6 +126,7 @@ def launch_campaign(
             launch_full_process(conf)
     else:
         for conf in config_list:
+            name = conf.split("/")[-1].split("_")[-1].split(".")[0]
             with open(conf, encoding="utf-8") as in_config:
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
@@ -143,6 +150,7 @@ def launch_campaign(
                         m_wall=walltime_minutes,
                         ram=ram,
                         cpu=cpu,
+                        dam_name=name,
                     )
 
 
@@ -214,7 +222,6 @@ def launch_reference_validation_campaign(
 def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
     """Launch a single dam on PBS or local mode."""
     if scheduler == "local":
-
         launch_full_process(conf)
     else:
         with open(conf, encoding="utf-8") as in_config:
@@ -254,7 +261,7 @@ def launch_full_process(input_config_json):
         area_mapping(**config["area_mapping"])
 
     find_pdb_and_cutline(**config["find_pdb_and_cutline"])
-    #cutline_score(**config["cutline_score"])
+    # cutline_score(**config["cutline_score"])
     cut_countourlines(**config["cut_contourlines"])
     szi_to_model(**config["szi_to_model"])
     if "val_report" in config:
