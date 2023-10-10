@@ -101,6 +101,8 @@ def write_json(
                 version_file.write(version_name)
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
+        watermap = config["campaign"]["watermap"]
+        dem = config["campaign"]["dem"]
         customs_files = config["campaign"]["customs_files"]
         dam_id_column = config["campaign"]["id_dam_column"]
         dam_name_column = config["campaign"]["dam_name_column"]
@@ -189,6 +191,8 @@ def write_json(
                 "infile": database,
                 "dam_id": id_dam,
                 "id_db": dam_id_column,
+                "watermap": watermap,
+                "dem": dem,
                 "out_wmap": extract_wmap,
                 "out_dem": extract_dem,
                 "output_download_path": output_download_path,
