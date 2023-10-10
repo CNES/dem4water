@@ -42,6 +42,9 @@ def generate_folders(output_path):
     extract_path = os.path.join(output_path, "extracts")
     create_folder(extract_path)
 
+    download_path = os.path.join(output_path, "download")
+    create_folder(download_path)
+
     log_path = os.path.join(output_path, "log")
     create_folder(log_path)
 
@@ -132,6 +135,8 @@ def write_json(
             create_folder(output_dam_camp_path)
             output_dam_tmp = os.path.join(output_path, "camp", dam_path_name, "tmp")
             create_folder(output_dam_tmp)
+            output_download_path = os.path.join(output_path, "download", dam_path_name)
+            create_folder(output_download_path)
             output_dam_extract_path = os.path.join(
                 output_path, "extracts", dam_path_name
             )
@@ -190,6 +195,7 @@ def write_json(
                 "dem": dem,
                 "out_wmap": extract_wmap,
                 "out_dem": extract_dem,
+                "output_download_path": output_download_path,
                 **config["area_mapping"],
             }
             dict_dam["find_pdb_and_cutline"] = {

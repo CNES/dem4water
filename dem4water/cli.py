@@ -193,7 +193,7 @@ def launch_full_process(input_config_json):
         area_mapping(**config["area_mapping"])
 
     find_pdb_and_cutline(**config["find_pdb_and_cutline"])
-    cutline_score(**config["cutline_score"])
+    #cutline_score(**config["cutline_score"])
     cut_countourlines(**config["cut_contourlines"])
     szi_to_model(**config["szi_to_model"])
     if "val_report" in config:

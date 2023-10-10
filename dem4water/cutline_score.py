@@ -9,7 +9,6 @@ import sys
 from time import perf_counter
 
 import numpy as np
-import otbApplication as otb
 
 
 def cutline_score(infile, watermap, out, debug=False):

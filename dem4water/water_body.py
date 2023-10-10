@@ -5,17 +5,19 @@ import os
 
 import geopandas as gpd
 import numpy as np
-import otbApplication as otb
-
+import rasterio as rio
+#import otbApplication as otb
+from dem4water.tools.save_raster import save_image
 
 def create_water_mask(watermap, water_thres=0.15):
     """Find the water body."""
     binary_wmap = watermap.replace(".tif", "_binary.tif")
-    bandmath = otb.Registry.CreateApplication("BandMath")
-    bandmath.SetParameterStringList("il", [watermap])
-    bandmath.SetParameterString("exp", f"im1b1>{water_thres}?1:0")
-    bandmath.SetParameterString("out", binary_wmap)
-    bandmath.ExecuteAndWriteOutput()
+    raster_watermap=rio.open(watermap)
+    raster_wmap = raster_watermap.read()
+    raster_wmap_profile = raster_watermap.profile
+    binary_watermap=np.where(raster_wmap > water_thres, 1,0)
+    
+    save_image(binary_watermap, raster_wmap_profile, binary_wmap)
     shp_wmap = watermap.replace(".tif", ".shp")
 
     cmd = f"gdal_polygonize.py {binary_wmap} {shp_wmap}"
