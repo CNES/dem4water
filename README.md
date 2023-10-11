@@ -1,4 +1,4 @@
-# dem4water
+u'i# dem4water
 
 ## Description
 
@@ -6,20 +6,18 @@ The aim of dem4water is to estimate water surface elevation (Z), surface area (S
 
 ## Installation
 
-### OTB is mandatory
+### Install a working version of GDAL
 
-dem4water is a OTB based processing chain. You must have a correct OTB installation before starting any installation process.
-
-You can use your own compiled version or use [otb binaries](https://www.orfeo-toolbox.org/download/). If you are using an HPC (PBS only) cluster where OTB is installed you can load it with "module load otb". See compatibility section to know the list of tested OTB versions.
+The chain version is set to GDAL 3.4.3 according to the TREX cluster.
+For a recent version, update the setup.py file before installing the source.
 
 ### Install the source project
 
-Once OTB is installed, you can clone this repository then proceed to the installation:
+Once GDAL is installed, you can clone this repository then proceed to the installation:
 
 ```bash
-# Source the otb modules
-source /XXXX/otbenv.profile
-# or module load otb7.4/python3.7.2
+# On TREX cluster load python which provide GDAL
+# module load otb7.4/python3.8.4
 
 # then install dem4water in a dedicated virtual env
 python3 -m pip install --user virtualenv
