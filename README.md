@@ -17,7 +17,7 @@ Once GDAL is installed, you can clone this repository then proceed to the instal
 
 ```bash
 # On TREX cluster load python which provide GDAL
-# module load otb7.4/python3.8.4
+# module load python/3.8.4
 
 # then install dem4water in a dedicated virtual env
 python3 -m pip install --user virtualenv
