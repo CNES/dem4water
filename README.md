@@ -134,23 +134,23 @@ In /YOUR_OUTPUT_PATH/campaign_template_file.json :
 }
 ```
 
-## Installation on Google Collab
+## Installation on Google Colab
 
-- Create a gmail account. 
+- Create a Gmail account. 
 - Get your APIKEY : https://opentopography.org/blog/introducing-api-keys-access-opentopography-global-datasets
 
 ### Install the source project
 
-First you need to download code in google drive :
+First you need to download code in Google Drive :
 
 ```bash
-# then install dem4water in a dedicated virtual env in google Collab :
+# then install dem4water in a dedicated virtual env in Google Colab :
 
 !pip install virtualenv
 !virtualenv dem4water
 !source dem4water/bin/activate
 
-# code in google drive 
+# code in Google Drive 
 from google.colab import drive
 drive.mount('/content/drive')
 
