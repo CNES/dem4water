@@ -1,4 +1,4 @@
-u'i# dem4water
+# dem4water
 
 ## Description
 
@@ -30,12 +30,11 @@ The pip installation create the entry_point `dem4water` which will be used in th
 
 ### Test your installation
 
-Considering a fresh terminal, first load OTB the your virtual env. Always in this order.
+Considering a fresh terminal, first load python then your virtual env. Always in this order.
 
 ```bash
-# Source the otb modules
-source /XXXX/otbenv.profile
-# or module load otb7.4/python3.7.2
+# On TREX load the correct version of python
+# module load python/3.8.4
 source <YOUR_VENV_PATH>/bin/activate
 
 # then try to access entry point
