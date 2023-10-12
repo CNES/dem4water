@@ -7,7 +7,16 @@ from setuptools import find_packages, setup
 with open("README.md", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
-requirements = ["geopandas", "numpy", "matplotlib"]
+requirements = [
+    "geopandas",
+    "numpy",
+    "matplotlib",
+    "flake8",
+    "cnes-pylint-extension",
+    "gdal==3.4.3",
+    "rasterio",
+    "bmi_topography",
+]
 
 test_requirements = []
 
