@@ -4,24 +4,23 @@
 
 
 import argparse
+import glob
 import logging
 import os
-import sys
-from time import perf_counter
-import glob
-import urllib.request
 import shutil
-import numpy as np
-from osgeo import gdal, ogr, osr
-import rasterio as rio
-from dem4water.tools.utils import distance
-from dem4water.tools.save_raster import save_image
-from dem4water.tools.extract_roi import ExtractROIParam,  extract_roi
-from dem4water.tools.superimpose import SuperimposeParam, superimpose
-from bmi_topography import Topography
-from dem4water.tools.utils import distance
-import rasterio as rio
+import sys
+import urllib.request
+from time import perf_counter
 
+import numpy as np
+import rasterio as rio
+from bmi_topography import Topography
+from osgeo import gdal, ogr, osr
+
+from dem4water.tools.extract_roi import ExtractROIParam, extract_roi
+from dem4water.tools.save_raster import save_image
+from dem4water.tools.superimpose import SuperimposeParam, superimpose
+from dem4water.tools.utils import distance
 
 
 def area_mapping(
@@ -84,27 +83,27 @@ def area_mapping(
             logging.debug(f"Height of dam in meters: {feature.GetField('DAM_LVL_M')}")
             break
     layer.ResetReading()
-    if dem is None: 
+    if dem is None:
         # Download DEM
         long_radius = abs(bbox[2] - bbox[3])
         lat_radius = abs(bbox[0] - bbox[1])
         if long_radius > lat_radius:
-            rad=long_radius
+            rad = long_radius
         else:
-            rad=lat_radius
+            rad = lat_radius
         params = Topography.DEFAULT.copy()
         params = {
             "dem_type": "COP30",
-            "south": bbox[2] - 2*rad,
-            "north": bbox[3] + 2*rad,
-            "west": bbox[0] - 2*rad,
-            "east": bbox[1] + 2*rad,
+            "south": bbox[2] - 2 * rad,
+            "north": bbox[3] + 2 * rad,
+            "west": bbox[0] - 2 * rad,
+            "east": bbox[1] + 2 * rad,
             "output_format": "GTiff",
             "cache_dir": output_download_path,
         }
         boulder = Topography(**params)
         boulder.fetch()
-    
+
         dem = glob.glob(os.path.join(output_download_path, "COP30*"))[0]
 
     if dam_404 is True:
@@ -142,22 +141,31 @@ def area_mapping(
         code = urllib.request.urlopen(url).getcode()
         if code != 404:
             print("Downloading " + url + ")")
-            urllib.request.urlretrieve(url, os.path.join(output_download_path, filename))
+            urllib.request.urlretrieve(
+                url, os.path.join(output_download_path, filename)
+            )
         else:
             print(url + " not found")
-   
+
         occurrence = glob.glob(os.path.join(output_download_path, "occurrence*"))[0]
         watermap = occurrence.replace(".tif", "_reproject.tif")
-       
+
         dst_crs = "EPSG:32630"
         src_ds = gdal.Open(occurrence)
-    
+
         largeur = src_ds.RasterXSize
         hauteur = src_ds.RasterYSize
-        gdal.Warp(watermap, src_ds, dstSRS=dst_crs, width=largeur, height=hauteur, resampleAlg=gdal.GRA_Cubic)
-    
+        gdal.Warp(
+            watermap,
+            src_ds,
+            dstSRS=dst_crs,
+            width=largeur,
+            height=hauteur,
+            resampleAlg=gdal.GRA_Cubic,
+        )
+
     src = osr.SpatialReference()
-    
+
     src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
     src.ImportFromEPSG(4326)
@@ -170,47 +178,60 @@ def area_mapping(
     point.Transform(coord_trans)
     logging.debug(f"Coordinates: {point.GetX()} - {point.GetY()}")
 
-    extract_roi_parameters_extw=ExtractROIParam(
+    extract_roi_parameters_extw = ExtractROIParam(
         mode="radius",
-        mode_radius_r= float(radius),   
-        mode_radius_unitr="phy", 
-        mode_radius_unitc="phy", 
+        mode_radius_r=float(radius),
+        mode_radius_unitr="phy",
+        mode_radius_unitc="phy",
         mode_radius_cx=point.GetX(),
-        mode_radius_cy= point.GetY(), 
-        dtype='float')
-    
-  
-    extw, profile_etw = extract_roi(rio.open(watermap),extract_roi_parameters_extw)
+        mode_radius_cy=point.GetY(),
+        dtype="float",
+    )
+
+    extw, profile_etw = extract_roi(rio.open(watermap), extract_roi_parameters_extw)
     save_image(extw, profile_etw, out_wmap)
-    superimpose_app=SuperimposeParam(interpolator ="bco",dtype= 'float')
-    app, profile_app=superimpose(rio.open(dem), rio.open(out_wmap), superimpose_app)
-    save_image( app, profile_app, out_dem)
+
+    # extract dem before superimpose ?
+    ext_dem, profile_dem = extract_roi(rio.open(dem), extract_roi_parameters_extw)
+    roi_dem = out_dem.replace(".tif", "roi.tif")
+    save_image(ext_dem, profile_dem, roi_dem)
+
+    superimpose_app = SuperimposeParam(interpolator="bco", dtype="float")
+    app, profile_app = superimpose(
+        rio.open(roi_dem), rio.open(out_wmap), superimpose_app
+    )
+    save_image(app, profile_app, out_dem)
 
     # Search dam bottom
-    extract_roi_parameter_extw_bt=ExtractROIParam(
+    extract_roi_parameter_extw_bt = ExtractROIParam(
         mode="radius",
-        mode_radius_r= 500,   
-        mode_radius_unitr="phy", 
-        mode_radius_unitc="phy", 
+        mode_radius_r=500,
+        mode_radius_unitr="phy",
+        mode_radius_unitc="phy",
         mode_radius_cx=point.GetX(),
-        mode_radius_cy= point.GetY(),
-        dtype='float')
-    
-    extw_bt, profile_extw_bt = extract_roi(rio.open(out_wmap), extract_roi_parameter_extw_bt)
-   
-    superimpose_extd_bt=SuperimposeParam(interpolator ="bco",dtype= 'float')
- 
-    extd_bt,profile_extd_bt =superimpose(rio.open(out_dem), extw_bt, superimpose_extd_bt, profile_extw_bt)
-    extd_bt=extd_bt[:, :extw_bt.shape[1], :extw_bt.shape[2]]
-    np_surf=np.where(extw_bt > 0.50, extd_bt, str(calt))
-    np_surf= np_surf.astype('float')
+        mode_radius_cy=point.GetY(),
+        dtype="float",
+    )
+
+    extw_bt, profile_extw_bt = extract_roi(
+        rio.open(out_wmap), extract_roi_parameter_extw_bt
+    )
+
+    superimpose_extd_bt = SuperimposeParam(interpolator="bco", dtype="float")
+
+    extd_bt, profile_extd_bt = superimpose(
+        rio.open(out_dem), extw_bt, superimpose_extd_bt, profile_extw_bt
+    )
+    extd_bt = extd_bt[:, : extw_bt.shape[1], : extw_bt.shape[2]]
+    np_surf = np.where(extw_bt > 0.50, extd_bt, str(calt))
+    np_surf = np_surf.astype("float")
     bt_alt = np.amin(np_surf)
-    
+
     if os.path.isdir(output_download_path):
         shutil.rmtree(output_download_path)
-    
+
     logging.info(f"Bottom Alt: {bt_alt}")
-    
+
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
 
@@ -238,13 +259,15 @@ def main():
     parser = area_mapping_args()
     args = parser.parse_args()
     area_mapping(
-        args.infile,
-        args.id,
-        args.id_db,
-        args.radius,
-        args.out_dem,
-        args.out_wmap,
-        args.output_download_path,
+        infile=args.infile,
+        dam_id=args.id,
+        id_db=args.id_db,
+        watermap=args.watermap,
+        dem=args.dem,
+        radius=args.radius,
+        out_dem=args.out_dem,
+        out_wmap=args.out_wmap,
+        output_download_path=args.output_download_path,
         debug=args.debug,
     )
 
