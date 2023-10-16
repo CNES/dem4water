@@ -1,6 +1,7 @@
+import glob
 import os
 from typing import Optional
-import glob
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -264,7 +265,9 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
                 )
             list_df.append(gdf_temp)
     if list_df:
-        gdf_n = gpd.GeoDataFrame(pd.concat(list_df, ignore_index=True), crs=list_df[0].crs)
+        gdf_n = gpd.GeoDataFrame(
+            pd.concat(list_df, ignore_index=True), crs=list_df[0].crs
+        )
         lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
             lambda x: LineString(x.tolist())
         )
@@ -803,17 +806,19 @@ working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutli
 out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
 db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
 gdf_db = gpd.GeoDataFrame().from_file(db_full)
-extract_folder = "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
+extract_folder = (
+    "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
+)
 for dam in list(gdf_db.DAM_NAME):
     print(dam)
     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
-    dam = dam.replace(" ","-")
+    dam = dam.replace(" ", "-")
     wdir = os.path.join(working_dir, dam)
     if not os.path.exists(wdir):
         os.mkdir(wdir)
-    dam_db = os.path.join(wdir,f"bd_{dam}.geojson")
+    dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
     gdf_t.to_file(dam_db)
-    extract = glob.glob(extract_folder+f"/{dam}/dem*.tif")[0]
+    extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
     print(extract)
     # out_extract = os.path.join(wdir, "dem_reproj.tif")
     # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
@@ -828,4 +833,4 @@ for dam in list(gdf_db.DAM_NAME):
     cutline = os.path.join(wdir, "cutline.geojson")
     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
     os.system(f"cp {cutline} {out_cutline}")
-#print(list_dams)
+# print(list_dams)
