@@ -103,7 +103,7 @@ def area_mapping(
         }
         boulder = Topography(**params)
         boulder.fetch()
-
+        # TODO: comment est gérée la projection
         dem = glob.glob(os.path.join(output_download_path, "COP30*"))[0]
 
     if dam_404 is True:
@@ -150,6 +150,9 @@ def area_mapping(
         occurrence = glob.glob(os.path.join(output_download_path, "occurrence*"))[0]
         watermap = occurrence.replace(".tif", "_reproject.tif")
 
+        # TODO : vérifier que l'epsg doit etre forcé en 32630
+        # pk pas 2154 ?
+        # Aligner sur la BD ? Non doit être en coords métriques si calcul d'aire
         dst_crs = "EPSG:32630"
         src_ds = gdal.Open(occurrence)
 
@@ -191,10 +194,34 @@ def area_mapping(
     extw, profile_etw = extract_roi(rio.open(watermap), extract_roi_parameters_extw)
     save_image(extw, profile_etw, out_wmap)
 
-    # extract dem before superimpose ?
-    ext_dem, profile_dem = extract_roi(rio.open(dem), extract_roi_parameters_extw)
-    roi_dem = out_dem.replace(".tif", "roi.tif")
-    save_image(ext_dem, profile_dem, roi_dem)
+    # TODO: extract dem before superimpose ?
+    # Get information form DEM
+    with rio.open(dem) as dem_raster:
+        epsg_dem = dem_raster.crs.to_epsg()
+        dst = osr.SpatialReference()
+        dst.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        dst.ImportFromEPSG(epsg_dem)
+        coord_trans = osr.CoordinateTransformation(src, dst)
+        point_dem = ogr.Geometry(ogr.wkbPoint)
+        point_dem.AddPoint(clon, clat)
+        point_dem.Transform(coord_trans)
+        logging.info(
+            f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
+        )
+
+        extract_roi_parameters_dem = ExtractROIParam(
+            mode="radius",
+            mode_radius_r=float(radius) * 2,
+            mode_radius_unitr="phy",
+            mode_radius_unitc="phy",
+            mode_radius_cx=point_dem.GetX(),
+            mode_radius_cy=point_dem.GetY(),
+            dtype="float",
+        )
+        ext_dem, profile_dem = extract_roi(dem_raster, extract_roi_parameters_dem)
+        roi_dem = out_dem.replace(".tif", "roi.tif")
+        save_image(ext_dem, profile_dem, roi_dem)
+        # input("dem extracted")
 
     superimpose_app = SuperimposeParam(interpolator="bco", dtype="float")
     app, profile_app = superimpose(
