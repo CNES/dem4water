@@ -65,10 +65,10 @@ def close_holes(geom):
 
 
 # TODO: Create main
-df = gpd.GeoDataFrame.from_file(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater.geojson"
-)
-df.geometry = df.geometry.apply(lambda p: close_holes(p))
-df.to_file(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_noholes.geojson"
-)
+# df = gpd.GeoDataFrame.from_file(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater.geojson"
+# )
+# df.geometry = df.geometry.apply(lambda p: close_holes(p))
+# df.to_file(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_noholes.geojson"
+# )

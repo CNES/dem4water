@@ -1,6 +1,6 @@
 import os
 from typing import Optional
-
+import glob
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from dem4water.tools.remove_holes_in_shapes import close_holes
 def remove_mutlipolygon(in_vector, epsg, buffer_size=10):
     """Apply a buffer in both sign to close small gap between polygons."""
     gdf = gpd.GeoDataFrame().from_file(in_vector)
+    print(epsg)
     gdf = gdf.to_crs(epsg)
     gdf["geometry"] = gdf.geometry.buffer(buffer_size)
     gdf["geometry"] = gdf.geometry.buffer(-buffer_size)
@@ -43,7 +44,10 @@ def clear_polygonize(in_vector, epsg):
     """."""
     gdf = gpd.GeoDataFrame().from_file(in_vector)
     gdf = gdf.to_crs(epsg)
+    if gdf.empty:
+        return None
     gdf = gdf.loc[gdf["DN"] == 1]
+    # input(gdf.crs)
     return gdf
 
 
@@ -259,16 +263,17 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
                     crs=gdf_work.crs,
                 )
             list_df.append(gdf_temp)
-    gdf_n = gpd.GeoDataFrame(pd.concat(list_df, ignore_index=True), crs=list_df[0].crs)
-    lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
-        lambda x: LineString(x.tolist())
-    )
-    lines = gpd.GeoDataFrame(lines, geometry="geometry", crs=gdf.crs)
-    # Remove useless points by simplying each line
-    lines.geometry = lines.simplify(1)
-    lines.reset_index(inplace=True)
-    # input("wait")
-    return lines
+    if list_df:
+        gdf_n = gpd.GeoDataFrame(pd.concat(list_df, ignore_index=True), crs=list_df[0].crs)
+        lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
+            lambda x: LineString(x.tolist())
+        )
+        lines = gpd.GeoDataFrame(lines, geometry="geometry", crs=gdf.crs)
+        # Remove useless points by simplying each line
+        lines.geometry = lines.simplify(1)
+        lines.reset_index(inplace=True)
+        # input("wait")
+        return lines
 
 
 # ##############################################
@@ -616,7 +621,12 @@ def fill_cutline(
     # gdf_out.geometry = all_lines
     if len(all_lines) > 1:
         lines_merged = linemerge(all_lines)
-        all_lines = list(lines_merged.geoms)
+        print(lines_merged)
+        print(dir(lines_merged))
+        if isinstance(lines_merged, LineString):
+            all_lines = [lines_merged]
+        else:
+            all_lines = list(lines_merged.geoms)
 
     gdf_final = gpd.GeoDataFrame(
         {"id_cutline": range(len(all_lines))}, geometry=all_lines, crs=gdf_out.crs
@@ -647,6 +657,7 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         os.mkdir(work_dir)
     with rasterio.open(mnt_raster) as mnt:
         epsg = mnt.crs.to_epsg()
+        # epsg  = 2154
         # 1 Handle mutlipolygons
         # 2 remove holes
         gdf_bd = preprocess_water_body(in_vector, epsg)
@@ -673,9 +684,20 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         gdp_vector = os.path.join(work_dir, "gdp_vector.geojson")
         polygonize(gdp_raster, gdp_vector)
         gdf_gdp = clear_polygonize(gdp_vector, epsg)
+        if gdf_gdp is None:
+            print("GDP found no slope")
+            return None
+        print(gdf_gdp.crs)
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         # 7 Relier les polygones GDP proches
         # TODO compute area w.r.t the waterbody whole area
-        gdf_gdp = gdf_gdp.loc[gdf_gdp.geometry.area > 2000]
+        print(gdf_gdp)
+        if len(gdf_gdp.loc[gdf_gdp.geometry.area > 2000]) > 0:
+            gdf_gdp = gdf_gdp.loc[gdf_gdp.geometry.area > 2000]
+        else:
+            print("too small object", len(gdf_gdp.loc[gdf_gdp.geometry.area > 2000]))
+            return 0
+        print(gdf_gdp)
         # find intersection according the max distance
         gdf_gdp.geometry = gdf_gdp.geometry.buffer(gdp_buffer_size)
         # then fuse
@@ -686,6 +708,9 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         gdf_gdp = gdf_gdp.explode(ignore_index=True)
         # dissolve remove the DN column
         gdf_gdp["gdp_unique_id"] = range(len(gdf_gdp.index))
+        if gdf_gdp.empty:
+            print("Empty dataframe")
+            return 0
         gdf_gdp.to_file(os.path.join(work_dir, "gdp_fusion_nearest.geojson"))
 
         gdf_gdp = filter_by_convex_hull(gdf_gdp, work_dir, "gdp_unique_id")
@@ -702,11 +727,12 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         )
         gdf_gdp_points.to_file(os.path.join(work_dir, "pdb_contour.geojson"))
         lines = draw_lines(gdf_wb_points, gdf_gdp, gdf_bd)  # _points)
-        lines.to_file(os.path.join(work_dir, "cutline_base.geojson"))
-        lines = fill_cutline(
-            lines, mnt_raster, waterbody_bin, work_dir, alt_max, gdf_bd
-        )
-        lines.to_file(os.path.join(work_dir, "cutline.geojson"))
+        if lines is not None:
+            lines.to_file(os.path.join(work_dir, "cutline_base.geojson"))
+            lines = fill_cutline(
+                lines, mnt_raster, waterbody_bin, work_dir, alt_max, gdf_bd
+            )
+            lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
 # prepare_inputs(
@@ -732,20 +758,20 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
 #     157,
 # )
 
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/banegon_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/dem_extract_Banegon.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Banegon_chain",
-    100,
-    1500,
-)
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/Montbel_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/dem_extract_Montbel.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Montbel_chain",
-    100,
-    1000,
-)
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/banegon_bd.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/dem_extract_Banegon.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Banegon_chain",
+#     100,
+#     1500,
+# )
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/Montbel_bd.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/dem_extract_Montbel.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Montbel_chain",
+#     100,
+#     1000,
+# )
 
 
 # Pb de polygone pour le GDP
@@ -772,3 +798,34 @@ prepare_inputs(
 #         "cutline_snap.geojson",
 #     )
 # )
+
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
+db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
+gdf_db = gpd.GeoDataFrame().from_file(db_full)
+extract_folder = "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
+for dam in list(gdf_db.DAM_NAME):
+    print(dam)
+    gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
+    dam = dam.replace(" ","-")
+    wdir = os.path.join(working_dir, dam)
+    if not os.path.exists(wdir):
+        os.mkdir(wdir)
+    dam_db = os.path.join(wdir,f"bd_{dam}.geojson")
+    gdf_t.to_file(dam_db)
+    extract = glob.glob(extract_folder+f"/{dam}/dem*.tif")[0]
+    print(extract)
+    # out_extract = os.path.join(wdir, "dem_reproj.tif")
+    # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+    # os.system(cmd)
+    prepare_inputs(
+        dam_db,
+        extract,
+        wdir,
+        100,
+        1500,
+    )
+    cutline = os.path.join(wdir, "cutline.geojson")
+    out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
+    os.system(f"cp {cutline} {out_cutline}")
+#print(list_dams)

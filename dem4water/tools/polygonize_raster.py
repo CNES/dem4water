@@ -23,6 +23,7 @@ def polygonize(in_raster, out_vector):
         gdf = gpd.GeoDataFrame(
             {"DN": values, "geometry": geometry}, crs=src.crs.to_epsg()
         )
+        # input(gdf.crs)
         gdf.to_file(out_vector)
 
 
