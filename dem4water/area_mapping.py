@@ -17,9 +17,17 @@ import rasterio as rio
 from bmi_topography import Topography
 from osgeo import gdal, ogr, osr
 
-from dem4water.tools.extract_roi import ExtractROIParam, extract_roi
+from dem4water.tools.extract_roi import (
+    ExtractROIParam,
+    compute_roi_from_ref,
+    extract_roi,
+)
 from dem4water.tools.save_raster import save_image
-from dem4water.tools.superimpose import SuperimposeParam, superimpose
+from dem4water.tools.superimpose import (
+    SuperimposeParam,
+    superimpose,
+    superimpose_with_shape,
+)
 from dem4water.tools.utils import distance
 
 
@@ -205,38 +213,43 @@ def area_mapping(
     # TODO: extract dem before superimpose ?
     # Get information form DEM
     if not downloaded_dem:
-        with rio.open(dem) as dem_raster:
-            epsg_dem = dem_raster.crs.to_epsg()
-            dst = osr.SpatialReference()
-            dst.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            dst.ImportFromEPSG(epsg_dem)
-            coord_trans = osr.CoordinateTransformation(src, dst)
-            point_dem = ogr.Geometry(ogr.wkbPoint)
-            point_dem.AddPoint(clon, clat)
-            point_dem.Transform(coord_trans)
-            logging.info(
-                f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
-            )
-
-            extract_roi_parameters_dem = ExtractROIParam(
-                mode="radius",
-                mode_radius_r=float(radius) * 2,
-                mode_radius_unitr="phy",
-                mode_radius_unitc="phy",
-                mode_radius_cx=point_dem.GetX(),
-                mode_radius_cy=point_dem.GetY(),
-                dtype="float",
-            )
-            ext_dem, profile_dem = extract_roi(dem_raster, extract_roi_parameters_dem)
-            roi_dem = out_dem.replace(".tif", "roi.tif")
-            save_image(ext_dem, profile_dem, roi_dem)
+        # with rio.open(dem) as dem_raster:
+        #     epsg_dem = dem_raster.crs.to_epsg()
+        #     print("DEM epsg" , epsg_dem)
+        #     dst = osr.SpatialReference()
+        #     dst.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        #     dst.ImportFromEPSG(epsg_dem)
+        #     coord_trans = osr.CoordinateTransformation(src, dst)
+        #     point_dem = ogr.Geometry(ogr.wkbPoint)
+        #     point_dem.AddPoint(clon, clat)
+        #     point_dem.Transform(coord_trans)
+        #     logging.info(
+        #         f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
+        #     )
+        #     print(
+        #         f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
+        #     )
+        #     print("radius", radius)
+        #     # extract_roi_parameters_dem = ExtractROIParam(
+        #     #     mode="radius",
+        #     #     mode_radius_r=float(radius) * 2,
+        #     #     mode_radius_unitr="phy",
+        #     #     mode_radius_unitc="phy",
+        #     #     mode_radius_cx=point_dem.GetX(),
+        #     #     mode_radius_cy=point_dem.GetY(),
+        #     #     dtype="float",
+        #     # )
+        #     # ext_dem, profile_dem = extract_roi(dem_raster, extract_roi_parameters_dem)
+        #     # save_image(ext_dem, profile_dem, roi_dem)
+        roi_dem = out_dem.replace(".tif", "roi.tif")
+        compute_roi_from_ref(out_wmap, dem, roi_dem)
+        print("coucou")
+        # roi_dem = dem
         # input("dem extracted")
     else:
         roi_dem = dem
     superimpose_app = SuperimposeParam(interpolator="bco", dtype="float")
-    app, profile_app = superimpose(
-        rio.open(roi_dem), rio.open(out_wmap), superimpose_app
-    )
+    app, profile_app = superimpose_with_shape(out_wmap, roi_dem, superimpose_app)
     save_image(app, profile_app, out_dem)
 
     # Search dam bottom
