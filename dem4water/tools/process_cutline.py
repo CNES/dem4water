@@ -8,7 +8,7 @@ import pandas as pd
 import rasterio
 import shapely
 
-# from rasterio.mask import mask
+from rasterio.mask import mask
 from shapely.geometry import LineString, MultiLineString
 from shapely.ops import linemerge
 
@@ -16,6 +16,12 @@ from dem4water.tools.compute_grandient_dot_product import compute_gradient_produ
 from dem4water.tools.polygonize_raster import polygonize
 from dem4water.tools.rasterize_vectors import RasterizarionParams, rasterize
 from dem4water.tools.remove_holes_in_shapes import close_holes
+from rasterio.mask import mask
+from rasterio import Affine
+from shapely.geometry import Point
+import pyproj
+from shapely.geometry import shape
+import json
 
 
 # ######################################
@@ -780,15 +786,127 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
             lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
-print("Process Berthier")
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Berthier/berthier_bd.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Berthier/dem_extract_Berthier.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Berthier_chain1",
-    100,
-    17000,
-)
-# print("Process Laparan")
+def transform_point(crs_source, crs_dst, lon, lat):
+    transformer = pyproj.Transformer.from_crs(crs_source, crs_dst, always_xy=True)
+    lon_dst, lat_dst = transformer.transform(lon, lat)
+    return lon_dst, lat_dst
+
+
+def get_coord_ww(path_geojson, wdir):
+    gdf = gpd.read_file(path_geojson)
+    selected_feature = gdf.iloc[0]
+    centroid = selected_feature.geometry.centroid
+    lat = centroid.y
+    lon = centroid.x
+    point_ww = Point(lon, lat)
+    gdf = gpd.GeoDataFrame({"geometry": [point_ww]}, crs="EPSG:4326")
+    out_path = os.path.join(wdir, "Point_WW.shp")
+    gdf.to_file(out_path)
+    return [lon, lat]
+
+
+def get_coord_ppdb(mnt_masked, gdp_vector, out_path):
+    shapefile = gpd.read_file(gdp_vector)
+    shapefile.geometry = shapefile.geometry
+    geoms = shapefile.geometry.values
+
+    with rasterio.open(mnt_masked) as src:
+        out_image, out_transform = mask(src, geoms, crop=True)
+        no_data = src.nodata
+        data = out_image[0, :, :]
+        row, col = np.where(data != no_data)
+        rou = np.extract(data != no_data, data)
+        T1 = out_transform * Affine.translation(0.5, 0.5)
+        rc2xy = lambda r, c: (c, r) * T1
+        d = pd.DataFrame({"col": col, "row": row, "ROU": rou})
+        d["x"] = d.apply(lambda row: rc2xy(row.row, row.col)[0], axis=1)
+        d["y"] = d.apply(lambda row: rc2xy(row.row, row.col)[1], axis=1)
+        gdf = gpd.GeoDataFrame(
+            d,
+            geometry=d.apply(lambda row: Point(row["x"], row["y"]), axis=1),
+            crs=shapefile.crs,
+        )
+        gdf.to_file(out_path)
+        min_dem = gdf["ROU"].idxmin()
+        value_min = gdf.loc[min_dem]
+        lon, lat = transform_point(src.crs, "epsg:4326", value_min["x"], value_min["y"])
+        point = Point(lon, lat)
+        gdf = gpd.GeoDataFrame({"geometry": [point]}, crs="EPSG:4326")
+        out = os.path.join(wdir, "Point_PPDB.shp")
+        gdf.to_file(out)
+        return [lon, lat]
+
+
+def get_coord_dam(coord_ww, coord_ppdb, path_geojson, wdir):
+    point_ww = Point(coord_ww[0], coord_ww[1])
+    point_ppdb = Point(coord_ppdb[0], coord_ppdb[1])
+
+    line = LineString([point_ww, point_ppdb])
+
+    gdf = gpd.GeoDataFrame({"geometry": [line]}, crs="EPSG:4326")
+    out_line = os.path.join(wdir, "Line_WW_PPDB.shp")
+    gdf.to_file(out_line)
+    geojson_file = path_geojson
+    gdf = gpd.read_file(geojson_file)
+    polygone = gdf.geometry.iloc[0]
+    polygon_boundary = polygone.boundary
+    intersection = line.intersection(polygon_boundary)
+    out_intersection = os.path.join(wdir, "intersection_WW_PPDB.shp")
+    gdf_ = gpd.GeoDataFrame({"geometry": [intersection]}, crs="EPSG:4326")
+    gdf_.to_file(out_intersection)
+    gdf = gpd.read_file(out_intersection)
+    multi_point = gdf["geometry"][0]
+
+    if multi_point.geom_type == "MultiPoint":
+        individual_points = list(multi_point.geoms)
+
+        gdf_points = gpd.GeoDataFrame({"geometry": individual_points}, crs=gdf.crs)
+
+        gdf_points["distance"] = gdf_points["geometry"].apply(
+            lambda geom: point_ppdb.distance(geom)
+        )
+
+        index_nearest_point = gdf_points["distance"].idxmin()
+        nearest_point = gdf_points["geometry"].iloc[index_nearest_point]
+        gdf_points.to_file(out_intersection)
+        gdf_nearest_point = gpd.GeoDataFrame({"geometry": [nearest_point]}, crs=gdf.crs)
+        gdf_nearest_point.to_file(out_intersection)
+        gdf = gdf_nearest_point
+
+    point_geometry = gdf["geometry"].iloc[0]
+    lon = point_geometry.x
+    lat = point_geometry.y
+
+    return [lon, lat]
+
+
+def add_value_geojson(path_geojson, new_col, value, wdir):
+    gdf = gpd.read_file(path_geojson)
+    gdf[new_col] = [value]
+    gdf.to_file(wdir)
+
+
+def merged_geojson(gdf_db, working_dir, wdir, out_barrages):
+    path_file_geojson = []
+    for dam in list(gdf_db.DAM_NAME):
+        print(dam)
+        dam = dam.replace(" ", "-")
+        wdir = os.path.join(working_dir, dam)
+        dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
+        path_file_geojson.append(dam_db)
+
+    geojson_list = []
+
+    for path in path_file_geojson:
+        gdf = gpd.read_file(path)
+        geojson_list.append(gdf)
+
+    gdf_merged = gpd.GeoDataFrame(
+        pd.concat(geojson_list, ignore_index=True), crs=geojson_list[0].crs
+    )
+    gdf_merged.to_file(out_barrages, driver="GeoJSON")
+
+
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
@@ -860,11 +978,12 @@ prepare_inputs(
 <<<<<<< variant A
 working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
 out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
+db_full = "/work/scratch/data/lorilla/Dem4Water/result/geojson/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
 gdf_db = gpd.GeoDataFrame().from_file(db_full)
 extract_folder = (
-    "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
+    "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
 )
+
 for dam in list(gdf_db.DAM_NAME):
     print(dam)
     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
@@ -872,13 +991,14 @@ for dam in list(gdf_db.DAM_NAME):
     wdir = os.path.join(working_dir, dam)
     if not os.path.exists(wdir):
         os.mkdir(wdir)
+
     dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
     gdf_t.to_file(dam_db)
     extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
-    print(extract)
-    # out_extract = os.path.join(wdir, "dem_reproj.tif")
-    # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
-    # os.system(cmd)
+    # print(extract)
+    out_extract = os.path.join(wdir, "dem_reproj.tif")
+    cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+    os.system(cmd)
     prepare_inputs(
         dam_db,
         extract,
@@ -889,6 +1009,7 @@ for dam in list(gdf_db.DAM_NAME):
     cutline = os.path.join(wdir, "cutline.geojson")
     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
     os.system(f"cp {cutline} {out_cutline}")
+<<<<<<< HEAD
 >>>>>>> variant B
 # working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
 # out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
@@ -923,3 +1044,23 @@ for dam in list(gdf_db.DAM_NAME):
 #     os.system(f"cp {cutline} {out_cutline}")
 ======= end
 # print(list_dams)
+=======
+
+    coord_ww = get_coord_ww(dam_db, wdir)
+    print(coord_ww, "coord WW")
+    add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
+    add_value_geojson(dam_db, "LAT_WW_A", coord_ww[1], dam_db)
+    gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
+    out_file = os.path.join(wdir, "point_PPDB.shp")
+    coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
+    print(coord_ppdb, "coord ppdb")
+    add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
+    add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
+    coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
+    add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
+    add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
+    print(coord_dam, "coord_dam")
+
+out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
+merged_geojson(gdf_db, working_dir, wdir, out_barrages)
+>>>>>>> FEAT : automatic detection WW, PDB and DAM
