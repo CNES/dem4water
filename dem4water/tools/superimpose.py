@@ -9,6 +9,9 @@ from typing import Optional, Union
 
 import numpy as np
 import rasterio as rio
+from rasterio.features import shapes
+from rasterio.io import MemoryFile
+from rasterio.mask import mask
 from rasterio.warp import Resampling, reproject
 
 from dem4water.tools.save_raster import save_image
@@ -57,6 +60,7 @@ def superimpose_ndarray(
     """
     resampling = get_interpolator(superimpose_parameters)
     output_image = np.ones(np.shape(input_image), DTYPE[superimpose_parameters.dtype])
+
     result, _ = reproject(
         source=input_image,
         destination=output_image,
@@ -123,6 +127,78 @@ def superimpose(
     )
 
     return data, profile
+
+
+def create_dataset(data, crs: int, transform):
+    """Convert a 3D array with a crs and a transform to a rasterio dataset object.
+
+    Parameters
+    ----------
+    data:
+        numpy array containing data
+    crs:
+        the projection requiered for the dataset
+    transform:
+        A affine object containing the transform of the needed dataset
+    """
+    memfile = MemoryFile()
+    dataset = memfile.open(
+        driver="GTiff",
+        height=data.shape[1],
+        width=data.shape[2],
+        count=1,
+        crs=crs,
+        transform=transform,
+        dtype=data.dtype,
+    )
+    dataset.write(data)
+
+    return dataset
+
+
+def superimpose_with_shape(ref_path, im_path, superimpose_parameters):
+    """.
+
+    Parameters
+    ----------
+    ref_path:
+        the reference image defining crs, width,height
+    im_path:
+        the image to reproject and crop
+    """
+    resampling = get_interpolator(superimpose_parameters)
+    with rio.open(ref_path) as ref:
+        with rio.open(im_path) as im_to_crop:
+            # reproject
+            crop_reproj, reproj_trans = reproject(
+                source=rio.band(im_to_crop, 1),
+                dst_crs=ref.crs,
+                dst_resolution=ref.res,
+                resampling=resampling,
+                src_nodata=im_to_crop.profile["nodata"],
+                dst_nodata=im_to_crop.profile["nodata"],
+            )
+            crop_ds = create_dataset(crop_reproj, ref.crs, reproj_trans)
+            # crop
+            extents, _ = next(
+                shapes(
+                    np.zeros((ref.height, ref.width)).astype("uint8"),
+                    transform=ref.profile["transform"],
+                )
+            )
+
+            cropped, crop_transf = mask(crop_ds, [extents], crop=True)
+            profile = ref.profile
+            profile.update(
+                {
+                    "nodata": im_to_crop.profile["nodata"],
+                    "transform": crop_transf,
+                    "height": cropped.shape[1],
+                    "width": cropped.shape[2],
+                    "driver": "GTiff",
+                }
+            )
+            return cropped, profile
 
 
 def main():
