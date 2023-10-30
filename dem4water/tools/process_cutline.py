@@ -1,4 +1,4 @@
-import glob
+# import glob
 import os
 from typing import Optional
 
@@ -182,12 +182,33 @@ def manage_small_subset_of_points(gdf_work, gdf_gdp_poly, gdf_wb_poly, gdp_ident
 def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
     # gdf_temp = gdf_gdp_poly.copy()
     # gdf_temp.geometry = gdf_temp.geometry.buffer(30)
-    gdf = gpd.sjoin_nearest(
-        gdf_gdp_poly, gdf_wb_points, max_distance=300, distance_col="distance"
-    )
-    # gdf.to_file(
-    #     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain/sjoin_nearest.geojson"
+    gdf_gdp_poly2 = gdf_gdp_poly.copy()
+    # 30 m c'est beaucoup ?
+    # Méthode itérative sur des buffer de 1 à N metre avec un indice de confiance
+    # inversement proportionnel ?
+    # On s'arrette quand on a une cutline d'au moins N points de base ?
+    # Calculer un score de longueur de cutline pour quantifier le run ?
+    # Comment détecter si on est pas top ? Si la cutline ne rajoute pas beaucoup de point
+    # et que la cutline ne sort pas de la bbox du reservoir ?
+    gdf_gdp_poly2.geometry = gdf_gdp_poly2.geometry.buffer(30)
+    # gdf = gpd.sjoin_nearest(
+    #     gdf_gdp_poly2, gdf_wb_points, max_distance=300, distance_col="distance"
     # )
+    gdf = gpd.sjoin(gdf_wb_points, gdf_gdp_poly2, how="inner", predicate="within")
+    # obtient tout les points dans le polygone
+    # Attention le cas où multiple poly GDP pour un plan d'eau
+    # Il faut traiter chaque gdp indépendamment
+    # Pour trier les points d'un même gdp
+    # identifier si on passe par 0
+    # chercher les saut de points
+    # Si le saut de point correspond à 0 relier
+    # Sinon tracer N lignes différentes
+    print("sjoin_nearest")
+    print(gdf)
+    # input("arg")
+    gdf.to_file(
+        "/home/btardy/Documents/activites/WATER/GDP/Berthier_chain1/sjoin_nearest.geojson"
+    )
     list_df = []
     for ident in gdf.gdp_unique_id.unique():
         gdf_work = gdf[gdf.gdp_unique_id == ident]
@@ -210,6 +231,8 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
             gdf_points = convert_geodataframe_poly_to_points(
                 gdf_work.iloc[[0]], "gdp_unique_id", "gdp_point", ident
             )
+            # TODO: le pb est ici on récupère la geometry du sjoin
+            # TODO: alors qu'il faudrait la geometry du plan d'eau initial
             gdf_points_contour = gpd.GeoDataFrame(
                 gdf_work[["wb_unique_id", "id_point"]],
                 geometry=gpd.points_from_xy(gdf_work.x, gdf_work.y),
@@ -253,7 +276,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly):
                 (gdf_work.iloc[1].x, gdf_work.iloc[-1].y),
             )
             print("len of base ", distance)
-            if True:  # distance < radius * 0.1:
+            if distance < radius * 0.1:  # True:
                 gdf_temp = manage_small_subset_of_points(
                     gdf_work, gdf_poly, gdf_wb_poly, ident
                 )
@@ -340,6 +363,7 @@ def search_point(
     alt,
     alt_max,
     water_body,
+    points_save,
 ):
     """."""
     with rasterio.open(mnt_raster) as mnt:
@@ -387,10 +411,12 @@ def search_point(
 
         l_indices = np.where(mnt_array == [np.amax(mnt_array)])
         new_x, new_y = rasterio.transform.xy(mnt_transform, l_indices[0], l_indices[1])
+        points_save.append((new_x, new_y))
         # print(init_point)
         # print(new_x, new_y)
         stop = False
         if alt[-1] > alt_max:
+            print("Altitude max reached")
             stop = True
         if (new_x[0], new_y[0]) in list(row.geometry.coords):
             print("point already found")
@@ -399,7 +425,7 @@ def search_point(
             if len(alt) > 2:
                 if alt[-1] <= alt[-2]:
                     stop = True
-                    print("Stop")
+                    print("Stop: altitude decrease")
         if not stop:
             if direction == "left":
                 # TODO: ensure that we are not crossing the water
@@ -408,18 +434,18 @@ def search_point(
                 )
                 print(left_line.length)
                 if left_line.length > 1000:
-                    print("Point to far")
+                    print("Left Point too far")
                     stop = True
-                    return row, stop, alt
+                    return row, stop, alt, points_save
                 inter = shapely.intersection(left_line, water_body.geometry.values[0])
                 print("inter", inter)
-                if isinstance(inter, shapely.geometry.LineString) or isinstance(
-                    inter, shapely.geometry.MultiLineString
-                ):
-                    if not inter.is_empty:
-                        print("J'ai traversé l'eau")
-                        stop = True
-                        return row, stop, alt
+                # if isinstance(inter, shapely.geometry.LineString) or isinstance(
+                #     inter, shapely.geometry.MultiLineString
+                # ):
+                #     if not inter.is_empty:
+                #         print("Left: Cross water")
+                #         stop = True
+                #         return row, stop, alt, points_save
 
                 s = shapely.intersection(
                     left_line,
@@ -427,7 +453,7 @@ def search_point(
                 )
                 # If another point than the origin is found as intersection
                 if isinstance(s, shapely.geometry.MultiPoint):
-                    print("Je croise")
+                    print("Left Self intersection detected")
                     stop = True
                     # input(s)
                 else:
@@ -440,25 +466,25 @@ def search_point(
                 )
 
                 if right_line.length > 1000:
-                    print("Point to far")
+                    print("Right Point too far")
                     stop = True
-                    return row, stop, alt
+                    return row, stop, alt, points_save
                 inter = shapely.intersection(right_line, water_body.geometry.values[0])
                 print("inter", inter)
-                if isinstance(inter, shapely.geometry.LineString) or isinstance(
-                    inter, shapely.geometry.MultiLineString
-                ):
-                    if not inter.is_empty:
-                        print("J'ai traversé l'eau")
-                        stop = True
-                        return row, stop, alt
+                # if isinstance(inter, shapely.geometry.LineString) or isinstance(
+                #     inter, shapely.geometry.MultiLineString
+                # ):
+                #     if not inter.is_empty:
+                #         print("Right: Cross water")
+                #         stop = True
+                #         return row, stop, alt, points_save
 
                 s = shapely.intersection(
                     right_line,
                     row.geometry,
                 )
                 if isinstance(s, shapely.geometry.MultiPoint):
-                    print("Je croise")
+                    print("Right: Self intersection detected")
                     stop = True
                     # input(s)
                 else:
@@ -494,7 +520,7 @@ def search_point(
         # print(center_x, center_y)
         # print(mask.shape)
         # print(dir(mnt))
-        return row, stop, alt
+        return row, stop, alt, points_save
 
 
 def compute_distance(point1, point2, thresholding: Optional[str] = None):
@@ -544,6 +570,7 @@ def fill_cutline(
             with rasterio.open(masked_mnt, "w", **mnt.profile) as out:
                 out.write(mnt_array)
 
+    points_save = []
     for i, row in gdf_line.iterrows():
         # input(row)
         print("process ligne: ", i)
@@ -576,7 +603,7 @@ def fill_cutline(
             right_point = line[-1]
             prev_right_point = line[-2]
             # Chercher dans un radius de N le point le plus haut
-            row, stop, alt = search_point(
+            row, stop, alt, points_save = search_point(
                 left_point,
                 prev_left_point,
                 row,
@@ -586,6 +613,7 @@ def fill_cutline(
                 alt,
                 alt_max,
                 water_body,
+                points_save,
             )
             j += 1
         # search right
@@ -607,7 +635,7 @@ def fill_cutline(
             right_point = line[-1]
             prev_right_point = line[-2]
             # Chercher dans un radius de N le point le plus haut
-            row, stop, alt = search_point(
+            row, stop, alt, points_save = search_point(
                 right_point,
                 prev_right_point,
                 row,
@@ -617,11 +645,25 @@ def fill_cutline(
                 alt,
                 alt_max,
                 water_body,
+                points_save,
             )
             j += 1
         all_lines.append(row.geometry)
         print(all_lines)
     # gdf_out.geometry = all_lines
+    xpts = [x[0] for x, y in points_save]
+    ypts = [y[0] for x, y in points_save]
+    print(xpts)
+    df_coords = pd.DataFrame()
+    df_coords["x"] = xpts
+    df_coords["y"] = ypts
+    print(df_coords)
+    df_points_save = gpd.GeoDataFrame(
+        {"id_points": range(len(points_save))},
+        geometry=gpd.points_from_xy(df_coords.x, df_coords.y),
+        crs=gdf_out.crs,
+    )
+    df_points_save.to_file(work_dir + "/candidats.geojson")
     if len(all_lines) > 1:
         lines_merged = linemerge(all_lines)
         print(lines_merged)
@@ -720,7 +762,7 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
         # 8 Convertir la BD en points
         gdf_bd["wb_unique_id"] = range(len(gdf_bd.index))
         gdf_wb_points = convert_geodataframe_poly_to_points(
-            gdf_bd, "wb_unique_id", "id_point"
+            gdf_bd, "wb_unique_id", "id_point", suffix="_wb"
         )
         gdf_wb_points.to_file(os.path.join(work_dir, "contour_points.geojson"))
 
@@ -738,40 +780,53 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
             lines.to_file(os.path.join(work_dir, "cutline.geojson"))
 
 
+print("Process Berthier")
+prepare_inputs(
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Berthier/berthier_bd.geojson",
+    "/home/btardy/Documents/activites/WATER/GDP/extract/Berthier/dem_extract_Berthier.tif",
+    "/home/btardy/Documents/activites/WATER/GDP/Berthier_chain1",
+    100,
+    17000,
+)
+# print("Process Laparan")
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/laparan_bd.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Laparan/dem_extract_Laparan.tif",
-#     "/home/btardy/Documents/activites/WATER/GDP/Laparan_chain",
+#     "/home/btardy/Documents/activites/WATER/GDP/Laparan_chain1",
 #     100,
-#     1700,
+#     17000,
 # )
-
+# print("Process Naussac")
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/naussac_bd.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Naussac/dem_extract_Naussac.tif",
-#     "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain",
+#     "/home/btardy/Documents/activites/WATER/GDP/Naussac_chain1",
 #     100,
 #     10000,
 # )
+# print("Process Marne")
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-#     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain",
+#     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain1",
 #     100,
 #     157,
 # )
 
+# print("Process Banegon")
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/banegon_bd.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Banegon/dem_extract_Banegon.tif",
-#     "/home/btardy/Documents/activites/WATER/GDP/Banegon_chain",
+#     "/home/btardy/Documents/activites/WATER/GDP/Banegon_chain1",
 #     100,
-#     1500,
+#     15000,
 # )
+
+# print("Process Montbel")
 # prepare_inputs(
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/Montbel_bd.geojson",
 #     "/home/btardy/Documents/activites/WATER/GDP/extract/Montbel/dem_extract_Montbel.tif",
-#     "/home/btardy/Documents/activites/WATER/GDP/Montbel_chain",
+#     "/home/btardy/Documents/activites/WATER/GDP/Montbel_chain1",
 #     100,
 #     1000,
 # )
@@ -802,6 +857,7 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
 #     )
 # )
 
+<<<<<<< variant A
 working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
 out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
 db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
@@ -833,4 +889,37 @@ for dam in list(gdf_db.DAM_NAME):
     cutline = os.path.join(wdir, "cutline.geojson")
     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
     os.system(f"cp {cutline} {out_cutline}")
+>>>>>>> variant B
+# working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
+# out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
+# db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
+# gdf_db = gpd.GeoDataFrame().from_file(db_full)
+# extract_folder = (
+#     "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
+# )
+# for dam in list(gdf_db.DAM_NAME):
+#     print(dam)
+#     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
+#     dam = dam.replace(" ", "-")
+#     wdir = os.path.join(working_dir, dam)
+#     if not os.path.exists(wdir):
+#         os.mkdir(wdir)
+#     dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
+#     gdf_t.to_file(dam_db)
+#     extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
+#     print(extract)
+#     # out_extract = os.path.join(wdir, "dem_reproj.tif")
+#     # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+#     # os.system(cmd)
+#     prepare_inputs(
+#         dam_db,
+#         extract,
+#         wdir,
+#         100,
+#         1500,
+#     )
+#     cutline = os.path.join(wdir, "cutline.geojson")
+#     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
+#     os.system(f"cp {cutline} {out_cutline}")
+======= end
 # print(list_dams)
