@@ -1,4 +1,5 @@
-# import glob
+import glob
+import json
 import os
 from itertools import groupby
 from typing import Optional
@@ -6,23 +7,18 @@ from typing import Optional
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio
 import shapely
-
+from rasterio import Affine
 from rasterio.mask import mask
-from shapely.geometry import LineString, MultiLineString
+from shapely.geometry import LineString, MultiLineString, Point, shape
 from shapely.ops import linemerge
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
 from dem4water.tools.polygonize_raster import polygonize
 from dem4water.tools.rasterize_vectors import RasterizarionParams, rasterize
 from dem4water.tools.remove_holes_in_shapes import close_holes
-from rasterio.mask import mask
-from rasterio import Affine
-from shapely.geometry import Point
-import pyproj
-from shapely.geometry import shape
-import json
 
 
 # ######################################
@@ -1065,14 +1061,14 @@ def merged_geojson(gdf_db, working_dir, wdir, out_barrages):
 #     100,
 #     10000,
 # )
-print("Process Marne")
-prepare_inputs(
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
-    "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
-    "/home/btardy/Documents/activites/WATER/GDP/Marne_chain1",
-    100,
-    157,
-)
+# print("Process Marne")
+# prepare_inputs(
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_inpe_noholes.geojson",
+#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/dem_extract_Marne-Giffaumont.tif",
+#     "/home/btardy/Documents/activites/WATER/GDP/Marne_chain1",
+#     100,
+#     157,
+# )
 
 # print("Process Banegon")
 # prepare_inputs(
@@ -1118,11 +1114,10 @@ prepare_inputs(
 #     )
 # )
 
-<<<<<<< HEAD
-<<<<<<< variant A
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-db_full = "/work/scratch/data/lorilla/Dem4Water/result/geojson/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
+
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
+db_full = "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V4.2.geojson"
 gdf_db = gpd.GeoDataFrame().from_file(db_full)
 extract_folder = (
     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
@@ -1153,50 +1148,6 @@ for dam in list(gdf_db.DAM_NAME):
     cutline = os.path.join(wdir, "cutline.geojson")
     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
     os.system(f"cp {cutline} {out_cutline}")
-<<<<<<< HEAD
->>>>>>> variant B
-# working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-# out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-# db_full = "/work/OT/siaa/Work/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
-# gdf_db = gpd.GeoDataFrame().from_file(db_full)
-# extract_folder = (
-#     "/work/OT/siaa/Work/MTE_2022_Reservoirs/lois_zsv/test_refactoring_full2/extracts"
-# )
-=======
-
-# working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-# out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/campagnes_benjamin/cutlines"
-# db_full = "/work/scratch/data/lorilla/Dem4Water/result/geojson/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
-# gdf_db = gpd.GeoDataFrame().from_file(db_full)
-# extract_folder = (
-#     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
-# )
-
->>>>>>> WIP: try new algo for cutline
-# for dam in list(gdf_db.DAM_NAME):
-#     print(dam)
-#     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
-#     dam = dam.replace(" ", "-")
-#     wdir = os.path.join(working_dir, dam)
-#     if not os.path.exists(wdir):
-#         os.mkdir(wdir)
-#     dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
-#     gdf_t.to_file(dam_db)
-#     extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
-#     # print(extract)
-#     out_extract = os.path.join(wdir, "dem_reproj.tif")
-#     cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
-#     os.system(cmd)
-#     prepare_inputs(
-#         dam_db,
-#         extract,
-#         wdir,
-#         100,
-#         1500,
-#     )
-#     cutline = os.path.join(wdir, "cutline.geojson")
-#     out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
-#     os.system(f"cp {cutline} {out_cutline}")
 
     coord_ww = get_coord_ww(dam_db, wdir)
     print(coord_ww, "coord WW")
@@ -1215,23 +1166,3 @@ for dam in list(gdf_db.DAM_NAME):
 
 out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
 merged_geojson(gdf_db, working_dir, wdir, out_barrages)
-=======
-
-#     coord_ww = get_coord_ww(dam_db, wdir)
-#     print(coord_ww, "coord WW")
-#     add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
-#     add_value_geojson(dam_db, "LAT_WW_A", coord_ww[1], dam_db)
-#     gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
-#     out_file = os.path.join(wdir, "point_PPDB.shp")
-#     coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
-#     print(coord_ppdb, "coord ppdb")
-#     add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
-#     add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
-#     coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
-#     add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
-#     add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
-#     print(coord_dam, "coord_dam")
-
-# out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
-# merged_geojson(gdf_db, working_dir, wdir, out_barrages)
->>>>>>> WIP: try new algo for cutline
