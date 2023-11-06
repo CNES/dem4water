@@ -223,7 +223,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
             # input("dist")
             ident_point = [g for _, (*g,) in groupby(id_points, lambda _: next(dist))]
             if len(ident_point) == 2:
-                print("Two points")
+                print("Two points", "ident", ident)
                 # print(gdf)
                 id_point_reoder = ident_point[-1] + ident_point[0]
                 x_coords = []
@@ -245,6 +245,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
             else:
                 # print(ident_point)
                 print("segments founds ", len(ident_point))
+                print("ident", ident)
                 if ident_point[-1][-1] == max_indices_wb:
                     print("Join to 0")
                     init_segment = ident_point[-1] + ident_point[0]
@@ -271,8 +272,11 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
                     indent_max += 1
 
         else:
-            print("Pas origine")
+            print("Pas origine", "ident", ident)
             id_points = list(gdf.id_point)
+            if len(id_points) < 2:
+                print(f"Not enough point for gdp {ident}")
+                continue
             x_coords = []
             y_coords = []
             for val_point in id_points:
@@ -299,6 +303,7 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
         gdf_n = gpd.GeoDataFrame(
             pd.concat(list_df, ignore_index=True), crs=list_df[0].crs
         )
+        print(list(gdf_n["gdp_unique_id"]))
         lines = gdf_n.groupby(["gdp_unique_id"])["geometry"].apply(
             lambda x: LineString(x.tolist())
         )
@@ -913,7 +918,8 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
                 lines, mnt_raster, waterbody_bin, work_dir, alt_max, gdf_bd
             )
             lines.to_file(os.path.join(work_dir, "cutline.geojson"))
-
+            return os.path.join(work_dir, "cutline.geojson")
+    return None
 
 def transform_point(crs_source, crs_dst, lon, lat):
     transformer = pyproj.Transformer.from_crs(crs_source, crs_dst, always_xy=True)
@@ -1117,7 +1123,7 @@ def merged_geojson(gdf_db, working_dir, wdir, out_barrages):
 
 working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
 out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
-db_full = "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V4.2.geojson"
+db_full = "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
 gdf_db = gpd.GeoDataFrame().from_file(db_full)
 extract_folder = (
     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
@@ -1138,31 +1144,33 @@ for dam in list(gdf_db.DAM_NAME):
     out_extract = os.path.join(wdir, "dem_reproj.tif")
     cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
     os.system(cmd)
-    prepare_inputs(
-        dam_db,
-        extract,
-        wdir,
-        100,
-        1500,
-    )
-    cutline = os.path.join(wdir, "cutline.geojson")
-    out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
-    os.system(f"cp {cutline} {out_cutline}")
-
-    coord_ww = get_coord_ww(dam_db, wdir)
-    print(coord_ww, "coord WW")
-    add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
-    add_value_geojson(dam_db, "LAT_WW_A", coord_ww[1], dam_db)
-    gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
-    out_file = os.path.join(wdir, "point_PPDB.shp")
-    coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
-    print(coord_ppdb, "coord ppdb")
-    add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
-    add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
-    coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
-    add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
-    add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
-    print(coord_dam, "coord_dam")
+    if os.path.exists(os.path.join(wdir, "cutline.geojson")):
+        res = prepare_inputs(
+            dam_db,
+            extract,
+            wdir,
+            100,
+            1500,
+        )
+        if res is not None:
+            cutline = os.path.join(wdir, "cutline.geojson")
+            out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
+            os.system(f"cp {cutline} {out_cutline}")
+            
+            coord_ww = get_coord_ww(dam_db, wdir)
+            print(coord_ww, "coord WW")
+            add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
+            add_value_geojson(dam_db, "LAT_WW_A", coord_ww[1], dam_db)
+            gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
+            out_file = os.path.join(wdir, "point_PPDB.shp")
+            coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
+            print(coord_ppdb, "coord ppdb")
+            add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
+            add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
+            coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
+            add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
+            add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
+            print(coord_dam, "coord_dam")
 
 out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
 merged_geojson(gdf_db, working_dir, wdir, out_barrages)
