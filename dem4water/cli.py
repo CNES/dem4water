@@ -224,11 +224,12 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
     if scheduler == "local":
         launch_full_process(conf)
     else:
+        name = conf.split("/")[-1].split("_")[-1].split(".")[0]
         with open(conf, encoding="utf-8") as in_config:
             config = json.load(in_config)
             log_out = config["chain"]["log_out"]
             log_err = config["chain"]["log_err"]
-            launch_pbs(
+            launch_slurm(
                 conf,
                 log_out,
                 log_err,
@@ -236,6 +237,7 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
                 m_wall=walltime_minutes,
                 ram=ram,
                 cpu=cpu,
+                dam_name=name,
             )
 
 
