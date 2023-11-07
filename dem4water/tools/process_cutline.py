@@ -921,6 +921,7 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
             return os.path.join(work_dir, "cutline.geojson")
     return None
 
+
 def transform_point(crs_source, crs_dst, lon, lat):
     transformer = pyproj.Transformer.from_crs(crs_source, crs_dst, always_xy=True)
     lon_dst, lat_dst = transformer.transform(lon, lat)
@@ -1129,7 +1130,7 @@ extract_folder = (
     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
 )
 
-for dam in list(gdf_db.DAM_NAME):
+for dam, alt in zip(list(gdf_db.DAM_NAME), list(gdf_db.DAM_ELEV)):
     print(dam)
     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
     dam = dam.replace(" ", "-")
@@ -1150,13 +1151,13 @@ for dam in list(gdf_db.DAM_NAME):
             extract,
             wdir,
             100,
-            1500,
+            alt + 20,
         )
         if res is not None:
             cutline = os.path.join(wdir, "cutline.geojson")
             out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
             os.system(f"cp {cutline} {out_cutline}")
-            
+
             coord_ww = get_coord_ww(dam_db, wdir)
             print(coord_ww, "coord WW")
             add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
