@@ -990,6 +990,8 @@ def get_coord_dam(coord_ww, coord_ppdb, path_geojson, wdir):
     gdf_ = gpd.GeoDataFrame({"geometry": [intersection]}, crs="EPSG:4326")
     gdf_.to_file(out_intersection)
     gdf = gpd.read_file(out_intersection)
+    if gdf.empty:
+        return None
     multi_point = gdf["geometry"][0]
 
     if multi_point.geom_type == "MultiPoint":
@@ -1137,14 +1139,14 @@ for dam in list(gdf_db.DAM_NAME):
     if not os.path.exists(wdir):
         os.mkdir(wdir)
 
-    dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
-    gdf_t.to_file(dam_db)
-    extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
-    # print(extract)
-    out_extract = os.path.join(wdir, "dem_reproj.tif")
-    cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
-    os.system(cmd)
-    if os.path.exists(os.path.join(wdir, "cutline.geojson")):
+    if not os.path.exists(os.path.join(wdir, "cutline.geojson")):
+        dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
+        gdf_t.to_file(dam_db)
+        extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
+        # print(extract)
+        out_extract = os.path.join(wdir, "dem_reproj.tif")
+        cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+        os.system(cmd)
         res = prepare_inputs(
             dam_db,
             extract,
@@ -1153,6 +1155,7 @@ for dam in list(gdf_db.DAM_NAME):
             1500,
         )
         if res is not None:
+            print(dam)
             cutline = os.path.join(wdir, "cutline.geojson")
             out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
             os.system(f"cp {cutline} {out_cutline}")
@@ -1164,12 +1167,14 @@ for dam in list(gdf_db.DAM_NAME):
             gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
             out_file = os.path.join(wdir, "point_PPDB.shp")
             coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
+            
             print(coord_ppdb, "coord ppdb")
             add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
             add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
             coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
-            add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
-            add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
+            if coord_dam is not None:
+                add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
+                add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
             print(coord_dam, "coord_dam")
 
 out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
