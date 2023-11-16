@@ -6,7 +6,11 @@ import sys
 from dataclasses import dataclass
 from math import ceil, floor
 
+import numpy as np
 import rasterio as rio
+from affine import Affine
+from pyproj import Transformer
+from rasterio.coords import BoundingBox
 from rasterio.windows import Window
 
 from dem4water.tools.save_raster import save_image
@@ -69,7 +73,6 @@ def extract_roi(
         ):
             resolution = in_raster.res[0]
             dist_radius = extractroi_parameters.mode_radius_r / resolution
-
             x_pixel, y_pixel = coord_phys_to_pixel(in_raster, extractroi_parameters)
 
             width = (dist_radius) * 2 + 1
@@ -87,7 +90,6 @@ def extract_roi(
                 )
 
             window = Window(row_off, col_off, width, height)
-
             data = in_raster.read(window=window)
             transform = rio.windows.transform(window, in_raster.transform)
 
@@ -101,6 +103,52 @@ def extract_roi(
                 }
             )
             return data, profile
+
+
+def compute_roi_from_ref(ref_file, in_file, out_file):
+    with rio.open(ref_file) as ref:
+        with rio.open(in_file) as crop:
+            # Define crop area from ref bounds
+            bounds_ref = ref.bounds
+            ll_ref = (bounds_ref.left, bounds_ref.bottom)
+            lr_ref = (bounds_ref.right, bounds_ref.bottom)
+            ul_ref = (bounds_ref.left, bounds_ref.top)
+            ur_ref = (bounds_ref.right, bounds_ref.top)
+            x_ref = [corner[0] for corner in [ul_ref, ur_ref, ll_ref, lr_ref]]
+            y_ref = [corner[1] for corner in [ul_ref, ur_ref, ll_ref, lr_ref]]
+            # Ensure the bounds are in correct projection
+            transformer = Transformer.from_crs(ref.crs, crop.crs, always_xy=True)
+            x_proj, y_proj = transformer.transform(x_ref, y_ref)
+
+            bounds_crop = BoundingBox(
+                left=np.min(x_proj),
+                bottom=np.min(y_proj),
+                right=np.max(x_proj),
+                top=np.max(y_proj),
+            )
+            # Crop the data
+            window_crop = rio.windows.from_bounds(
+                bounds_crop.left,
+                bounds_crop.bottom,
+                bounds_crop.right,
+                bounds_crop.top,
+                crop.transform,
+            )
+            crop_array = crop.read(window=window_crop)
+            # Manage profile to write result in file
+            profile = crop.profile
+            dst_transform = Affine(
+                crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
+            )
+            profile.update(
+                {
+                    "transform": dst_transform,
+                    "height": crop_array.shape[1],
+                    "width": crop_array.shape[2],
+                    "driver": "GTiff",
+                }
+            )
+            save_image(crop_array, profile, out_file)
 
 
 def main():

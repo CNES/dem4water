@@ -1,6 +1,8 @@
 import glob
 import json
+import logging
 import os
+import sys
 from itertools import groupby
 from typing import Optional
 
@@ -186,21 +188,26 @@ def join_close_points(gdf_contour, list_of_points_a, list_of_points_b, tolerance
     pass
 
 
-def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
+def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p, range_buff):
     """."""
     # Get all points in an area
-    gdf_gdp_poly2 = gdf_gdp_poly.copy()
-    gdf_gdp_poly2.geometry = gdf_gdp_poly2.geometry.buffer(30)
+    # gdf_gdp_poly2 = gdf_gdp_poly.copy()
+    # gdf_gdp_poly2.geometry = gdf_gdp_poly2.geometry.buffer(30)
     list_df = []
-    indent_max = np.max(gdf_gdp_poly2.gdp_unique_id.unique())
-    for ident in gdf_gdp_poly2.gdp_unique_id.unique():
-        gdf_work = gdf_gdp_poly2[gdf_gdp_poly2.gdp_unique_id == ident]
-        gdf = gpd.sjoin(gdf_wb_points, gdf_work, how="inner", predicate="within")
-        # print(gdf)
-        if gdf.empty:
-            print(f"No intersection found between gdp {ident} and the water body")
-            continue
+    indent_max = np.max(gdf_gdp_poly.gdp_unique_id.unique())
+    for ident in gdf_gdp_poly.gdp_unique_id.unique():
+        gdf_work = gdf_gdp_poly[gdf_gdp_poly.gdp_unique_id == ident]
+        for buffer_size in range(0, range_buff, 10):
+            gdf_work.geometry = gdf_work.geometry.buffer(buffer_size)
+            gdf = gpd.sjoin(gdf_wb_points, gdf_work, how="inner", predicate="within")
 
+            if gdf.empty:
+                print(f"No intersection found between gdp {ident} and the water body")
+                continue
+            else:
+                if gdf.shape[0] > 2:
+                    print(f"Buffer size {buffer_size}")
+                    break
         gdf = gdf.drop(["points"], axis=1)
         gdf.to_file(f"{work_p}/sjoin_nearest_{ident}.geojson")
         # input("gdf")
@@ -224,18 +231,20 @@ def draw_lines(gdf_wb_points, gdf_gdp_poly, gdf_wb_poly, work_p):
             ident_point = [g for _, (*g,) in groupby(id_points, lambda _: next(dist))]
             if len(ident_point) == 2:
                 print("Two points", "ident", ident)
-                # print(gdf)
+                print(gdf)
                 id_point_reoder = ident_point[-1] + ident_point[0]
                 x_coords = []
                 y_coords = []
                 for val_point in id_point_reoder:
                     # print(val_point)
-                    x_coords.append(gdf[gdf.id_point == val_point].x_wb)
-                    y_coords.append(gdf[gdf.id_point == val_point].y_wb)
+                    x_coords.append(gdf[gdf.id_point == val_point].x_wb.values[0])
+                    y_coords.append(gdf[gdf.id_point == val_point].y_wb.values[0])
                 df_coords = pd.DataFrame()
+
                 df_coords["x_cut"] = x_coords
                 df_coords["y_cut"] = y_coords
                 df_coords["gdp_unique_id"] = ident
+                print(df_coords)
                 gdf_temp = gpd.GeoDataFrame(
                     df_coords,
                     geometry=gpd.points_from_xy(df_coords["x_cut"], df_coords["y_cut"]),
@@ -502,6 +511,7 @@ def search_point(
     alt_max,
     water_body,
     points_save,
+    number_of_added_points,
 ):
     """."""
     with rasterio.open(mnt_raster) as mnt:
@@ -553,17 +563,26 @@ def search_point(
         # print(init_point)
         # print(new_x, new_y)
         stop = False
-        if alt[-1] > alt_max:
-            print("Altitude max reached")
+        if alt[-1] > alt_max and number_of_added_points > 0:
+            print(alt[-1], alt_max)
+            print("Warn: Altitude max reached")
+            logging.info(
+                f"Altitude maximum reached on {direction} side. Stop searching points"
+            )
             stop = True
         if (new_x[0], new_y[0]) in list(row.geometry.coords):
             print("point already found")
+            logging.info(
+                "The current point was previously added to the line."
+                f" Stop searching points on {direction} side."
+            )
             stop = True
         else:
             if len(alt) > 2:
                 if alt[-1] <= alt[-2]:
-                    stop = True
-                    print("Stop: altitude decrease")
+                    # stop = True
+                    print("Warn: altitude decrease")
+                    logging.info(f"Altitude decrease on {direction} side.")
         if not stop:
             if direction == "left":
                 # TODO: ensure that we are not crossing the water
@@ -598,6 +617,7 @@ def search_point(
                     row.geometry = LineString(
                         [(new_x[0], new_y[0])] + list(row.geometry.coords)
                     )
+                    number_of_added_points += 1
             else:
                 right_line = LineString(
                     [(new_x[0], new_y[0]), list(row.geometry.coords)[-1]]
@@ -629,6 +649,7 @@ def search_point(
                     row.geometry = LineString(
                         list(row.geometry.coords) + [(new_x[0], new_y[0])]
                     )
+                    number_of_added_points += 1
 
         # input(l_indices)
 
@@ -658,7 +679,7 @@ def search_point(
         # print(center_x, center_y)
         # print(mask.shape)
         # print(dir(mnt))
-        return row, stop, alt, points_save
+        return row, stop, alt, points_save, number_of_added_points
 
 
 def compute_distance(point1, point2, thresholding: Optional[str] = None):
@@ -726,7 +747,7 @@ def fill_cutline(
 
         # search left
         stop = False
-        j = 0
+        number_of_added_points = 0
         alt = []
         while not stop:
             # line = list(gdf_line.iloc[i].geometry.coords)
@@ -741,7 +762,7 @@ def fill_cutline(
             right_point = line[-1]
             prev_right_point = line[-2]
             # Chercher dans un radius de N le point le plus haut
-            row, stop, alt, points_save = search_point(
+            row, stop, alt, points_save, number_of_added_points = search_point(
                 left_point,
                 prev_left_point,
                 row,
@@ -752,11 +773,13 @@ def fill_cutline(
                 alt_max,
                 water_body,
                 points_save,
+                number_of_added_points,
             )
-            j += 1
+            # number_of_added_points += 1
+        logging.info(f"Number of points added on left side : {number_of_added_points}")
         # search right
         stop = False
-        j = 0
+        number_of_added_points = 0
         alt = []
         while not stop:
             # line = list(gdf_line.iloc[i].geometry.coords)
@@ -773,7 +796,7 @@ def fill_cutline(
             right_point = line[-1]
             prev_right_point = line[-2]
             # Chercher dans un radius de N le point le plus haut
-            row, stop, alt, points_save = search_point(
+            row, stop, alt, points_save, number_of_added_points = search_point(
                 right_point,
                 prev_right_point,
                 row,
@@ -784,8 +807,11 @@ def fill_cutline(
                 alt_max,
                 water_body,
                 points_save,
+                number_of_added_points,
             )
-            j += 1
+            # number_of_added_points += 1
+        logging.info(f"Number of points added on right side : {number_of_added_points}")
+
         all_lines.append(row.geometry)
         print(all_lines)
     # gdf_out.geometry = all_lines
@@ -834,18 +860,34 @@ def fill_cutline(
 # ##############################################
 # Process
 # ##############################################
-def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
+def prepare_inputs(
+    in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max, buffer_max, debug=False
+):
     """."""
     if not os.path.exists(work_dir):
         os.mkdir(work_dir)
+
+    logging_format = (
+        "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
+    )
+    if debug:
+        logging.basicConfig(
+            stream=sys.stdout, level=logging.DEBUG, format=logging_format
+        )
+    else:
+        logging.basicConfig(
+            stream=sys.stdout, level=logging.INFO, format=logging_format
+        )
+    logging.info("Starting drawing cutline using GDP")
+
     with rasterio.open(mnt_raster) as mnt:
         epsg = mnt.crs.to_epsg()
         # epsg  = 2154
         # 1 Handle mutlipolygons
         # 2 remove holes
         gdf_bd = preprocess_water_body(in_vector, epsg)
-        gdf_bd.geometry = gdf_bd.geometry.buffer(200)
-        gdf_bd.geometry = gdf_bd.geometry.buffer(-200)
+        # gdf_bd.geometry = gdf_bd.geometry.buffer(200)
+        # gdf_bd.geometry = gdf_bd.geometry.buffer(-200)
         gdf_bd.to_file(os.path.join(work_dir, "bd_clean.geojson"))
         # 4 Rasterize the waterbody filtered
         params_raster = RasterizarionParams(
@@ -911,7 +953,9 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
             gdf_gdp, "gdp_unique_id", "gdp_point", suffix="_gdp"
         )
         gdf_gdp_points.to_file(os.path.join(work_dir, "pdb_contour.geojson"))
-        lines = draw_lines(gdf_wb_points, gdf_gdp, gdf_bd, work_dir)  # _points)
+        lines = draw_lines(
+            gdf_wb_points, gdf_gdp, gdf_bd, work_dir, buffer_max
+        )  # _points)
         if lines is not None:
             lines.to_file(os.path.join(work_dir, "cutline_base.geojson"))
             lines = fill_cutline(
@@ -920,6 +964,7 @@ def prepare_inputs(in_vector, mnt_raster, work_dir, gdp_buffer_size, alt_max):
             lines.to_file(os.path.join(work_dir, "cutline.geojson"))
             return os.path.join(work_dir, "cutline.geojson")
     return None
+
 
 def transform_point(crs_source, crs_dst, lon, lat):
     transformer = pyproj.Transformer.from_crs(crs_source, crs_dst, always_xy=True)
@@ -1123,16 +1168,22 @@ def merged_geojson(gdf_db, working_dir, wdir, out_barrages):
 # )
 
 
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v2"
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v5"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v5"
 db_full = "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
 gdf_db = gpd.GeoDataFrame().from_file(db_full)
 extract_folder = (
     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
 )
-
-for dam in list(gdf_db.DAM_NAME):
-    print(dam)
+print(gdf_db.columns)
+print(list(gdf_db.DAM_LVL_M))
+print(list(gdf_db.DEPTH_M))
+for dam, alti, hauteur in zip(
+    list(gdf_db.DAM_NAME), list(gdf_db.DAM_LVL_M), list(gdf_db.DEPTH_M)
+):
+    if dam not in ["Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
+        continue
+    print(dam, alti)
     gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
     dam = dam.replace(" ", "-")
     wdir = os.path.join(working_dir, dam)
@@ -1144,22 +1195,17 @@ for dam in list(gdf_db.DAM_NAME):
         gdf_t.to_file(dam_db)
         extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
         # print(extract)
-        out_extract = os.path.join(wdir, "dem_reproj.tif")
-        cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
-        os.system(cmd)
-        res = prepare_inputs(
-            dam_db,
-            extract,
-            wdir,
-            100,
-            1500,
-        )
+        # out_extract = os.path.join(wdir, "dem_reproj.tif")
+        # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+        # os.system(cmd)
+        if alti is None:
+            alti = 10000
+        res = prepare_inputs(dam_db, extract, wdir, 100, alti + 20, 30)  # buffer size
         if res is not None:
-            print(dam)
             cutline = os.path.join(wdir, "cutline.geojson")
             out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
             os.system(f"cp {cutline} {out_cutline}")
-            
+
             coord_ww = get_coord_ww(dam_db, wdir)
             print(coord_ww, "coord WW")
             add_value_geojson(dam_db, "LONG_WW_A", coord_ww[0], dam_db)
@@ -1167,15 +1213,15 @@ for dam in list(gdf_db.DAM_NAME):
             gdp_vector = os.path.join(wdir, "gdp_vector.geojson")
             out_file = os.path.join(wdir, "point_PPDB.shp")
             coord_ppdb = get_coord_ppdb(extract, gdp_vector, out_file)
-            
             print(coord_ppdb, "coord ppdb")
             add_value_geojson(dam_db, "LONG_PPDB_A", coord_ppdb[0], dam_db)
             add_value_geojson(dam_db, "LAT_PPDB_A", coord_ppdb[1], dam_db)
             coord_dam = get_coord_dam(coord_ww, coord_ppdb, dam_db, wdir)
+
             if coord_dam is not None:
                 add_value_geojson(dam_db, "LONG_DAM_A", coord_dam[0], dam_db)
                 add_value_geojson(dam_db, "LAT_DAM_A", coord_dam[1], dam_db)
             print(coord_dam, "coord_dam")
 
-out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
-merged_geojson(gdf_db, working_dir, wdir, out_barrages)
+# out_barrages = os.path.join(working_dir, "340_barrages_10.geojson")
+# merged_geojson(gdf_db, working_dir, wdir, out_barrages)
