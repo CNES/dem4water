@@ -41,7 +41,7 @@ from dem4water.tools.remove_holes_in_shapes import close_holes
 def remove_mutlipolygon(in_vector, epsg, buffer_size=10):
     """Apply a buffer in both sign to close small gap between polygons."""
     gdf = gpd.GeoDataFrame().from_file(in_vector)
-    print(epsg)
+    # print(epsg)
     gdf = gdf.to_crs(epsg)
     gdf["geometry"] = gdf.geometry.buffer(buffer_size)
     gdf["geometry"] = gdf.geometry.buffer(-buffer_size)
@@ -202,7 +202,7 @@ def find_pdb(poly_dataframe, raster):
     min_dem = gdf_pdb["val"].idxmin()
     value_min = gdf_pdb.loc[min_dem]
     pdb = Point(value_min.x, value_min.y)
-    return pdb
+    return pdb, gdf_pdb["val"].min()
 
 
 def find_insider(wb_poly, poly_gdp):
@@ -300,7 +300,7 @@ def find_points_for_base_lines(
 ):
     """."""
     gdf_work = gdf_gdp_poly.copy()
-    print(gdf_wb_points.crs, gdf_work.crs)
+    # print(gdf_wb_points.crs, gdf_work.crs)
     for buffer_size in range(0, range_buff, 10):
         gdf_work.geometry = gdf_gdp_poly.geometry.buffer(buffer_size)
         gdf = gpd.sjoin(gdf_wb_points, gdf_work, how="inner", predicate="within")
@@ -321,7 +321,7 @@ def find_points_for_base_lines(
             f"ERROR: No intersection found between gdp {ident} and the water body"
             f" for buffer size {buffer_size}. Try to increase"
         )
-    print(gdf)
+    # print(gdf)
     min_indices_gdp = gdf.id_point.min()
     max_indices_gdp = gdf.id_point.max()
     max_indices_wb = gdf_wb_points.id_point.max()
@@ -380,9 +380,9 @@ def find_base_line_using_segments(gdf_wb, gdf_gdp, ident, index_line, angle_thre
         geometry=points,
         crs=gdf_wb.crs,
     )
-    gdf.to_file(
-        "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/Points_angle.geojson"
-    )
+    # gdf.to_file(
+    #     "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/Points_angle.geojson"
+    # )
     # gdf_wb1 = gdf_wb.to_crs(2154)
     coords_points_ori = list(gdf_wb.geometry.values[0].exterior.coords)
     segments = []
@@ -402,47 +402,47 @@ def find_base_line_using_segments(gdf_wb, gdf_gdp, ident, index_line, angle_thre
         geometry=ori_lines,
         crs=gdf_wb.crs,
     )
-    gdf.to_file(
-        "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/segments.geojson"
-    )
+    # gdf.to_file(
+    #     "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/segments.geojson"
+    # )
     inter = gpd.sjoin(gdf, gdf_gdp, how="inner")
     # handle the case of mutliple segment intersecting the same GDP
     if inter.empty:
         logging.info("Search base for cutline failed. No intersection found")
-        return None, None
+        return None, ident
     if not len(inter.index) == 1:
         logging.info("More than one segment intersect the same GDP. Try to fuse them")
 
-        lines = list(inter.geometry.values)
-        id_seg = list(inter.segments.values)
-        print(id_seg, len(ori_lines))
-        coords_new_seg = []
-        if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
-            print("fuse origine")
-            coords_new_seg = list(lines[-1].coords) + list(lines[0].coords)
-            for seg in lines[1:-1]:
-                coords_new_seg += seg.coords
-        else:
-            for seg in lines:
-                coords_new_seg += seg.coords
+    lines = list(inter.geometry.values)
+    id_seg = list(inter.segments.values)
+    # print(id_seg, len(ori_lines))
+    coords_new_seg = []
+    if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
+        print("fuse origine")
+        coords_new_seg = list(lines[-1].coords) + list(lines[0].coords)
+        for seg in lines[1:-1]:
+            coords_new_seg += seg.coords
+    else:
+        for seg in lines:
+            coords_new_seg += seg.coords
 
-        # line = LineString(coords_new_seg)
-        # inter = gpd.GeoDataFrame(
-        #     {"segments": range(len([line]))},
-        #     geometry=[line],
-        #     crs=gdf_wb.crs,
-        # )
-        df_coords = pd.DataFrame()
-        df_coords["x_cut"] = [x[0] for x in coords_new_seg]
-        df_coords["y_cut"] = [x[1] for x in coords_new_seg]
-        df_coords["gdf_unique_id"] = index_line
-        df_coords["gdf_sub_line"] = ident
-        ident += 1
-        inter = gpd.GeoDataFrame(
-            df_coords,
-            geometry=gpd.points_from_xy(df_coords["x_cut"], df_coords["y_cut"]),
-            crs=gdf_wb.crs,
-        )
+    # line = LineString(coords_new_seg)
+    # inter = gpd.GeoDataFrame(
+    #     {"segments": range(len([line]))},
+    #     geometry=[line],
+    #     crs=gdf_wb.crs,
+    # )
+    df_coords = pd.DataFrame()
+    df_coords["x_cut"] = [x[0] for x in coords_new_seg]
+    df_coords["y_cut"] = [x[1] for x in coords_new_seg]
+    df_coords["gdf_unique_id"] = index_line
+    df_coords["gdf_sub_line"] = ident
+    ident += 1
+    inter = gpd.GeoDataFrame(
+        df_coords,
+        geometry=gpd.points_from_xy(df_coords["x_cut"], df_coords["y_cut"]),
+        crs=gdf_wb.crs,
+    )
     return inter, ident
 
 
@@ -513,7 +513,7 @@ def cut_area_according_perpendicular_bisector(ref_image, coords_cutline, crs):
         distance_max = (
             compute_distance([bounds.top, bounds.left], [bounds.bottom, bounds.right])
             + 10
-        ) / 2
+        )
 
         point_a = coords_cutline[0]
         point_b = coords_cutline[-1]
@@ -521,6 +521,7 @@ def cut_area_according_perpendicular_bisector(ref_image, coords_cutline, crs):
         search_area = split(poly_image, per_bisect)
         # search_area must have only two parts
         search_area = list(search_area.geoms)
+        # print(search_area)
         first_poly = search_area[0]
         second_poly = search_area[1]
         if first_poly.contains(point_a):
@@ -584,7 +585,7 @@ def follow_direction(
     mask_polygon.geometry = mask_polygon.geometry.buffer(1)
     search_area = mask_polygon.overlay(gdf_point, how="intersection")
     search_area = search_area.explode(ignore_index=True)
-    print(search_area)
+    # print(search_area)
     if search_area.empty:
         logging.info(f"Searching point {direction} is stopped. Empty search area")
         return cutline_coords, None, mask_polygon, True
@@ -606,8 +607,11 @@ def follow_direction(
     new_point, alt_max = search_next_point(
         mnt_raster, shapes, work_dir, direction, index
     )
-    print(alt_max)
+    # print(alt_max)
     # add the point to cutline
+    if alt_max < -100:
+        logging.info("Invalid altitude found. Stop search")
+        return cutline_coords, None, mask_polygon, True
     if new_point in cutline_coords:
         logging.info("Cutline extent: point already found stop search")
         return cutline_coords, None, mask_polygon, True
@@ -633,7 +637,7 @@ def find_extent_to_line(
     """
     # 1. Find the perpendicular bisector according the line
     # gdf_cutline = gpd.read_file(cutline)
-    print(gdf_cutline)
+    # print(gdf_cutline)
     coords_cutline = list(gdf_cutline.geometry.values)
     base = gpd.GeoDataFrame(
         {"i": [1]}, geometry=[LineString(coords_cutline)], crs=gdf_cutline.crs
@@ -642,6 +646,7 @@ def find_extent_to_line(
     gdf_split = cut_area_according_perpendicular_bisector(
         mnt_raster, coords_cutline, gdf_cutline.crs
     )
+    gdf_split.to_file(work_dir + "/split_area.geojson")
     # 2. Generate a left and right masked mnt
     # Remove the water body to the areas of searching points
     gdf_split_w_wb = gdf_split.overlay(water_body, how="difference")
@@ -761,12 +766,29 @@ def find_pdb_and_cutline(
         # 4. Filter by convex hull to remove all insider GDP
         gdf_gdp = filter_by_convex_hull(gdf_gdp, "gdp_unique_id")
         # 5. TODO: filter by area to remove small GDP
+        # print(gdf_gdp)
+        gdf_gdp = gdf_gdp[gdf_gdp.geometry.area > 200]
+        gdf_gdp = gdf_gdp.reset_index(drop=True)
+        # print(gdf_gdp)
         # 6 Convert the water body into a sett of point with regular sampling
         wb_contour_points = oversampling_polygon_boundary(gdf_wb, dem.res[0])
         list_ident = []
         list_line = []
         ident = 0
+        list_pdb = []
+        list_alt_pdb = []
         for index in gdf_gdp.index:
+            row = gdf_gdp.loc[[index]]
+            pdb, alt = find_pdb(row, dem_raster)
+            list_pdb.append(pdb)
+            if alt >= 0:
+                list_alt_pdb.append(alt)
+            else:
+                list_alt_pdb.append(np.nan)
+        index_min = np.nanargmin(list_alt_pdb)
+        print(list_alt_pdb)
+        print("index min ", index_min)
+        for index in [index_min]:  # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
@@ -779,9 +801,13 @@ def find_pdb_and_cutline(
             # gdf_line, ident = find_points_for_base_lines(
             #     wb_contour_points, row, gdp_buffer_size, ident, index
             # )
+            print("bef", ident)
             gdf_line, ident = find_base_line_using_segments(
-                gdf_wb, gdf_gdp, ident, index, angle_thres=150
+                gdf_wb, row, ident, index, angle_thres=150
             )
+            print("aft", ident)
+            if gdf_line is None:
+                continue
             # gdf_line.to_file(work_dir + f"/base_cutline_{index}.geojson")
             # 10. For each baseline find extents
             coords_new_line = find_extent_to_line(
@@ -791,10 +817,13 @@ def find_pdb_and_cutline(
             list_ident.append(ident)
 
         # 11. Merge all cutlines into one file
+        if not list_line:
+            return None
         gdf_final = gpd.GeoDataFrame(
             {"ident_line": list_ident}, geometry=list_line, crs=gdf_wb.crs
         )
         gdf_final.to_file(os.path.join(work_dir, "cutline.geojson"))
+        return os.path.join(work_dir, "cutline.geojson")
 
 
 # df = gpd.read_file(
@@ -810,8 +839,8 @@ def find_pdb_and_cutline(
 #     maximum_alt=alt + 20,
 #     debug=False,
 # )
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v6"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v6"
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v9"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v9"
 db_full = (
     "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
     "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
@@ -822,9 +851,9 @@ extract_folder = (
 )
 import glob
 
-print(gdf_db.columns)
-print(list(gdf_db.DAM_LVL_M))
-print(list(gdf_db.DEPTH_M))
+# print(gdf_db.columns)
+# print(list(gdf_db.DAM_LVL_M))
+# print(list(gdf_db.DEPTH_M))
 for dam, alti, hauteur in zip(
     list(gdf_db.DAM_NAME), list(gdf_db.DAM_LVL_M), list(gdf_db.DEPTH_M)
 ):
@@ -848,12 +877,12 @@ for dam, alti, hauteur in zip(
         if alti is None:
             alti = 10000
         # res = prepare_inputs(dam_db, extract, wdir, 100, alti + 20, 30)  # buffer size
-        find_pdb_and_cutline(
+        res = find_pdb_and_cutline(
             dam_db,
             extract,
             wdir,
             gdp_buffer_size=100,
-            radius_search_size=20,
+            radius_search_size=30,
             maximum_alt=alti + 20,
             debug=False,
         )
