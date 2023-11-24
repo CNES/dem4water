@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """This module extract virtual surface using DEM and cutline."""
 
-
 import argparse
 import json
 import logging
@@ -10,6 +9,7 @@ import os
 import sys
 from time import perf_counter
 
+import geopandas as gpd
 import numpy as np
 import shapely
 import shapely.wkt
@@ -192,16 +192,17 @@ def cut_countourlines(
     dst_layer.CreateField(field_defn)
 
     # load GeoJSON file containing cutline
-    with open(cutline, "r", encoding="utf-8") as cutline_in:
-        jsc = json.load(cutline_in)
-    for feature in jsc["features"]:
-        lines = shape(feature["geometry"])
-        logging.debug(len(lines.geoms))
-        lines = shapely.ops.linemerge(lines)
+    # with open(cutline, "r", encoding="utf-8") as cutline_in:
+    #     jsc = json.load(cutline_in)
+    # for feature in jsc["features"]:
+    #     lines = shape(feature["geometry"])
+    #     logging.debug(len(lines.geoms))
+    #     lines = shapely.ops.linemerge(lines)
 
-    # Fixing linemerge not merging every part of MultiLineString
-    line = manage_cutline(jsc, lines, out, debug)
-
+    # # Fixing linemerge not merging every part of MultiLineString
+    # line = manage_cutline(jsc, lines, out, debug)
+    gdf_cutline = gpd.read_file(cutline)
+    line = gdf_cutline.geometry.values[0]
     if level is None:
         level = generate_countourlines(
             cache,
