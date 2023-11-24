@@ -3,7 +3,8 @@
 """This module search the PDB and the cutline."""
 
 
-# import glob
+import glob
+
 # import json
 import logging
 import math
@@ -18,8 +19,7 @@ import pandas as pd
 
 # import pyproj
 import rasterio
-
-# import shapely
+import shapely
 from rasterio import Affine
 
 # from rasterio import transform as TR
@@ -172,16 +172,24 @@ def extract_points_from_raster(raster, poly_dataframe):
         out_image, out_transform = mask(src, geoms, crop=True)
         # reference the pixel centre
         transf = out_transform * Affine.translation(0.5, 0.5)
+        transformer = rasterio.transform.AffineTransformer(transf)
+
         no_data = src.nodata
         data = out_image[0, :, :]
         row, col = np.where(data != no_data)
         values = np.extract(data != no_data, data)
         df_p = pd.DataFrame({"col": col, "row": row, "val": values})
         df_p["x"] = df_p.apply(
-            lambda row: convert_coord_to_pixel(row.row, row.col, transf)[0], axis=1
+            lambda row: transformer.xy(row.row, row.col)[0][0]
+            # convert_coord_to_pixel(row.row, row.col, transf)[0]
+            ,
+            axis=1,
         )
         df_p["y"] = df_p.apply(
-            lambda row: convert_coord_to_pixel(row.row, row.col, transf)[1], axis=1
+            lambda row: transformer.xy(row.row, row.col)[1][0]
+            # convert_coord_to_pixel(row.row, row.col, transf)[1]
+            ,
+            axis=1,
         )
         gdf = gpd.GeoDataFrame(
             df_p,
@@ -446,8 +454,8 @@ def find_base_line_using_segments(gdf_wb, gdf_gdp, ident, index_line, angle_thre
     return inter, ident
 
 
-def fuse_segment(segments, water_body):
-    """."""
+# def fuse_segment(segments, water_body):
+#     """."""
 
 
 # #######################################################
@@ -556,6 +564,7 @@ def search_next_point(mnt_raster, shapes, work_dir, direction, index):
 
 
 def add_point_to_list(value, list_values, direction):
+    """Add point on start or end of list."""
     if direction == "left":
         # print("value", value)
         list_values = [value] + list_values
@@ -625,7 +634,7 @@ def follow_direction(
     return cutline_coords, alt_max, mask_polygon, False
 
 
-def find_extent_to_line(
+def find_extent_to_line_with_vector(
     mnt_raster, gdf_cutline, water_body, radius_search, maximum_alt, work_dir
 ):
     """.
@@ -692,6 +701,191 @@ def find_extent_to_line(
             logging.info(f"Cutline extent: max found on right side at {alt}")
             break
     return coords_cutline
+
+
+# #######################################################
+# Extend but with raster approach
+# #######################################################
+def search_point(
+    init_point,
+    prev_point,
+    cutline,
+    search_radius,
+    mnt_raster,
+    shapes,
+    alt,
+    alt_max,
+    direction,
+    points_save,
+    number_of_added_points,
+):
+    # new_point, alt_max = search_next_point(mnt_raster, shapes, work_dir, direction, index)
+    coords_cutline = cutline.coords
+    with rasterio.open(mnt_raster) as dem:
+        mnt_array, mnt_transform = rasterio.mask.mask(dem, shapes, crop=True)
+        mnt_array = mnt_array[0, :, :]
+        x_grid, y_grid = np.meshgrid(
+            np.arange(mnt_array.shape[0]), np.arange(mnt_array.shape[1]), indexing="ij"
+        )
+        center_x, center_y = rasterio.transform.rowcol(
+            mnt_transform, init_point[0], init_point[1]
+        )
+        prev_point_x, prev_point_y = rasterio.transform.rowcol(
+            mnt_transform, prev_point[0], prev_point[1]
+        )
+        mask_radius = np.ceil(
+            np.sqrt(
+                (prev_point_x - center_x) * (prev_point_x - center_x)
+                + (prev_point_y - center_y) * (prev_point_y - center_y)
+            )
+        )
+        disc_search = (
+            (x_grid - center_x) ** 2 + (y_grid - center_y) ** 2
+        ) <= search_radius**2
+        disc_mask = (
+            (x_grid - prev_point_x) ** 2 + (y_grid - prev_point_y) ** 2
+        ) >= mask_radius**2
+        circle = np.logical_and(disc_search, disc_mask)
+        mnt_array[~circle] = 0
+        alt.append(np.amax(mnt_array))
+        l_indices = np.where(mnt_array == [np.amax(mnt_array)])
+        new_x, new_y = rasterio.transform.xy(mnt_transform, l_indices[0], l_indices[1])
+        points_save.append((new_x, new_y))
+        stop = False
+        if alt[-1] > alt_max and number_of_added_points > 0:
+            print(alt[-1], alt_max)
+            print("Warn: Altitude max reached")
+            logging.info(
+                f"Altitude maximum reached on {direction} side. Stop searching points"
+            )
+            stop = True
+        if (new_x[0], new_y[0]) in coords_cutline:
+            print("point already found")
+            logging.info(
+                "The current point was previously added to the line."
+                f" Stop searching points on {direction} side."
+            )
+            stop = True
+        else:
+            if len(alt) > 2:
+                if alt[-1] <= alt[-2]:
+                    # stop = True
+                    print("Warn: altitude decrease")
+                    logging.info(f"Altitude decrease on {direction} side.")
+        if not stop:
+            if direction == "left":
+                left_line = LineString([(new_x[0], new_y[0]), coords_cutline[0]])
+                if left_line.length > 1000:
+                    print("Left Point too far")
+                    stop = True
+                    return cutline, stop, alt, points_save, number_of_added_points
+                # inter = shapely.intersection(left_line, water_body.geometry.values[0])
+                # print("inter", inter)
+                self_inter = shapely.intersection(
+                    left_line,
+                    cutline,
+                )
+                # If another point than the origin is found as intersection
+                if isinstance(self_inter, shapely.geometry.MultiPoint):
+                    print("Left Self intersection detected")
+                    stop = True
+                    # input(s)
+                else:
+                    cutline = LineString([(new_x[0], new_y[0])] + coords_cutline)
+                    number_of_added_points += 1
+            else:
+                right_line = LineString([(new_x[0], new_y[0]), coords_cutline[-1]])
+
+                if right_line.length > 1000:
+                    print("Right Point too far")
+                    stop = True
+                    return cutline, stop, alt, points_save, number_of_added_points
+                # inter = shapely.intersection(right_line, water_body.geometry.values[0])
+                # print("inter", inter)
+                self_inter = shapely.intersection(
+                    right_line,
+                    cutline,
+                )
+                if isinstance(self_inter, shapely.geometry.MultiPoint):
+                    print("Right: Self intersection detected")
+                    stop = True
+                    # input(s)
+                else:
+                    cutline = LineString(coords_cutline + [(new_x[0], new_y[0])])
+                    number_of_added_points += 1
+        return cutline, stop, alt, points_save, number_of_added_points
+
+
+def find_extent_to_line(
+    gdf_cutline, mnt_raster, water_body, search_radius, alt_max, work_dir
+):
+    """."""
+    # 1. Find the perpendicular bisector according the line
+    # gdf_cutline = gpd.read_file(cutline)
+    # print(gdf_cutline)
+    coords_cutline = list(gdf_cutline.geometry.values)
+    cutline = LineString(coords_cutline)
+    base = gpd.GeoDataFrame({"i": [1]}, geometry=[cutline], crs=gdf_cutline.crs)
+    base.to_file(work_dir + "/cutline_base.geojson")
+    gdf_split = cut_area_according_perpendicular_bisector(
+        mnt_raster, coords_cutline, gdf_cutline.crs
+    )
+    gdf_split.to_file(work_dir + "/split_area.geojson")
+    # 2. Generate a left and right masked mnt
+    # Remove the water body to the areas of searching points
+    gdf_split_w_wb = gdf_split.overlay(water_body, how="difference")
+    mask_polygon_start = gdf_split_w_wb.loc[[0]]
+    # Search points to complete line by the start of the base
+    stop = False
+    number_of_added_points = 0
+    alt_seen = []
+    points_save = []
+    while not stop:
+        coords_cut = cutline.coords
+        left_point = coords_cut[0]
+        prev_left_point = coords_cut[1]
+        cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
+            left_point,
+            prev_left_point,
+            cutline,
+            search_radius,
+            mnt_raster,
+            mask_polygon_start,
+            alt_seen,
+            alt_max,
+            "left",
+            points_save,
+            number_of_added_points,
+        )
+    logging.info(f"Number of points added on left side : {number_of_added_points}")
+    mask_polygon_end = gdf_split_w_wb.loc[[1]]
+    # Search points to complete line from the end of the base
+    stop = False
+    number_of_added_points = 0
+    alt_seen = []
+    points_save = []
+    while not stop:
+        coords_cut = cutline.coords
+        right_point = coords_cut[-1]
+        prev_right_point = coords_cut[-2]
+        cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
+            right_point,
+            prev_right_point,
+            cutline,
+            search_radius,
+            mnt_raster,
+            mask_polygon_end,
+            alt_seen,
+            alt_max,
+            "right",
+            points_save,
+            number_of_added_points,
+        )
+    logging.info(f"Number of points added on right side : {number_of_added_points}")
+    gdf_cutline_final = gpd.GeoDataFrame(
+        {"id_cutline": [1]}, geometry=[cutline], crs=gdf_cutline.crs
+    )
+    return gdf_cutline_final
 
 
 # #######################################################
@@ -849,44 +1043,43 @@ gdf_db = gpd.GeoDataFrame().from_file(db_full)
 extract_folder = (
     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
 )
-import glob
 
 # print(gdf_db.columns)
 # print(list(gdf_db.DAM_LVL_M))
 # print(list(gdf_db.DEPTH_M))
-for dam, alti, hauteur in zip(
+for DAM, ALTI, HAUTEUR in zip(
     list(gdf_db.DAM_NAME), list(gdf_db.DAM_LVL_M), list(gdf_db.DEPTH_M)
 ):
     # if dam not in ["Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
     #     continue
-    print(dam, alti)
-    gdf_t = gdf_db.loc[gdf_db.DAM_NAME == dam]
-    dam = dam.replace(" ", "-")
-    wdir = os.path.join(working_dir, dam)
-    if not os.path.exists(wdir):
-        os.mkdir(wdir)
+    print(DAM, ALTI)
+    GDF_T = gdf_db.loc[gdf_db.DAM_NAME == DAM]
+    DAM = DAM.replace(" ", "-")
+    WDIR = os.path.join(working_dir, DAM)
+    if not os.path.exists(WDIR):
+        os.mkdir(WDIR)
 
-    if not os.path.exists(os.path.join(wdir, "cutline.geojson")):
-        dam_db = os.path.join(wdir, f"bd_{dam}.geojson")
-        gdf_t.to_file(dam_db)
-        extract = glob.glob(extract_folder + f"/{dam}/dem*.tif")[0]
+    if not os.path.exists(os.path.join(WDIR, "cutline.geojson")):
+        DAM_DB = os.path.join(WDIR, f"bd_{DAM}.geojson")
+        GDF_T.to_file(DAM_DB)
+        EXTRACT = glob.glob(extract_folder + f"/{DAM}/dem*.tif")[0]
         # print(extract)
         # out_extract = os.path.join(wdir, "dem_reproj.tif")
         # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
         # os.system(cmd)
-        if alti is None:
-            alti = 10000
+        if ALTI is None:
+            ALTI = 10000
         # res = prepare_inputs(dam_db, extract, wdir, 100, alti + 20, 30)  # buffer size
-        res = find_pdb_and_cutline(
-            dam_db,
-            extract,
-            wdir,
+        RES = find_pdb_and_cutline(
+            DAM_DB,
+            EXTRACT,
+            WDIR,
             gdp_buffer_size=100,
             radius_search_size=30,
-            maximum_alt=alti + 20,
+            maximum_alt=ALTI + 20,
             debug=False,
         )
-        if res is not None:
-            cutline = os.path.join(wdir, "cutline.geojson")
-            out_cutline = os.path.join(working_dir, f"{dam}_cutline.geojson")
-            os.system(f"cp {cutline} {out_cutline}")
+        if RES is not None:
+            CUTLINE = os.path.join(WDIR, "cutline.geojson")
+            OUT_CUTLINE = os.path.join(working_dir, f"{DAM}_cutline.geojson")
+            os.system(f"cp {CUTLINE} {OUT_CUTLINE}")
