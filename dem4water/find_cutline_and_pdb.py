@@ -180,13 +180,13 @@ def extract_points_from_raster(raster, poly_dataframe):
         values = np.extract(data != no_data, data)
         df_p = pd.DataFrame({"col": col, "row": row, "val": values})
         df_p["x"] = df_p.apply(
-            lambda row: transformer.xy(row.row, row.col)[0][0]
+            lambda row: transformer.xy(row.row, row.col)[0]
             # convert_coord_to_pixel(row.row, row.col, transf)[0]
             ,
             axis=1,
         )
         df_p["y"] = df_p.apply(
-            lambda row: transformer.xy(row.row, row.col)[1][0]
+            lambda row: transformer.xy(row.row, row.col)[1]
             # convert_coord_to_pixel(row.row, row.col, transf)[1]
             ,
             axis=1,
@@ -355,10 +355,13 @@ def get_angle(a, b, c):
     return np.degrees(ang)
 
 
-def find_base_line_using_segments(gdf_wb, gdf_gdp, ident, index_line, angle_thres=130):
+def find_base_line_using_segments(
+    gdf_wb, gdf_gdp, ident, index_line, buffer_size_max=50, step_buff=5, angle_thres=130
+):
     """."""
     gdf_simpl = gdf_wb.copy()
     # gdf_simpl = gdf_simpl.to_crs(2154)
+    # 1. Generate segments
     # Reduce the number of angles to try to find direction changes
     gdf_simpl.geometry = gdf_simpl.geometry.simplify(1)
     coords_points = gdf_simpl.geometry.values[0].exterior.coords
@@ -413,11 +416,22 @@ def find_base_line_using_segments(gdf_wb, gdf_gdp, ident, index_line, angle_thre
     # gdf.to_file(
     #     "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/segments.geojson"
     # )
-    inter = gpd.sjoin(gdf, gdf_gdp, how="inner")
-    # handle the case of mutliple segment intersecting the same GDP
-    if inter.empty:
-        logging.info("Search base for cutline failed. No intersection found")
-        return None, ident
+    for buff in range(0, buffer_size_max + step_buff, step_buff):
+        gdf_gdp_buff = gdf_gdp.copy()
+        gdf_gdp_buff.geometry = gdf_gdp_buff.geometry.buffer(buff)
+        inter = gpd.sjoin(gdf, gdf_gdp_buff, how="inner")
+        # handle the case of mutliple segment intersecting the same GDP
+        if inter.empty:
+            logging.info("Search base for cutline failed. No intersection found")
+            logging.info(
+                f"No intersection for buffer size {buff}. "
+                f"Try higher (max {buffer_size_max})"
+            )
+        else:
+            logging.info(f"Intersection found for buffer {buff}. Process")
+            break
+        if buffer_size_max == buff:
+            return None, ident
     if not len(inter.index) == 1:
         logging.info("More than one segment intersect the same GDP. Try to fuse them")
 
@@ -720,7 +734,7 @@ def search_point(
     number_of_added_points,
 ):
     # new_point, alt_max = search_next_point(mnt_raster, shapes, work_dir, direction, index)
-    coords_cutline = cutline.coords
+    coords_cutline = list(cutline.coords)
     with rasterio.open(mnt_raster) as dem:
         mnt_array, mnt_transform = rasterio.mask.mask(dem, shapes, crop=True)
         mnt_array = mnt_array[0, :, :]
@@ -834,14 +848,16 @@ def find_extent_to_line(
     # 2. Generate a left and right masked mnt
     # Remove the water body to the areas of searching points
     gdf_split_w_wb = gdf_split.overlay(water_body, how="difference")
-    mask_polygon_start = gdf_split_w_wb.loc[[0]]
+    mask_polygon_start = list(
+        gdf_split_w_wb[gdf_split_w_wb["search_loc"] == "left"].geometry
+    )
     # Search points to complete line by the start of the base
     stop = False
     number_of_added_points = 0
     alt_seen = []
     points_save = []
     while not stop:
-        coords_cut = cutline.coords
+        coords_cut = list(cutline.coords)
         left_point = coords_cut[0]
         prev_left_point = coords_cut[1]
         cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
@@ -858,14 +874,16 @@ def find_extent_to_line(
             number_of_added_points,
         )
     logging.info(f"Number of points added on left side : {number_of_added_points}")
-    mask_polygon_end = gdf_split_w_wb.loc[[1]]
+    mask_polygon_end = list(
+        gdf_split_w_wb[gdf_split_w_wb["search_loc"] == "right"].geometry
+    )
     # Search points to complete line from the end of the base
     stop = False
     number_of_added_points = 0
     alt_seen = []
     points_save = []
     while not stop:
-        coords_cut = cutline.coords
+        coords_cut = list(cutline.coords)
         right_point = coords_cut[-1]
         prev_right_point = coords_cut[-2]
         cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
@@ -882,10 +900,11 @@ def find_extent_to_line(
             number_of_added_points,
         )
     logging.info(f"Number of points added on right side : {number_of_added_points}")
-    gdf_cutline_final = gpd.GeoDataFrame(
-        {"id_cutline": [1]}, geometry=[cutline], crs=gdf_cutline.crs
-    )
-    return gdf_cutline_final
+    # gdf_cutline_final = gpd.GeoDataFrame(
+    #     {"id_cutline": [1]}, geometry=[cutline], crs=gdf_cutline.crs
+    # )
+    # return gdf_cutline_final
+    return list(cutline.coords)
 
 
 # #######################################################
@@ -975,7 +994,7 @@ def find_pdb_and_cutline(
             row = gdf_gdp.loc[[index]]
             pdb, alt = find_pdb(row, dem_raster)
             list_pdb.append(pdb)
-            if alt >= 0:
+            if alt >= -100:
                 list_alt_pdb.append(alt)
             else:
                 list_alt_pdb.append(np.nan)
@@ -1004,8 +1023,11 @@ def find_pdb_and_cutline(
                 continue
             # gdf_line.to_file(work_dir + f"/base_cutline_{index}.geojson")
             # 10. For each baseline find extents
+            # coords_new_line = find_extent_to_line(
+            #     dem_raster, gdf_line, gdf_wb, radius_search_size, maximum_alt, work_dir
+            # )
             coords_new_line = find_extent_to_line(
-                dem_raster, gdf_line, gdf_wb, radius_search_size, maximum_alt, work_dir
+                gdf_line, dem_raster, gdf_wb, radius_search_size, maximum_alt, work_dir
             )
             list_line.append(LineString(coords_new_line))
             list_ident.append(ident)
@@ -1033,8 +1055,8 @@ def find_pdb_and_cutline(
 #     maximum_alt=alt + 20,
 #     debug=False,
 # )
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v9"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v9"
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v11"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v11"
 db_full = (
     "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
     "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
