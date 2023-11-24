@@ -33,6 +33,7 @@ def compute_distance(point1, point2, thresholding=None):
 
 
 raster = "/home/btardy/Documents/activites/WATER/GDP/Berthier_chain1/masked_mnt.tif"
+raster = "/home/btardy/Documents/activites/WATER/GDP/Etang-de-Sault/waterbody_bin.tif"
 with rio.open(raster) as image:
     bounds = image.bounds
     geom = box(*bounds)
@@ -44,6 +45,9 @@ with rio.open(raster) as image:
     ) / 2
 cutline_base = (
     "/home/btardy/Documents/activites/WATER/GDP/Berthier_chain1/cutline_base.geojson"
+)
+cutline_base = (
+    "/home/btardy/Documents/activites/WATER/GDP/Etang-de-Sault/cutline_base.geojson"
 )
 
 gdf = gpd.read_file(cutline_base)
