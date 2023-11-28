@@ -12,7 +12,7 @@ from affine import Affine
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
 from rasterio.windows import Window
-
+from shapely.geometry import box
 from dem4water.tools.save_raster import save_image
 
 DTYPE = {
@@ -90,6 +90,7 @@ def extract_roi(
                 )
 
             window = Window(row_off, col_off, width, height)
+            window=rio.windows.intersection(window)
             data = in_raster.read(window=window)
             transform = rio.windows.transform(window, in_raster.transform)
 
@@ -103,7 +104,67 @@ def extract_roi(
                 }
             )
             return data, profile
+            
+def extract_roi_crop(
+    in_raster: rio.io.DatasetReader,
+    extractroi_parameters: ExtractROIParam,
+    out_file,
+):
+    if extractroi_parameters.mode == "radius":
+        if (
+            extractroi_parameters.mode_radius_unitr == "phy"
+            and extractroi_parameters.mode_radius_unitc == "phy"
+        ):
+            bounds = in_raster.bounds
+            poly_image = box(*bounds)
+            left = (
+                extractroi_parameters.mode_radius_cx
+                - extractroi_parameters.mode_radius_r
+            )
+            right = (
+                extractroi_parameters.mode_radius_cx
+                + extractroi_parameters.mode_radius_r
+            )
+            bottom = (
+                extractroi_parameters.mode_radius_cy
+                - extractroi_parameters.mode_radius_r
+            )
+            top = (
+                extractroi_parameters.mode_radius_cy
+                + extractroi_parameters.mode_radius_r
+            )
 
+            bounds_crop = box(left, bottom, right, top)
+
+            intersection_bbox = poly_image.intersection(bounds_crop)
+            left, bottom, right, top = intersection_bbox.bounds
+            window_crop = rio.windows.from_bounds(
+                left,
+                bottom,
+                right,
+                top,
+                in_raster.transform,
+            )
+            crop_array = in_raster.read(window=window_crop)
+            profile = in_raster.profile
+            dst_transform = Affine(
+                in_raster.res[0],
+                0.0,
+                left,
+                0.0,
+                -in_raster.res[1],
+                top,
+            )
+            profile.update(
+                {
+                    "transform": dst_transform,
+                    "height": crop_array.shape[1],
+                    "width": crop_array.shape[2],
+                    "driver": "GTiff",
+                }
+            )
+            save_image(crop_array, profile, out_file)
+    return crop_array, profile
 
 def compute_roi_from_ref(ref_file, in_file, out_file):
     with rio.open(ref_file) as ref:
