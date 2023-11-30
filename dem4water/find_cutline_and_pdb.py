@@ -1180,3 +1180,6 @@ for DAM, ALTI, HAUTEUR, IDDB in zip(
             CUTLINE = os.path.join(WDIR, "cutline.geojson")
             OUT_CUTLINE = os.path.join(working_dir, f"{DAM}_cutline.geojson")
             os.system(f"cp {CUTLINE} {OUT_CUTLINE}")
+            DAM_INFO = os.path.join(WDIR, "daminfo.json")
+            OUT_DAM = os.path.join(working_dir, f"{DAM}_daminfo.json")
+            os.system(f"cp {DAM_INFO} {OUT_DAM}")
