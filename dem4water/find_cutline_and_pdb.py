@@ -413,6 +413,7 @@ def find_base_line_using_segments(
         geometry=ori_lines,
         crs=gdf_wb.crs,
     )
+    # input(gdf)
     # gdf.to_file(
     #     "/home/btardy/Documents/activites/WATER/GDP/bertier_new_cut/segments.geojson"
     # )
@@ -437,16 +438,35 @@ def find_base_line_using_segments(
 
     lines = list(inter.geometry.values)
     id_seg = list(inter.segments.values)
+    # input(id_seg)
     # print(id_seg, len(ori_lines))
     coords_new_seg = []
-    if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
-        print("fuse origine")
-        coords_new_seg = list(lines[-1].coords) + list(lines[0].coords)
-        for seg in lines[1:-1]:
-            coords_new_seg += seg.coords
+    group = (n - i for i, n in enumerate(id_seg))
+    seg_group = [g for _, (*g,) in groupby(lines, lambda _: next(group))]
+    # input(list(seg_group))
+    if len(seg_group) == 2:
+        print("2 pair of segments")
+        seg1 = []
+        for s in seg_group[0]:
+            seg1 += s.coords
+        seg2 = []
+        for s in seg_group[1]:
+            seg2 += s.coords
+        if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
+            print("Join by 0")
+            coords_new_seg = seg2 + seg1
+        else:
+            coords_new_seg = seg1 + seg2
     else:
-        for seg in lines:
-            coords_new_seg += seg.coords
+        print("BOH! number of segs", len(seg_group))
+        if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
+            print("fuse origine")
+            coords_new_seg = list(lines[-1].coords) + list(lines[0].coords)
+            for seg in lines[1:-1]:
+                coords_new_seg += seg.coords
+        else:
+            for seg in lines:
+                coords_new_seg += seg.coords
 
     # line = LineString(coords_new_seg)
     # inter = gpd.GeoDataFrame(
@@ -637,7 +657,7 @@ def follow_direction(
         return cutline_coords, None, mask_polygon, True
     if new_point in cutline_coords:
         logging.info("Cutline extent: point already found stop search")
-        return cutline_coords, None, mask_polygon, True
+        return cutline_coords, None, mask_polygon, False
     cutline_coords = add_point_to_list(new_point, cutline_coords, direction)
     # remove the previous area to the search area ?
     # search_area.geometry = search_area.geometry.buffer(search_area_size)
@@ -766,20 +786,14 @@ def search_point(
         new_x, new_y = rasterio.transform.xy(mnt_transform, l_indices[0], l_indices[1])
         points_save.append((new_x, new_y))
         stop = False
-        if alt[-1] > alt_max and number_of_added_points > 0:
-            print(alt[-1], alt_max)
-            print("Warn: Altitude max reached")
-            logging.info(
-                f"Altitude maximum reached on {direction} side. Stop searching points"
-            )
-            stop = True
         if (new_x[0], new_y[0]) in coords_cutline:
             print("point already found")
             logging.info(
                 "The current point was previously added to the line."
-                f" Stop searching points on {direction} side."
+                f" Try {search_radius} on {direction} side"
+                # f" Stop searching points on {direction} side."
             )
-            stop = True
+            # stop = True
         else:
             if len(alt) > 2:
                 if alt[-1] <= alt[-2]:
@@ -827,11 +841,19 @@ def search_point(
                 else:
                     cutline = LineString(coords_cutline + [(new_x[0], new_y[0])])
                     number_of_added_points += 1
+
+        if alt[-1] > alt_max and number_of_added_points > 0:
+            print(alt[-1], alt_max)
+            print("Warn: Altitude max reached")
+            logging.info(
+                f"Altitude maximum reached on {direction} side. Stop searching points"
+            )
+            stop = True
         return cutline, stop, alt, points_save, number_of_added_points
 
 
 def find_extent_to_line(
-    gdf_cutline, mnt_raster, water_body, search_radius, alt_max, work_dir
+    gdf_cutline, mnt_raster, water_body, search_radius_max, alt_max, work_dir
 ):
     """."""
     # 1. Find the perpendicular bisector according the line
@@ -856,10 +878,15 @@ def find_extent_to_line(
     number_of_added_points = 0
     alt_seen = []
     points_save = []
+    search_radius = 5
+    coords_cut = list(cutline.coords)
+
+    left_point = coords_cut[0]
+    prev_left_point = coords_cut[1]
     while not stop:
-        coords_cut = list(cutline.coords)
-        left_point = coords_cut[0]
-        prev_left_point = coords_cut[1]
+        # coords_cut = list(cutline.coords)
+        # left_point = coords_cut[0]
+        # prev_left_point = coords_cut[1]
         cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
             left_point,
             prev_left_point,
@@ -873,6 +900,10 @@ def find_extent_to_line(
             points_save,
             number_of_added_points,
         )
+        search_radius += 5
+        if search_radius > search_radius_max and not stop:
+            logging.info("Max radius reached before alt_max on left side")
+            stop = True
     logging.info(f"Number of points added on left side : {number_of_added_points}")
     mask_polygon_end = list(
         gdf_split_w_wb[gdf_split_w_wb["search_loc"] == "right"].geometry
@@ -882,10 +913,15 @@ def find_extent_to_line(
     number_of_added_points = 0
     alt_seen = []
     points_save = []
+    search_radius = 5
+    coords_cut = list(cutline.coords)
+
+    right_point = coords_cut[-1]
+    prev_right_point = coords_cut[-2]
     while not stop:
-        coords_cut = list(cutline.coords)
-        right_point = coords_cut[-1]
-        prev_right_point = coords_cut[-2]
+        # coords_cut = list(cutline.coords)
+        # right_point = coords_cut[-1]
+        # prev_right_point = coords_cut[-2]
         cutline, stop, alt_seen, points_save, number_of_added_points = search_point(
             right_point,
             prev_right_point,
@@ -899,6 +935,11 @@ def find_extent_to_line(
             points_save,
             number_of_added_points,
         )
+        search_radius += 5
+
+        if search_radius > search_radius_max:
+            logging.info("Max radius reached before alt_max on right side")
+            stop = True
     logging.info(f"Number of points added on right side : {number_of_added_points}")
     # gdf_cutline_final = gpd.GeoDataFrame(
     #     {"id_cutline": [1]}, geometry=[cutline], crs=gdf_cutline.crs
@@ -1055,8 +1096,8 @@ def find_pdb_and_cutline(
 #     maximum_alt=alt + 20,
 #     debug=False,
 # )
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v11"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v11"
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v14"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v14"
 db_full = (
     "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
     "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
@@ -1072,7 +1113,7 @@ extract_folder = (
 for DAM, ALTI, HAUTEUR in zip(
     list(gdf_db.DAM_NAME), list(gdf_db.DAM_LVL_M), list(gdf_db.DEPTH_M)
 ):
-    # if dam not in ["Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
+    # if DAM not in ["Alzitone" , "Brevonnes", "Roucarie","Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
     #     continue
     print(DAM, ALTI)
     GDF_T = gdf_db.loc[gdf_db.DAM_NAME == DAM]
@@ -1096,8 +1137,8 @@ for DAM, ALTI, HAUTEUR in zip(
             DAM_DB,
             EXTRACT,
             WDIR,
-            gdp_buffer_size=100,
-            radius_search_size=30,
+            gdp_buffer_size=50,
+            radius_search_size=150,
             maximum_alt=ALTI + 20,
             debug=False,
         )
