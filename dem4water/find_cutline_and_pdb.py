@@ -24,7 +24,7 @@ from rasterio import Affine
 
 # from rasterio import transform as TR
 from rasterio.mask import mask
-from shapely.geometry import LineString, Point, box
+from shapely.geometry import LineString, MultiPoint, Point, box
 from shapely.ops import split
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
@@ -220,6 +220,18 @@ def find_insider(wb_poly, poly_gdp):
     inter = gpd.sjoin(poly, wb_poly)
     insider = inter.geometry.representative_point()
     return insider
+
+
+def find_dam(wb_poly, pdb_point, insider_point):
+    """Find the dam."""
+    line = LineString([pdb_point, insider_point])
+    poly_wb = wb_poly.geometry.iloc[0]
+    inter = line.intersection(poly_wb.boundary)
+    if isinstance(inter, MultiPoint):
+        logging.info("Multipoint dam")
+        return None
+    return inter
+    # gdf_line = gpd.GeoDataFrame({"geometry": [line]}, crs=wb_poly.crs)
 
 
 # #######################################################
@@ -958,6 +970,8 @@ def find_pdb_and_cutline(
     gdp_buffer_size,
     radius_search_size,
     maximum_alt,
+    id_db,
+    dam_name,
     debug=False,
 ):
     """Search the PDB and cutline from the database and the DEM.
@@ -1042,12 +1056,15 @@ def find_pdb_and_cutline(
         index_min = np.nanargmin(list_alt_pdb)
         print(list_alt_pdb)
         print("index min ", index_min)
+        pdb_point = list_pdb[index_min]
         for index in [index_min]:  # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
             # 8. For each GDP found a insider point
-            # insider = find_insider(gdf_wb, row)
+            insider = find_insider(gdf_wb, row)
+            # Find dam
+            dam_point = find_dam(gdf_wb, pdb_point, insider)
             # 9. For each GDP draw baselines
             print(row)
             wb_contour_points.to_file(work_dir + "/point_contour.geojson")
@@ -1080,6 +1097,18 @@ def find_pdb_and_cutline(
             {"ident_line": list_ident}, geometry=list_line, crs=gdf_wb.crs
         )
         gdf_final.to_file(os.path.join(work_dir, "cutline.geojson"))
+        # Dam info
+        gdf_dam = gpd.GeoDataFrame(
+            {
+                "name": ["PDB", "Dam", "Insider"],
+                "ID": [id_db, id_db, id_db],
+                "elev": ["", maximum_alt - 20, ""],
+                "damname": [dam_name, dam_name, dam_name],
+            },
+            geometry=[dam_point, insider, pdb_point],
+            crs=gdf_wb.crs,
+        )
+        gdf_dam.to_file(os.path.join(work_dir, "daminfo.json"))
         return os.path.join(work_dir, "cutline.geojson")
 
 
@@ -1110,8 +1139,11 @@ extract_folder = (
 # print(gdf_db.columns)
 # print(list(gdf_db.DAM_LVL_M))
 # print(list(gdf_db.DEPTH_M))
-for DAM, ALTI, HAUTEUR in zip(
-    list(gdf_db.DAM_NAME), list(gdf_db.DAM_LVL_M), list(gdf_db.DEPTH_M)
+for DAM, ALTI, HAUTEUR, IDDB in zip(
+    list(gdf_db.DAM_NAME),
+    list(gdf_db.DAM_LVL_M),
+    list(gdf_db.DEPTH_M),
+    list(gdf_db.ID_DB),
 ):
     # if DAM not in ["Alzitone" , "Brevonnes", "Roucarie","Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
     #     continue
@@ -1140,6 +1172,8 @@ for DAM, ALTI, HAUTEUR in zip(
             gdp_buffer_size=50,
             radius_search_size=150,
             maximum_alt=ALTI + 20,
+            id_db=IDDB,
+            dam_name=DAM,
             debug=False,
         )
         if RES is not None:
