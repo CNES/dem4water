@@ -270,7 +270,6 @@ def find_pdb_and_cutline(
         bml_alt = calt
     else:
         logging.info("Alt Estimated from Watermap.")
-        ext = otb.Registry.CreateApplication("ExtractROI")
         extract_roi_parameters_ext=ExtractROIParam(
         mode="radius",
         mode_radius_r= pdbradius,   
