@@ -217,16 +217,22 @@ def find_insider(wb_poly, poly_gdp):
     """Find insider point."""
     poly = poly_gdp.copy()
     poly.geometry = poly.geometry.buffer(30)
-    inter = gpd.sjoin(poly, wb_poly)
-    insider = inter.geometry.representative_point()
+    inter = wb_poly.overlay(poly)  # gpd.sjoin(poly, wb_poly)
+    if inter.empty:
+        return None
+    insider = inter.geometry.representative_point().values[0]
+    # TODO: remove or debug mode
+    inter.to_file(WDIR + "/inter_insider.geojson")
     return insider
 
 
 def find_dam(wb_poly, pdb_point, insider_point):
     """Find the dam."""
+    print(pdb_point, insider_point)
     line = LineString([pdb_point, insider_point])
     poly_wb = wb_poly.geometry.iloc[0]
     inter = line.intersection(poly_wb.boundary)
+    # input(inter)
     if isinstance(inter, MultiPoint):
         logging.info("Multipoint dam")
         return None
@@ -690,6 +696,13 @@ def find_extent_to_line_with_vector(
     mnt_raster: the mnt area around the reservoir
     cutline: a geodataframe containing one line
     """
+    with rasterio.open(mnt_raster) as image:
+        bounds = image.bounds
+        radius_search = (
+            compute_distance([bounds.top, bounds.left], [bounds.bottom, bounds.right])
+            + 10
+        )
+
     # 1. Find the perpendicular bisector according the line
     # gdf_cutline = gpd.read_file(cutline)
     # print(gdf_cutline)
@@ -828,7 +841,7 @@ def search_point(
                 # If another point than the origin is found as intersection
                 if isinstance(self_inter, shapely.geometry.MultiPoint):
                     print("Left Self intersection detected")
-                    stop = True
+                    # stop = True
                     # input(s)
                 else:
                     cutline = LineString([(new_x[0], new_y[0])] + coords_cutline)
@@ -848,7 +861,7 @@ def search_point(
                 )
                 if isinstance(self_inter, shapely.geometry.MultiPoint):
                     print("Right: Self intersection detected")
-                    stop = True
+                    # stop = True
                     # input(s)
                 else:
                     cutline = LineString(coords_cutline + [(new_x[0], new_y[0])])
@@ -1056,13 +1069,17 @@ def find_pdb_and_cutline(
         index_min = np.nanargmin(list_alt_pdb)
         print(list_alt_pdb)
         print("index min ", index_min)
+        # input(list_pdb)
         pdb_point = list_pdb[index_min]
+        # input(pdb_point)
         for index in [index_min]:  # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
             # 8. For each GDP found a insider point
             insider = find_insider(gdf_wb, row)
+            if insider is None:
+                continue
             # Find dam
             dam_point = find_dam(gdf_wb, pdb_point, insider)
             # 9. For each GDP draw baselines
@@ -1105,8 +1122,8 @@ def find_pdb_and_cutline(
                 "elev": ["", maximum_alt - 20, ""],
                 "damname": [dam_name, dam_name, dam_name],
             },
-            geometry=[dam_point, insider, pdb_point],
-            crs=gdf_wb.crs,
+            geometry=[pdb_point, dam_point, insider],
+            crs=epsg,
         )
         gdf_dam.to_file(os.path.join(work_dir, "daminfo.json"))
         return os.path.join(work_dir, "cutline.geojson")
@@ -1125,8 +1142,8 @@ def find_pdb_and_cutline(
 #     maximum_alt=alt + 20,
 #     debug=False,
 # )
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v14"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v14"
+working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
+out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
 db_full = (
     "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
     "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
@@ -1157,7 +1174,7 @@ for DAM, ALTI, HAUTEUR, IDDB in zip(
     if not os.path.exists(os.path.join(WDIR, "cutline.geojson")):
         DAM_DB = os.path.join(WDIR, f"bd_{DAM}.geojson")
         GDF_T.to_file(DAM_DB)
-        EXTRACT = glob.glob(extract_folder + f"/{DAM}/dem*.tif")[0]
+        EXTRACT = glob.glob(extract_folder + f"/{DAM}/dem*_{DAM}.tif")[0]
         # print(extract)
         # out_extract = os.path.join(wdir, "dem_reproj.tif")
         # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
