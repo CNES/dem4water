@@ -15,6 +15,7 @@ from bmi_topography import Topography
 from osgeo import gdal
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
+from rasterio.warp import Resampling, reproject
 
 from dem4water.tools.save_raster import save_image
 
@@ -98,7 +99,9 @@ def download_rgealti(minx, maxx, miny, maxy, epsg, out_file):
     translate(outtranslate, out_file, epsg, [minx, maxy, maxx, miny])
 
 
-def extract_from_vrt(to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file):
+def extract_from_vrt(
+    to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file, target_resolution
+):
     """."""
     with rio.open(to_crop_file) as crop:
         transformer = Transformer.from_crs(t_epsg, crop.crs, always_xy=True)
@@ -121,18 +124,33 @@ def extract_from_vrt(to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file):
         crop_array = crop.read(window=window_crop)
         # Manage profile to write result in file
         profile = crop.profile
-        dst_transform = Affine(
+        crop_transform = Affine(
             crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
+        )
+        dst_transform = Affine(
+            target_resolution, 0.0, minx, 0.0, -target_resolution, maxy
+        )
+        crop_reproj, reprojt_trans = reproject(
+            source=crop_array,
+            rc_crs=crop.crs,
+            dst_crs=t_epsg,
+            src_transform=crop_transform,
+            dst_transform=dst_transform,
+            resampling=Resampling.cubic,
+            src_nodata=to_crop_file.profile["nodata"],
+            dst_nodata=to_crop_file.profile["nodata"],
         )
         profile.update(
             {
+                "nodata": crop.profile["nodata"],
                 "transform": dst_transform,
-                "height": crop_array.shape[1],
-                "width": crop_array.shape[2],
+                "height": crop_reproj.shape[1],
+                "width": crop_reproj.shape[2],
                 "driver": "GTiff",
             }
         )
-        save_image(crop_array, profile, out_file)
+
+        save_image(crop_reproj, profile, out_file)
 
 
 def area_mapping(
