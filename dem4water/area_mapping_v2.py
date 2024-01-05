@@ -15,7 +15,6 @@ from bmi_topography import Topography
 from osgeo import gdal
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
-from rasterio.warp import Resampling, reproject
 
 from dem4water.tools.save_raster import save_image
 
@@ -124,34 +123,37 @@ def extract_from_vrt(
         crop_array = crop.read(window=window_crop)
         # Manage profile to write result in file
         profile = crop.profile
-        crop_transform = Affine(
+        dst_transform = Affine(
             crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
         )
-        dst_transform = Affine(
-            target_resolution, 0.0, minx, 0.0, -target_resolution, maxy
-        )
-        crop_reproj, reprojt_trans = reproject(
-            source=crop_array,
-            src_crs=crop.crs,
-            dst_crs=t_epsg,
-            src_transform=crop_transform,
-            dst_resolution=target_resolution,
-            # dst_transform=dst_transform,
-            resampling=Resampling.cubic,
-            src_nodata=crop.profile["nodata"],
-            dst_nodata=crop.profile["nodata"],
-        )
+        # dst_transform = Affine(
+        #     target_resolution, 0.0, minx, 0.0, -target_resolution, maxy
+        # )
+        # crop_reproj, reprojt_trans = reproject(
+        #     source=crop_array,
+        #     src_crs=crop.crs,
+        #     dst_crs=t_epsg,
+        #     src_transform=crop_transform,
+        #     dst_resolution=target_resolution,
+        #     # dst_transform=dst_transform,
+        #     resampling=Resampling.cubic,
+        #     src_nodata=crop.profile["nodata"],
+        #     dst_nodata=crop.profile["nodata"],
+        # )
         profile.update(
             {
                 "nodata": crop.profile["nodata"],
                 "transform": dst_transform,
-                "height": crop_reproj.shape[1],
-                "width": crop_reproj.shape[2],
+                "height": crop_array.shape[1],
+                "width": crop_array.shape[2],
                 "driver": "GTiff",
             }
         )
 
-        save_image(crop_reproj, profile, out_file)
+        save_image(crop_array, profile, out_file.replace(".tif", "_proj_ori.tif"))
+        gdal.Warp(
+            out_file, out_file.replace(".tif", "_proj_ori.tif"), dstSRS=f"EPSG:{t_epsg}"
+        )
 
 
 def area_mapping(
