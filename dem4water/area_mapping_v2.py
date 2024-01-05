@@ -169,6 +169,8 @@ def area_mapping(
     """."""
     t1_start = perf_counter()
     # Silence VRT related error (bad magic number)
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
     gdal.PushErrorHandler("CPLQuietErrorHandler")
     logging_format = (
         "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
