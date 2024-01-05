@@ -193,9 +193,7 @@ def area_mapping(
     gdf_dam = gpd.read_file(dam_database)
     gdf_dam = gdf_dam.to_crs(epsg)
     gdf_dam = gdf_dam[gdf_dam[dam_name_col] == dam_name]
-    # gdf_dam.to_file(
-    #     "/home/btardy/Documents/activites/France2030/Dem_RGE/Alesani.geojson"
-    # )
+    gdf_dam.to_file(os.path.join(out_dir, f"DB_{dam_name}.geojson"))
 
     gdf_dam.geometry = gdf_dam.geometry.buffer(buffer_roi)
     # gdf_dam.to_file(
