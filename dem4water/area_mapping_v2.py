@@ -159,7 +159,6 @@ def area_mapping(
     retrieve_mode,
     epsg,
     out_dir,
-    t_epsg,
     to_crop_file=None,
     dam_name_col="DAM_NAME",
     buffer_roi=1000,
@@ -198,7 +197,7 @@ def area_mapping(
     if retrieve_mode == "RGE_ALTI":
         download_rgealti(minx, maxx, miny, maxy, epsg, out_file)
     elif retrieve_mode == "HPC":
-        extract_from_vrt(to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file)
+        extract_from_vrt(to_crop_file, minx, maxx, miny, maxy, epsg, out_file)
     elif retrieve_mode == "":
         download_cop30(minx, maxx, miny, maxy, out_dir)
     else:
