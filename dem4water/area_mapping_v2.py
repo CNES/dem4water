@@ -197,7 +197,7 @@ def area_mapping(
     # )
     # # bbox = gdf_dam.total_bounds
     minx, miny, maxx, maxy = gdf_dam.total_bounds
-    out_file = os.path.join(out_dir, f"dem_extract_{dam_name}.tif")
+    out_file = os.path.join(out_dir, f"dem_extract_{dam_name.replace(' ', '-')}.tif")
     if retrieve_mode == "RGE_ALTI":
         download_rgealti(minx, maxx, miny, maxy, epsg, out_file)
     elif retrieve_mode == "HPC":
