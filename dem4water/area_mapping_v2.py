@@ -152,7 +152,11 @@ def extract_from_vrt(
 
         save_image(crop_array, profile, out_file.replace(".tif", "_proj_ori.tif"))
         gdal.Warp(
-            out_file, out_file.replace(".tif", "_proj_ori.tif"), dstSRS=f"EPSG:{t_epsg}"
+            out_file,
+            out_file.replace(".tif", "_proj_ori.tif"),
+            dstSRS=f"EPSG:{t_epsg}",
+            xRes=target_resolution,
+            yRes=-target_resolution,
         )
 
 
