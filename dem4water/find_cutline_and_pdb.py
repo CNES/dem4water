@@ -3,7 +3,7 @@
 """This module search the PDB and the cutline."""
 
 
-import glob
+# import glob
 
 # import json
 import logging
@@ -222,7 +222,7 @@ def find_insider(wb_poly, poly_gdp):
         return None
     insider = inter.geometry.representative_point().values[0]
     # TODO: remove or debug mode
-    inter.to_file(WDIR + "/inter_insider.geojson")
+    # inter.to_file(WDIR + "/inter_insider.geojson")
     return insider
 
 
@@ -1142,61 +1142,62 @@ def find_pdb_and_cutline(
 #     maximum_alt=alt + 20,
 #     debug=False,
 # )
-working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
-out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
-db_full = (
-    "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
-    "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
-)
-gdf_db = gpd.GeoDataFrame().from_file(db_full)
-extract_folder = (
-    "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
-)
+# working_dir = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
+# out_file = "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/cutlines_v16"
+# db_full = (
+#     "/work/CAMPUS/etudes/hydro_aval/MTE_2022_Reservoirs/livraisons"
+#     "/dams_database/db_CS/db_340_dams/340-retenues-pourLoiZSV_V6_sans_tampon_corrections.geojson"
+# )
+# gdf_db = gpd.GeoDataFrame().from_file(db_full)
+# extract_folder = (
+#     "/work/CAMPUS/etudes/hydro_aval/dem4water/work_benjamin/340_MAE_first_03/extracts"
+# )
 
-# print(gdf_db.columns)
-# print(list(gdf_db.DAM_LVL_M))
-# print(list(gdf_db.DEPTH_M))
-for DAM, ALTI, HAUTEUR, IDDB in zip(
-    list(gdf_db.DAM_NAME),
-    list(gdf_db.DAM_LVL_M),
-    list(gdf_db.DEPTH_M),
-    list(gdf_db.ID_DB),
-):
-    # if DAM not in ["Alzitone" , "Brevonnes", "Roucarie","Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
-    #     continue
-    print(DAM, ALTI)
-    GDF_T = gdf_db.loc[gdf_db.DAM_NAME == DAM]
-    DAM = DAM.replace(" ", "-")
-    WDIR = os.path.join(working_dir, DAM)
-    if not os.path.exists(WDIR):
-        os.mkdir(WDIR)
+# # print(gdf_db.columns)
+# # print(list(gdf_db.DAM_LVL_M))
+# # print(list(gdf_db.DEPTH_M))
+# for DAM, ALTI, HAUTEUR, IDDB in zip(
+#     list(gdf_db.DAM_NAME),
+#     list(gdf_db.DAM_LVL_M),
+#     list(gdf_db.DEPTH_M),
+#     list(gdf_db.ID_DB),
+# ):
+#     # if DAM not in ["Alzitone" , "Brevonnes",
+# "Roucarie","Laparan", "Marne Giffaumont", "Alesani", "Borfloc h"]:
+#     #     continue
+#     print(DAM, ALTI)
+#     GDF_T = gdf_db.loc[gdf_db.DAM_NAME == DAM]
+#     DAM = DAM.replace(" ", "-")
+#     WDIR = os.path.join(working_dir, DAM)
+#     if not os.path.exists(WDIR):
+#         os.mkdir(WDIR)
 
-    if not os.path.exists(os.path.join(WDIR, "cutline.geojson")):
-        DAM_DB = os.path.join(WDIR, f"bd_{DAM}.geojson")
-        GDF_T.to_file(DAM_DB)
-        EXTRACT = glob.glob(extract_folder + f"/{DAM}/dem*_{DAM}.tif")[0]
-        # print(extract)
-        # out_extract = os.path.join(wdir, "dem_reproj.tif")
-        # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
-        # os.system(cmd)
-        if ALTI is None:
-            ALTI = 10000
-        # res = prepare_inputs(dam_db, extract, wdir, 100, alti + 20, 30)  # buffer size
-        RES = find_pdb_and_cutline(
-            DAM_DB,
-            EXTRACT,
-            WDIR,
-            gdp_buffer_size=50,
-            radius_search_size=150,
-            maximum_alt=ALTI + 20,
-            id_db=IDDB,
-            dam_name=DAM,
-            debug=False,
-        )
-        if RES is not None:
-            CUTLINE = os.path.join(WDIR, "cutline.geojson")
-            OUT_CUTLINE = os.path.join(working_dir, f"{DAM}_cutline.geojson")
-            os.system(f"cp {CUTLINE} {OUT_CUTLINE}")
-            DAM_INFO = os.path.join(WDIR, "daminfo.json")
-            OUT_DAM = os.path.join(working_dir, f"{DAM}_daminfo.json")
-            os.system(f"cp {DAM_INFO} {OUT_DAM}")
+#     if not os.path.exists(os.path.join(WDIR, "cutline.geojson")):
+#         DAM_DB = os.path.join(WDIR, f"bd_{DAM}.geojson")
+#         GDF_T.to_file(DAM_DB)
+#         EXTRACT = glob.glob(extract_folder + f"/{DAM}/dem*_{DAM}.tif")[0]
+#         # print(extract)
+#         # out_extract = os.path.join(wdir, "dem_reproj.tif")
+#         # cmd = f"gdalwarp {extract} {out_extract} -t_srs 'EPSG:2154'"
+#         # os.system(cmd)
+#         if ALTI is None:
+#             ALTI = 10000
+#         # res = prepare_inputs(dam_db, extract, wdir, 100, alti + 20, 30)  # buffer size
+#         RES = find_pdb_and_cutline(
+#             DAM_DB,
+#             EXTRACT,
+#             WDIR,
+#             gdp_buffer_size=50,
+#             radius_search_size=150,
+#             maximum_alt=ALTI + 20,
+#             id_db=IDDB,
+#             dam_name=DAM,
+#             debug=False,
+#         )
+#         if RES is not None:
+#             CUTLINE = os.path.join(WDIR, "cutline.geojson")
+#             OUT_CUTLINE = os.path.join(working_dir, f"{DAM}_cutline.geojson")
+#             os.system(f"cp {CUTLINE} {OUT_CUTLINE}")
+#             DAM_INFO = os.path.join(WDIR, "daminfo.json")
+#             OUT_DAM = os.path.join(working_dir, f"{DAM}_daminfo.json")
+#             os.system(f"cp {DAM_INFO} {OUT_DAM}")

@@ -37,7 +37,7 @@ class ExtractROIParam:
 
 
 def coord_phys_to_pixel(
-    in_raster: str,
+    in_raster: rio.io.DatasetReader,
     extractroi_parameters: ExtractROIParam,
 ):
     """
