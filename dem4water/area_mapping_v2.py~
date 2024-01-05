@@ -15,7 +15,6 @@ from bmi_topography import Topography
 from osgeo import gdal
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
-from rasterio.warp import Resampling, reproject
 
 from dem4water.tools.save_raster import save_image
 
@@ -95,13 +94,11 @@ def download_rgealti(minx, maxx, miny, maxy, epsg, out_file):
         out_file,
     )
     outtranslate = out_file.replace(".tif", "_translate.tif")
-
+    
     translate(outtranslate, out_file, epsg, [minx, maxy, maxx, miny])
 
 
-def extract_from_vrt(
-    to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file, target_resolution
-):
+def extract_from_vrt(to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file):
     """."""
     with rio.open(to_crop_file) as crop:
         transformer = Transformer.from_crs(t_epsg, crop.crs, always_xy=True)
@@ -124,34 +121,18 @@ def extract_from_vrt(
         crop_array = crop.read(window=window_crop)
         # Manage profile to write result in file
         profile = crop.profile
-        crop_transform = Affine(
-            crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
-        )
         dst_transform = Affine(
-            target_resolution, 0.0, minx, 0.0, -target_resolution, maxy
-        )
-        crop_reproj, reprojt_trans = reproject(
-            source=crop_array,
-            src_crs=crop.crs,
-            dst_crs=t_epsg,
-            src_transform=crop_transform,
-            dst_resolution=target_resolution,
-            # dst_transform=dst_transform,
-            resampling=Resampling.cubic,
-            src_nodata=crop.profile["nodata"],
-            dst_nodata=crop.profile["nodata"],
+            crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
         )
         profile.update(
             {
-                "nodata": crop.profile["nodata"],
                 "transform": dst_transform,
-                "height": crop_reproj.shape[1],
-                "width": crop_reproj.shape[2],
+                "height": crop_array.shape[1],
+                "width": crop_array.shape[2],
                 "driver": "GTiff",
             }
         )
-
-        save_image(crop_reproj, profile, out_file)
+        save_image(crop_array, profile, out_file)
 
 
 def area_mapping(
@@ -159,9 +140,7 @@ def area_mapping(
     dam_name,
     retrieve_mode,
     epsg,
-    out_dir,
-    target_resolution,
-    to_crop_file=None,
+        out_dir,
     dam_name_col="DAM_NAME",
     buffer_roi=1000,
     debug=False,
@@ -181,7 +160,7 @@ def area_mapping(
         logging.basicConfig(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
-    logging.info(f"Starting area_mapping.py for {dam_name}")
+    logging.info("Starting area_mapping.py")
     gdf_dam = gpd.read_file(dam_database)
     gdf_dam = gdf_dam.to_crs(epsg)
     gdf_dam = gdf_dam[gdf_dam[dam_name_col] == dam_name]
@@ -198,25 +177,12 @@ def area_mapping(
     out_file = os.path.join(out_dir, f"dem_extract_{dam_name}.tif")
     if retrieve_mode == "RGE_ALTI":
         download_rgealti(minx, maxx, miny, maxy, epsg, out_file)
-    elif retrieve_mode == "HPC":
-        extract_from_vrt(
-            to_crop_file, minx, maxx, miny, maxy, epsg, out_file, target_resolution
-        )
-    elif retrieve_mode == "":
-        download_cop30(minx, maxx, miny, maxy, out_dir)
-    else:
-        raise ValueError(f"{retrieve_mode} is not a valid choice ")
-
-    t1_stop = perf_counter()
-    logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
-
-    logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start} s")
 
 
-# area_mapping(
-#     "/home/btardy/Documents/activites/WATER/Barrages-15m-France_INPE-V0_340barrages_20221002/392-retenues-pourLoiZSV_V4_sans_tampon.geojson",
-#     "Alesani",
-#     "RGE_ALTI",
-#     2154,
-#     "/home/btardy/Documents/activites/France2030/Test_area_mapping"
-# )
+area_mapping(
+    "/home/btardy/Documents/activites/WATER/Barrages-15m-France_INPE-V0_340barrages_20221002/392-retenues-pourLoiZSV_V4_sans_tampon.geojson",
+    "Alesani",
+    "RGE_ALTI",
+    2154,
+    "/home/btardy/Documents/activites/France2030/Test_area_mapping"
+)
