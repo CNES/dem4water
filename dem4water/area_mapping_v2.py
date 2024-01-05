@@ -137,8 +137,8 @@ def extract_from_vrt(
             src_transform=crop_transform,
             dst_transform=dst_transform,
             resampling=Resampling.cubic,
-            src_nodata=to_crop_file.profile["nodata"],
-            dst_nodata=to_crop_file.profile["nodata"],
+            src_nodata=crop.profile["nodata"],
+            dst_nodata=crop.profile["nodata"],
         )
         profile.update(
             {
