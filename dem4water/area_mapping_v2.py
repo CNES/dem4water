@@ -157,6 +157,7 @@ def extract_from_vrt(
             dstSRS=f"EPSG:{t_epsg}",
             xRes=target_resolution,
             yRes=-target_resolution,
+            resampleAlg=gdal.GRA_CubicSpline,
         )
 
 
