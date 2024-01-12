@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 """This module define the study area from inputs."""
+import argparse
+import glob
 import logging
 import os
 import sys
-import urllib.request
 from time import perf_counter
+from typing import Optional
 
 import geopandas as gpd
 import numpy as np
@@ -14,97 +16,64 @@ from affine import Affine
 from bmi_topography import Topography
 from osgeo import gdal
 from pyproj import Transformer
+from rasterio import windows
 from rasterio.coords import BoundingBox
 
 from dem4water.tools.save_raster import save_image
 
 
-def compute_distance(point1, point2, thresholding=None):
-    """."""
-    if thresholding == "max":
-        dist = np.ceil(
-            np.sqrt(
-                (point1[0] - point2[0]) * (point1[0] - point2[0])
-                + (point1[1] - point2[1]) * (point1[1] - point2[1])
-            )
-        )
-    elif thresholding == "min":
-        dist = np.floor(
-            np.sqrt(
-                (point1[0] - point2[0]) * (point1[0] - point2[0])
-                + (point1[1] - point2[1]) * (point1[1] - point2[1])
-            )
-        )
-    else:
-        dist = np.sqrt(
-            (point1[0] - point2[0]) * (point1[0] - point2[0])
-            + (point1[1] - point2[1]) * (point1[1] - point2[1])
-        )
-    return dist
+def download_cop30(
+    min_x: float, max_x: float, min_y: float, max_y: float, output_path: str
+) -> str:
+    """Download the Copernicus 30 meters DEM."""
+    logging.info("Default DEM mode - automatic download: COPERNICUS-30m")
 
-
-def download_cop30(minx, maxx, miny, maxy, output_path):
-    """."""
-    params = Topography.DEFAULT.copy()
-    # TODO: check if needed to be in 4326
     params = {
         "dem_type": "COP30",
-        "south": miny,
-        "north": maxy,
-        "west": minx,
-        "east": maxx,
+        "south": min_y,
+        "north": max_y,
+        "west": min_x,
+        "east": max_x,
         "output_format": "GTiff",
         "cache_dir": output_path,
     }
     dem = Topography(**params)
     dem.fetch()
-    # TODO: reproject in meters resolution if needed
-
-
-def download_raster(layer, format, crs, bbox, width, height, outpath):
-    link = (
-        f"https://data.geopf.fr/wms-r?LAYERS={layer}&FORMAT={format}&SERVICE=WMS&"
-        f"VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS={crs}&BBOX={bbox}"
-        f"&WIDTH={width}&HEIGHT={height}"
-    )
-    print(f"Request:\n{link}\n")
-    urllib.request.urlretrieve(link, outpath)
-
-
-def translate(outfile, sourcefile, crs, bounds):
-    srcDS = gdal.Open(sourcefile)
-    gdal.Translate(outfile, srcDS, outputSRS=f"EPSG:{crs}", outputBounds=bounds)
-
-
-def download_rgealti(minx, maxx, miny, maxy, epsg, out_file):
-    """."""
-    p1 = (minx, miny)
-    p2 = (minx, maxy)
-    p3 = (maxx, miny)
-    width = int(np.ceil(compute_distance(p1, p2)))
-    height = int(np.ceil(compute_distance(p1, p3)))
-    bbox = f"{minx},{miny},{maxx},{maxy}"
-    download_raster(
-        "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES",
-        "image/tiff",
-        f"EPSG:{epsg}",
-        bbox,
-        width,
-        height,
-        out_file,
-    )
-    outtranslate = out_file.replace(".tif", "_translate.tif")
-
-    translate(outtranslate, out_file, epsg, [minx, maxy, maxx, miny])
+    dem_file = glob.glob(os.path.join(output_path, "COP30*"))[0]
+    return dem_file
 
 
 def extract_from_vrt(
-    to_crop_file, minx, maxx, miny, maxy, t_epsg, out_file, target_resolution
-):
-    """."""
+    to_crop_file: Optional[str],
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+    t_epsg: int,
+    out_file: str,
+) -> str:
+    """Extract a raster according a bounding box from a raster or vrt file a change proj.
+
+    Parameters
+    ----------
+    to_crop_file:
+        The file to crop
+    min_x:
+        Min x of the bounding box
+    max_x:
+        Max x of the bounding box
+    min_y:
+        Min y of the bounding box
+    max_y:
+        Max y of the bounding box
+    t_epsg:
+        The target projection
+    out_file:
+        The output file name
+    """
     with rio.open(to_crop_file) as crop:
         transformer = Transformer.from_crs(t_epsg, crop.crs, always_xy=True)
-        x_proj, y_proj = transformer.transform([minx, maxx], [miny, maxy])
+        x_proj, y_proj = transformer.transform([min_x, max_x], [min_y, max_y])
         bounds_crop = BoundingBox(
             left=np.min(x_proj),
             bottom=np.min(y_proj),
@@ -113,7 +82,7 @@ def extract_from_vrt(
         )
 
         # Crop the data
-        window_crop = rio.windows.from_bounds(
+        window_crop = windows.from_bounds(
             bounds_crop.left,
             bounds_crop.bottom,
             bounds_crop.right,
@@ -126,20 +95,6 @@ def extract_from_vrt(
         dst_transform = Affine(
             crop.res[0], 0.0, bounds_crop.left, 0.0, -crop.res[1], bounds_crop.top
         )
-        # dst_transform = Affine(
-        #     target_resolution, 0.0, minx, 0.0, -target_resolution, maxy
-        # )
-        # crop_reproj, reprojt_trans = reproject(
-        #     source=crop_array,
-        #     src_crs=crop.crs,
-        #     dst_crs=t_epsg,
-        #     src_transform=crop_transform,
-        #     dst_resolution=target_resolution,
-        #     # dst_transform=dst_transform,
-        #     resampling=Resampling.cubic,
-        #     src_nodata=crop.profile["nodata"],
-        #     dst_nodata=crop.profile["nodata"],
-        # )
         profile.update(
             {
                 "nodata": crop.profile["nodata"],
@@ -151,29 +106,67 @@ def extract_from_vrt(
         )
 
         save_image(crop_array, profile, out_file.replace(".tif", "_proj_ori.tif"))
-        gdal.Warp(
-            out_file,
-            out_file.replace(".tif", "_proj_ori.tif"),
-            dstSRS=f"EPSG:{t_epsg}",
-            xRes=target_resolution,
-            yRes=-target_resolution,
-            resampleAlg=gdal.GRA_CubicSpline,
-        )
+        return out_file.replace(".tif", "_proj_ori.tif")
+
+
+def get_dam(
+    gdf_dam_db: gpd.GeoDataFrame,
+    dam_name: Optional[str] = None,
+    dam_name_col: Optional[str] = None,
+    dam_id: Optional[int] = None,
+    dam_id_col: Optional[str] = None,
+) -> gpd.GeoDataFrame:
+    if dam_name is not None:
+        return gdf_dam_db[gdf_dam_db[dam_name_col] == dam_name]
+    elif dam_id is not None:
+        return gdf_dam_db[gdf_dam_db[dam_id_col] == dam_id]
+    else:
+        raise ValueError(f"{dam_name} or {dam_id} must be provided")
 
 
 def area_mapping(
-    dam_database,
-    dam_name,
-    retrieve_mode,
-    epsg,
-    out_dir,
-    target_resolution,
-    to_crop_file=None,
-    dam_name_col="DAM_NAME",
-    buffer_roi=1000,
-    debug=False,
-):
-    """."""
+    dam_database: str,
+    dam_name: str,
+    retrieve_mode: str,
+    epsg: int,
+    out_dir: str,
+    target_resolution: float,
+    to_crop_file: Optional[str],
+    dam_name_col: str = "DAM_NAME",
+    dam_id: Optional[int] = None,
+    dam_id_col: Optional[str] = None,
+    buffer_roi: int = 1000,
+    debug: bool = False,
+) -> None:
+    """Extract the DEM centered on the water body according a buffer.
+
+    Parameters
+    ----------
+    dam_database:
+        the geojson base containing dams
+    dam_name:
+        the dam to be processed
+    retrieve_mode:
+        choose between local or online download
+    epsg:
+        the working projection, must be meter compatible
+    out_dir:
+        the folder to store extracts
+    target_resolution:float
+        the resolution needed for DEM
+    to_crop_file:
+        if local, provide the DEM file path
+    dam_name_col:
+        the columns in dam_database containing the name field
+    buffer_roi:
+        the size to kept around the reservoir. Must be in meter and consistent with epsg
+    dam_id:
+        the dam id
+    dam_id_col:
+        the column name for id in dataframe
+    debug:
+        enable debug mode for more logs
+    """
     t1_start = perf_counter()
     # Silence VRT related error (bad magic number)
     if not os.path.exists(out_dir):
@@ -193,37 +186,76 @@ def area_mapping(
     logging.info(f"Starting area_mapping.py for {dam_name}")
     gdf_dam = gpd.read_file(dam_database)
     gdf_dam = gdf_dam.to_crs(epsg)
-    gdf_dam = gdf_dam[gdf_dam[dam_name_col] == dam_name]
+    gdf_dam = get_dam(gdf_dam, dam_name, dam_name_col, dam_id, dam_id_col)
     gdf_dam.to_file(os.path.join(out_dir, f"DB_{dam_name.replace(' ','-')}.geojson"))
 
     gdf_dam.geometry = gdf_dam.geometry.buffer(buffer_roi)
-    # gdf_dam.to_file(
-    #     "/home/btardy/Documents/activites/France2030/Dem_RGE/Test_buffer_area.geojson"
-    # )
-    # # bbox = gdf_dam.total_bounds
-    minx, miny, maxx, maxy = gdf_dam.total_bounds
+
+    min_x, min_y, max_x, max_y = gdf_dam.total_bounds
     out_file = os.path.join(out_dir, f"dem_extract_{dam_name.replace(' ', '-')}.tif")
-    if retrieve_mode == "RGE_ALTI":
-        download_rgealti(minx, maxx, miny, maxy, epsg, out_file)
-    elif retrieve_mode == "HPC":
-        extract_from_vrt(
-            to_crop_file, minx, maxx, miny, maxy, epsg, out_file, target_resolution
-        )
-    elif retrieve_mode == "":
-        download_cop30(minx, maxx, miny, maxy, out_dir)
+    if retrieve_mode == "local":
+        dem = extract_from_vrt(to_crop_file, min_x, max_x, min_y, max_y, epsg, out_file)
+    elif retrieve_mode == "cop30":
+        dem = download_cop30(min_x, max_x, min_y, max_y, out_dir)
     else:
         raise ValueError(f"{retrieve_mode} is not a valid choice ")
-
+    gdal.Warp(
+        out_file,
+        dem,
+        dstSRS=f"EPSG:{epsg}",
+        xRes=target_resolution,
+        yRes=-target_resolution,
+        resampleAlg=gdal.GRA_CubicSpline,
+    )
     t1_stop = perf_counter()
     logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
 
     logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start} s")
 
 
-# area_mapping(
-#     "/home/btardy/Documents/activites/WATER/Barrages-15m-France_INPE-V0_340barrages_20221002/392-retenues-pourLoiZSV_V4_sans_tampon.geojson",
-#     "Alesani",
-#     "RGE_ALTI",
-#     2154,
-#     "/home/btardy/Documents/activites/France2030/Test_area_mapping"
-# )
+def area_mapping_args() -> argparse.ArgumentParser:
+    """Define area mapping parameters."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("-i", "--infile", help="Input file")
+    parser.add_argument(
+        "--retrieve_mode", help="The retrieve mode", choices=["local", "cop30"]
+    )
+    parser.add_argument("--id", help="Dam ID")
+    parser.add_argument("--id_db", help="Dam id field in database")
+    parser.add_argument("--name", help="Dam name")
+    parser.add_argument("--name_db", help="Dam column field")
+    parser.add_argument("-d", "--dem", help="Input DEM")
+    parser.add_argument("--out_dir", help="Folder to store extracted dem")
+    parser.add_argument("--buffer_roi", help="Buffer area around the water body")
+    parser.add_argument("--epsg", help="The target projection as integer")
+    parser.add_argument(
+        "--resolution", help="The target resolution (supposed to be squared"
+    )
+    parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
+    return parser
+
+
+def main() -> None:
+    """Cli function to launch area mapping."""
+    parser = area_mapping_args()
+    args = parser.parse_args()
+    area_mapping(
+        dam_database=args.infile,
+        dam_name=args.name,
+        retrieve_mode=args.retrieve_mode,
+        epsg=args.epsg,
+        out_dir=args.out_dir,
+        target_resolution=args.resolution,
+        to_crop_file=args.dem,
+        dam_name_col=args.name_db,
+        buffer_roi=args.buffer_roi,
+        dam_id=args.id,
+        dam_id_col=args.id_db,
+        debug=args.debug,
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(main())
