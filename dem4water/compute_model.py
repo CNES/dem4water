@@ -27,7 +27,7 @@ def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
         data = np.loadtxt(infile)
 
         if data.size <= 2:
-            logging.error(f"Not enought S(Zi) data inside file {infile}")
+            logging.error(f"Not enough S(Zi) data inside file {infile}")
             sys.exit("Error")
 
         z_i = data[:, 0]
@@ -73,7 +73,7 @@ def filter_szi(
     """Filter szi looking at the watermap."""
     data = np.loadtxt(infile)
     if data.size <= 2:
-        logging.error(f"Not enought S(Zi) data inside file {infile}")
+        logging.error(f"Not enough S(Zi) data inside file {infile}")
         sys.exit("Error")
 
     z_i = data[:, 0]
@@ -133,7 +133,7 @@ def select_lower_szi(z_i, sz_i, damelev, max_offset, winsize):
     filtered_zi = [
         zi_ for zi_, szi in zip(z_i, sz_i) if zi_ < float(damelev) + float(max_offset)
     ]
-    # Add 1 to winsize as the first point is Z0 and it must not be used as a valid point
+    # Add 1 to winsize as the first point is Z0, and it must not be used as a valid point
     # to compute model
     if len(filtered_szi) < winsize + 1:
         if len(z_i) > winsize + 1:

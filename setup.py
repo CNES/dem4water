@@ -12,7 +12,6 @@ requirements = [
     "numpy",
     "matplotlib",
     "flake8",
-    "cnes-pylint-extension",
     "gdal==3.4.3",
     "rasterio",
     "bmi_topography",

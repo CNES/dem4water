@@ -6,10 +6,9 @@ import os
 import subprocess
 import sys
 
-from dem4water.area_mapping import area_mapping
+from dem4water.area_mapping_v2 import area_mapping
 from dem4water.cut_contourlines import cut_countourlines
-
-# from dem4water.cutline_score import cutline_score
+from dem4water.find_cutline_and_pdb import find_cutline_and_pdb
 from dem4water.find_pdb_and_cutline import find_pdb_and_cutline
 from dem4water.szi_to_model import szi_to_model
 from dem4water.tools.generate_dam_json_config import write_json
@@ -243,16 +242,12 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
 
 def launch_full_process(input_config_json):
     """Console script for dem4water."""
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("_", nargs="*")
-    # args = parser.parse_args()
-
     with open(input_config_json, encoding="utf-8") as in_config:
         config = json.load(in_config)
 
     extract_watermap = config["area_mapping"]["out_wmap"]
     extract_dem = config["area_mapping"]["out_dem"]
-
+    algo = config[""][""]
     if os.path.exists(extract_watermap) and os.path.exists(extract_dem):
         logging.info(
             f"{extract_watermap} already exists.\n"
@@ -261,8 +256,10 @@ def launch_full_process(input_config_json):
         )
     else:
         area_mapping(**config["area_mapping"])
-
-    find_pdb_and_cutline(**config["find_pdb_and_cutline"])
+    if algo.lower() == "GDP":
+        find_cutline_and_pdb(**config["find_cutline_and_pdb"])
+    else:
+        find_pdb_and_cutline(**config["find_pdb_and_cutline"])
     # cutline_score(**config["cutline_score"])
     cut_countourlines(**config["cut_contourlines"])
     szi_to_model(**config["szi_to_model"])

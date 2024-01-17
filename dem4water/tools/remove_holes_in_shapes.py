@@ -1,4 +1,8 @@
-import argparse
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+"""Remove holes in polygons."""
+
+from typing import Union
 
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
@@ -39,14 +43,14 @@ def pop_largest(geoser):
     return geoser.pop(geoms.index(max(geoms)))
 
 
-def close_holes(geom):
+def close_holes(geom: Union[MultiPolygon, Polygon]) -> Union[MultiPolygon, Polygon]:
     """
     Remove holes in a polygon geometry.
 
     Parameters
     ----------
-    gseries: geopandas.GeoSeries
-        Geoseries of Polygon or MultiPolygon objects
+    geom:
+        shapely geometry object
 
     Returns
     ---------
@@ -62,13 +66,3 @@ def close_holes(geom):
         return Polygon(big)
     if isinstance(geom, Polygon):
         return remove_interiors(geom)
-
-
-# TODO: Create main
-# df = gpd.GeoDataFrame.from_file(
-#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater.geojson"
-# )
-# df.geometry = df.geometry.apply(lambda p: close_holes(p))
-# df.to_file(
-#     "/home/btardy/Documents/activites/WATER/GDP/extract/Marne-Giffaumont/extract_marne_surfwater_noholes.geojson"
-# )

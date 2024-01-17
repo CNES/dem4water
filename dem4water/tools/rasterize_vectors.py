@@ -28,7 +28,7 @@ class RasterizarionParams:
     mode: str
     binary_foreground_value: int
     background_value: int
-    column_field: str = None
+    column_field: Optional[str] = None
     dtype: str = "float"
     nodata: int = 0
 

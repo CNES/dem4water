@@ -134,6 +134,8 @@ def generate_countourlines(
     logging.info(f"output file: {contourline_fname} ")
     logging.info(f"TMPDIR: {tmp} ")
     start_elev = int(pdb_elev - elev_margin)
+    # TODO: this add generate surfaces which are not cut by cutline
+    #  as higher than the max alt of cutline
     end_elev = int(target_elev + elev_margin)
 
     if start_elev > end_elev:
@@ -151,7 +153,17 @@ def generate_countourlines(
 
 
 def cut_countourlines(
-    info, dem, cutline, level, elevoffset, elevsampling, cache, tmp, out, debug=False
+    info,
+    dem,
+    cutline,
+    level,
+    elevoffset,
+    elevsampling,
+    cache,
+    tmp,
+    out,
+    mode,
+    debug=False,
 ):
     """Cut contour lines based on the cutline to estimate the virtual water surface."""
     t1_start = perf_counter()
@@ -190,19 +202,21 @@ def cut_countourlines(
     field_defn = ogr.FieldDefn("level", ogr.OFTString)
     dst_layer.CreateField(field_defn_id)
     dst_layer.CreateField(field_defn)
+    if mode == "GDP":
+        gdf_cutline = gpd.read_file(cutline)
+        line = gdf_cutline.geometry.values[0]
+    else:
+        # load GeoJSON file containing cutline
+        with open(cutline, "r", encoding="utf-8") as cutline_in:
+            jsc = json.load(cutline_in)
+        for feature in jsc["features"]:
+            lines = shape(feature["geometry"])
+            logging.debug(len(lines.geoms))
+            lines = shapely.ops.linemerge(lines)
 
-    # load GeoJSON file containing cutline
-    # with open(cutline, "r", encoding="utf-8") as cutline_in:
-    #     jsc = json.load(cutline_in)
-    # for feature in jsc["features"]:
-    #     lines = shape(feature["geometry"])
-    #     logging.debug(len(lines.geoms))
-    #     lines = shapely.ops.linemerge(lines)
+        # Fixing linemerge not merging every part of MultiLineString
+        line = manage_cutline(jsc, lines, out, debug)
 
-    # # Fixing linemerge not merging every part of MultiLineString
-    # line = manage_cutline(jsc, lines, out, debug)
-    gdf_cutline = gpd.read_file(cutline)
-    line = gdf_cutline.geometry.values[0]
     if level is None:
         level = generate_countourlines(
             cache,
