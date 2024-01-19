@@ -465,7 +465,7 @@ def find_cutline_and_pdb(
                 "elev": ["", maximum_alt - 20, ""],
                 "damname": [
                     dam_name.replace(" ", "-"),
-                    dam_name.replance(" ", "-"),
+                    dam_name.replace(" ", "-"),
                     dam_name.replace(" ", "-"),
                 ],
             },
