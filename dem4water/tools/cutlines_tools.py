@@ -111,11 +111,11 @@ def is_point_valid(masked_dem, dem_transform, reservoir_shape, prev_point, alt):
             dem_transform, list(l_indices[0]), list(l_indices[1])
         )
         # Ensure the selected point not cross water
-        line = LineString([prev_point, (new_x, new_y)])
+        line = LineString([prev_point, (new_x[0], new_y[0])])
         mid_point = line.interpolate(line.length / 2)
         if not reservoir_shape.contains(mid_point):
             alt.append(alt_max)
-            return new_x, new_y, alt
+            return new_x[0], new_y[0], alt
         logging.warning("Candidate cross the reservoir. Find other candidate.")
         # if invalid iterate over the masked dem until
         masked_dem[l_indices] = -10000
@@ -165,12 +165,14 @@ def search_point(
         # 0 is not a valid no data value as some dam can be in lower altitude
         mnt_array[~circle] = -10000
         # TODO: search valid point
-        is_point_valid(mnt_array, mnt_transform, small_erode_water, prev_point, alt)
-        alt.append(np.amax(mnt_array))
-        l_indices = np.where(mnt_array == [np.amax(mnt_array)])
-        new_x, new_y = rasterio.transform.xy(
-            mnt_transform, list(l_indices[0]), list(l_indices[1])
+        new_x, new_y, alt = is_point_valid(
+            mnt_array, mnt_transform, small_erode_water, prev_point, alt
         )
+        # alt.append(np.amax(mnt_array))
+        # l_indices = np.where(mnt_array == [np.amax(mnt_array)])
+        # new_x, new_y = rasterio.transform.xy(
+        #     mnt_transform, list(l_indices[0]), list(l_indices[1])
+        # )
         points_save.append((new_x, new_y))
         stop = False
         if (new_x[0], new_y[0]) in coords_cutline:
