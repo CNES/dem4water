@@ -456,7 +456,8 @@ def find_cutline_and_pdb(
         gdf_final = gpd.GeoDataFrame(
             {"ident_line": list_ident}, geometry=list_line, crs=gdf_wb.crs
         )
-        gdf_final.to_file(os.path.join(work_dir, "cutline.geojson"))
+        out_cutline = os.path.join(work_dir, f"{dam_name}_cutline.geojson")
+        gdf_final.to_file(out_cutline)
         # Dam info
         gdf_dam = gpd.GeoDataFrame(
             {
@@ -472,8 +473,8 @@ def find_cutline_and_pdb(
             geometry=[pdb_point, dam_point, insider],
             crs=epsg,
         )
-        gdf_dam.to_file(os.path.join(work_dir, "daminfo.json"))
-        return os.path.join(work_dir, "cutline.geojson")
+        gdf_dam.to_file(os.path.join(work_dir, f"{dam_name}_daminfo.json"))
+        return out_cutline
 
 
 def find_cutline_and_pdb_args():
