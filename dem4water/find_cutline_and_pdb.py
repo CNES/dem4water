@@ -346,6 +346,7 @@ def find_cutline_and_pdb(
     maximum_alt,
     id_db,
     dam_name,
+    elevoffset,
     debug=False,
 ):
     """Search the PDB and cutline from the database and the DEM.
@@ -367,7 +368,7 @@ def find_cutline_and_pdb(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
     logging.info("Starting search cutline and PDB using GDP")
-
+    maximum_alt = maximum_alt + elevoffset
     # 1. Manage the particularity of database:
     # - Fuse multipolygon
     # - Remove holes inside water body
@@ -426,7 +427,7 @@ def find_cutline_and_pdb(
                 list_alt_pdb.append(np.nan)
         index_min = np.nanargmin(list_alt_pdb)
         pdb_point = list_pdb[index_min]
-        for index in [index_min]:  # gdf_gdp.index:
+        for index in [index_min]: # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
@@ -456,6 +457,7 @@ def find_cutline_and_pdb(
         gdf_final = gpd.GeoDataFrame(
             {"ident_line": list_ident}, geometry=list_line, crs=gdf_wb.crs
         )
+        dam_name = dam_name.replace(" ", "-")
         out_cutline = os.path.join(work_dir, f"{dam_name}_cutline.geojson")
         gdf_final.to_file(out_cutline)
         # Dam info

@@ -125,13 +125,19 @@ def get_dam(
 
 
 def area_mapping(
+    dam_name,
+    id_db,
+    watermap,
+    dem,
+    out_dem,
+    out_wmap,
+    output_download_path,
     dam_database: str,
-    dam_name: str,
-    retrieve_mode: str,
-    epsg: int,
     out_dir: str,
-    target_resolution: float,
-    to_crop_file: Optional[str],
+    mode: str,
+    retrieve_mode: str = "local",
+    epsg: int = 2154,
+    target_resolution: int = 5,
     dam_name_col: str = "DAM_NAME",
     dam_id: Optional[int] = None,
     dam_id_col: Optional[str] = None,
@@ -194,7 +200,7 @@ def area_mapping(
     min_x, min_y, max_x, max_y = gdf_dam.total_bounds
     out_file = os.path.join(out_dir, f"dem_extract_{dam_name.replace(' ', '-')}.tif")
     if retrieve_mode == "local":
-        dem = extract_from_vrt(to_crop_file, min_x, max_x, min_y, max_y, epsg, out_file)
+        dem = extract_from_vrt(dem, min_x, max_x, min_y, max_y, epsg, out_file)
     elif retrieve_mode == "cop30":
         dem = download_cop30(min_x, max_x, min_y, max_y, out_dir)
     else:

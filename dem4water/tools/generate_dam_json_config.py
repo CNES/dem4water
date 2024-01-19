@@ -123,7 +123,10 @@ def write_json(
                 dict_ref = dict(ref_cont)
                 keys_ref = dict_ref.keys()
                 keys_ref = [int(key) for key in keys_ref]
-        for dam, id_dam in dict_all_dams.items():
+
+        for dam, list_id_alt in dict_all_dams.items():
+            id_dam = list_id_alt[0]
+            maximum_alt = list_id_alt[1]
             if ref_only and keys_ref:
                 if id_dam not in keys_ref:
                     print(f"{dam} {id_dam} not in reference")
@@ -188,23 +191,27 @@ def write_json(
                 ),
             }
             dict_dam["area_mapping"] = {
-                "infile": database,
-                "dam_id": id_dam,
-                "id_db": dam_id_column,
-                "watermap": watermap,
-                "dem": dem,
+                "dam_database" : database,
+                "dam_id" : id_dam,
+                "dam_name" : dam,
+                "id_db" : dam_id_column,
+                "watermap" : watermap,
+                "dem" : dem,
+                "out_dir" : output_dam_extract_path,
                 "out_wmap": extract_wmap,
                 "out_dem": extract_dem,
                 "output_download_path": output_download_path,
+                "mode" : mode,
                 **config["area_mapping"],
             }
             if mode == "GDP":
                 dict_dam["find_cutline_and_pdb"] = {
-                    "database_file": database,
-                    "dem_raster": extract_dem,
-                    "work_dir": output_dam_tmp,
-                    "id_db": id_dam,
-                    "dam_name": dam,
+                    "database_file" : database,
+                    "dem_raster" : extract_dem,
+                    "work_dir" : output_dam_camp_path,
+                    "id_db" : id_dam,
+                    "dam_name" : dam,
+                    "maximum_alt" : maximum_alt,
                     **config["find_cutline_and_pdb"],
                 }
             else:
@@ -240,6 +247,7 @@ def write_json(
                 "cache": output_dam_extract_path,
                 "tmp": output_dam_tmp,
                 "out": output_dam_camp_path,
+                "mode" : mode,
                 **config["cut_contourlines"],
             }
 

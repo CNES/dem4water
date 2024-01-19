@@ -247,7 +247,7 @@ def launch_full_process(input_config_json):
 
     extract_watermap = config["area_mapping"]["out_wmap"]
     extract_dem = config["area_mapping"]["out_dem"]
-    algo = config[""][""]
+    algo =  config["area_mapping"]["mode"]
     if os.path.exists(extract_watermap) and os.path.exists(extract_dem):
         logging.info(
             f"{extract_watermap} already exists.\n"
@@ -256,7 +256,7 @@ def launch_full_process(input_config_json):
         )
     else:
         area_mapping(**config["area_mapping"])
-    if algo.lower() == "GDP":
+    if algo == "GDP":
         find_cutline_and_pdb(**config["find_cutline_and_pdb"])
     else:
         find_pdb_and_cutline(**config["find_pdb_and_cutline"])
