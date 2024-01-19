@@ -94,6 +94,33 @@ def cut_area_according_perpendicular_bisector(ref_image, coords_cutline, crs):
         return gdf
 
 
+def is_point_valid(masked_dem, dem_transform, reservoir_shape, prev_point, alt):
+    search = True
+    while search:
+        # Select a point
+        alt_max = np.amax(masked_dem)
+        if alt_max == -10000:
+            logging.warning(
+                "Searching point reach a no data value. "
+                "The area is not valid. Trying another area."
+            )
+            return None, None, alt
+        # The altitude seems correct convert to point
+        l_indices = np.where(masked_dem == [alt_max])
+        new_x, new_y = rasterio.transform.xy(
+            dem_transform, list(l_indices[0]), list(l_indices[1])
+        )
+        # Ensure the selected point not cross water
+        line = LineString([prev_point, (new_x, new_y)])
+        mid_point = line.interpolate(line.length / 2)
+        if not reservoir_shape.contains(mid_point):
+            alt.append(alt_max)
+            return new_x, new_y, alt
+        logging.warning("Candidate cross the reservoir. Find other candidate.")
+        # if invalid iterate over the masked dem until
+        masked_dem[l_indices] = -10000
+
+
 def search_point(
     init_point,
     prev_point,
@@ -106,6 +133,7 @@ def search_point(
     direction,
     points_save,
     number_of_added_points,
+    small_erode_water,
 ):
     """"""
     coords_cutline = list(cutline.coords)
@@ -134,7 +162,10 @@ def search_point(
             (x_grid - prev_point_x) ** 2 + (y_grid - prev_point_y) ** 2
         ) >= mask_radius**2
         circle = np.logical_and(disc_search, disc_mask)
-        mnt_array[~circle] = 0
+        # 0 is not a valid no data value as some dam can be in lower altitude
+        mnt_array[~circle] = -10000
+        # TODO: search valid point
+        is_point_valid(mnt_array, mnt_transform, small_erode_water, prev_point, alt)
         alt.append(np.amax(mnt_array))
         l_indices = np.where(mnt_array == [np.amax(mnt_array)])
         new_x, new_y = rasterio.transform.xy(
@@ -226,6 +257,7 @@ def find_extent_to_line(
     # 2. Generate a left and right masked mnt
     # Remove the water body to the areas of searching points
     gdf_split_w_wb = gdf_split.overlay(water_body, how="difference")
+    small_erode_water = water_body.geometry.buffer(-0.5).values[0]
     mask_polygon_start = list(
         gdf_split_w_wb[gdf_split_w_wb["search_loc"] == "left"].geometry
     )
@@ -255,6 +287,7 @@ def find_extent_to_line(
             "left",
             points_save,
             number_of_added_points,
+            small_erode_water,
         )
         search_radius += 5
         if search_radius > search_radius_max and not stop:
@@ -290,6 +323,7 @@ def find_extent_to_line(
             "right",
             points_save,
             number_of_added_points,
+            small_erode_water,
         )
         search_radius += 5
 
