@@ -175,7 +175,7 @@ def search_point(
         # )
         points_save.append((new_x, new_y))
         stop = False
-        if (new_x[0], new_y[0]) in coords_cutline:
+        if (new_x, new_y) in coords_cutline:
             print("point already found")
             logging.info(
                 "The current point was previously added to the line."
@@ -191,7 +191,7 @@ def search_point(
                     logging.info(f"Altitude decrease on {direction} side.")
         if not stop:
             if direction == "left":
-                left_line = LineString([(new_x[0], new_y[0]), coords_cutline[0]])
+                left_line = LineString([(new_x, new_y), coords_cutline[0]])
                 if left_line.length > 1000:
                     print("Left Point too far")
                     stop = True
@@ -208,10 +208,10 @@ def search_point(
                     # stop = True
                     # input(s)
                 else:
-                    cutline = LineString([(new_x[0], new_y[0])] + coords_cutline)
+                    cutline = LineString([(new_x, new_y)] + coords_cutline)
                     number_of_added_points += 1
             else:
-                right_line = LineString([(new_x[0], new_y[0]), coords_cutline[-1]])
+                right_line = LineString([(new_x, new_y), coords_cutline[-1]])
 
                 if right_line.length > 1000:
                     print("Right Point too far")
@@ -228,7 +228,7 @@ def search_point(
                     # stop = True
                     # input(s)
                 else:
-                    cutline = LineString(coords_cutline + [(new_x[0], new_y[0])])
+                    cutline = LineString(coords_cutline + [(new_x, new_y)])
                     number_of_added_points += 1
 
         if alt[-1] > alt_max and number_of_added_points > 0:
