@@ -463,7 +463,11 @@ def find_cutline_and_pdb(
                 "name": ["PDB", "Dam", "Insider"],
                 "ID": [id_db, id_db, id_db],
                 "elev": ["", maximum_alt - 20, ""],
-                "damname": [dam_name, dam_name, dam_name],
+                "damname": [
+                    dam_name.replace(" ", "-"),
+                    dam_name.replance(" ", "-"),
+                    dam_name.replace(" ", "-"),
+                ],
             },
             geometry=[pdb_point, dam_point, insider],
             crs=epsg,
