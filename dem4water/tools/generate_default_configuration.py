@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from dem4water.area_mapping import area_mapping_args
+from dem4water.area_mapping_v2 import area_mapping_args
 from dem4water.cut_contourlines import cut_countourlines_ars
 from dem4water.cutline_score import cutline_score_parameters
 from dem4water.find_cutline_and_pdb import find_cutline_and_pdb_args
