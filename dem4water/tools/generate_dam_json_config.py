@@ -102,7 +102,7 @@ def write_json(
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
         # watermap = config["campaign"]["watermap"]
-        # dem = config["campaign"]["dem"]
+        dem = config["campaign"]["dem"]
         customs_files = config["campaign"]["customs_files"]
         dam_id_column = config["campaign"]["id_dam_column"]
         dam_name_column = config["campaign"]["dam_name_column"]
@@ -211,6 +211,7 @@ def write_json(
                 "dam_name": dam,
                 "dam_database": database,
                 "out_dir": output_dam_extract_path,
+                "dem": dem,
                 **config["area_mapping"],
             }
             if mode == "GDP":
