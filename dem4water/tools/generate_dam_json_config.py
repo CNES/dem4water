@@ -212,6 +212,7 @@ def write_json(
                 "dam_database": database,
                 "out_dir": output_dam_extract_path,
                 "dem": dem,
+                "dam_id": id_dam,
                 **config["area_mapping"],
             }
             if mode == "GDP":
