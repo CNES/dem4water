@@ -246,7 +246,10 @@ def launch_full_process(input_config_json):
         config = json.load(in_config)
 
     # extract_watermap = config["area_mapping"]["out_wmap"]
-    extract_dem = config["area_mapping"]["out_dem"]
+    if "find_pdb_and_cutline" in config:
+        extract_dem = config["find_pdb_and_cutline"]["dem"]
+    else:
+        extract_dem = config["find_cutline_and_pdb"]["dem_raster"]
     algo = config["area_mapping"]["mode"]
     # if (os.path.exists(extract_watermap) and
     if os.path.exists(extract_dem):
