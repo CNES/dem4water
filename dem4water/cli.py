@@ -245,12 +245,13 @@ def launch_full_process(input_config_json):
     with open(input_config_json, encoding="utf-8") as in_config:
         config = json.load(in_config)
 
-    extract_watermap = config["area_mapping"]["out_wmap"]
+    # extract_watermap = config["area_mapping"]["out_wmap"]
     extract_dem = config["area_mapping"]["out_dem"]
-    algo =  config["area_mapping"]["mode"]
-    if os.path.exists(extract_watermap) and os.path.exists(extract_dem):
+    algo = config["area_mapping"]["mode"]
+    # if (os.path.exists(extract_watermap) and
+    if os.path.exists(extract_dem):
         logging.info(
-            f"{extract_watermap} already exists.\n"
+            # f"{extract_watermap} already exists.\n"
             f"{extract_dem} already exists.\n"
             ".Skipping area_mapping"
         )
