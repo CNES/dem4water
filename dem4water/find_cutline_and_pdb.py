@@ -497,7 +497,6 @@ def find_cutline_and_pdb_args():
     parser.add_argument(
         "--maximum_alt",
         type=int,
-        default=10000,
         help="Maximum altitude to reach before ending line.",
     )
     parser.add_argument(
