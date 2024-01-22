@@ -250,7 +250,7 @@ def launch_full_process(input_config_json):
         extract_dem = config["find_pdb_and_cutline"]["dem"]
     else:
         extract_dem = config["find_cutline_and_pdb"]["dem_raster"]
-    algo = config["area_mapping"]["mode"]
+    # algo = config["area_mapping"]["mode"]
     # if (os.path.exists(extract_watermap) and
     if os.path.exists(extract_dem):
         logging.info(
@@ -260,7 +260,7 @@ def launch_full_process(input_config_json):
         )
     else:
         area_mapping(**config["area_mapping"])
-    if algo == "GDP":
+    if "find_cutline_and_pdb" in config:
         find_cutline_and_pdb(**config["find_cutline_and_pdb"])
     else:
         find_pdb_and_cutline(**config["find_pdb_and_cutline"])
