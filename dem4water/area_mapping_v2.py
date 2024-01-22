@@ -129,7 +129,7 @@ def area_mapping(
     dam_id: int,
     dam_database: str,
     out_dir: str,
-    to_crop_file: str,
+    dem: str,
     retrieve_mode: str = "local",
     epsg: int = 2154,
     target_resolution: int = 5,
@@ -154,7 +154,7 @@ def area_mapping(
         the folder to store extracts
     target_resolution:float
         the resolution needed for DEM
-    to_crop_file:
+    dem:
         if local, provide the DEM file path
     dam_name_col:
         the columns in dam_database containing the name field
@@ -194,14 +194,14 @@ def area_mapping(
     min_x, min_y, max_x, max_y = gdf_dam.total_bounds
     out_file = os.path.join(out_dir, f"dem_extract_{dam_name.replace(' ', '-')}.tif")
     if retrieve_mode == "local":
-        dem = extract_from_vrt(to_crop_file, min_x, max_x, min_y, max_y, epsg, out_file)
+        dem_roi = extract_from_vrt(dem, min_x, max_x, min_y, max_y, epsg, out_file)
     elif retrieve_mode == "cop30":
-        dem = download_cop30(min_x, max_x, min_y, max_y, out_dir)
+        dem_roi = download_cop30(min_x, max_x, min_y, max_y, out_dir)
     else:
         raise ValueError(f"{retrieve_mode} is not a valid choice ")
     gdal.Warp(
         out_file,
-        dem,
+        dem_roi,
         dstSRS=f"EPSG:{epsg}",
         xRes=target_resolution,
         yRes=-target_resolution,
@@ -218,17 +218,19 @@ def area_mapping_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("-i", "--infile", help="Input file")
+    parser.add_argument("-i", "--dam_database", help="Input file")
     parser.add_argument(
         "--retrieve_mode",
         help="The retrieve mode",
         choices=["local", "cop30"],
         default="local",
     )
-    parser.add_argument("--id", help="Dam ID")
-    parser.add_argument("--id_db", help="Dam id field in database", default="ID_DB")
-    parser.add_argument("--name", help="Dam name")
-    parser.add_argument("--name_db", help="Dam column field", default="DAM_NAME")
+    parser.add_argument("--dam_id", help="Dam ID")
+    parser.add_argument(
+        "--dam_id_col", help="Dam id field in database", default="ID_DB"
+    )
+    parser.add_argument("--dam_name", help="Dam name")
+    parser.add_argument("--dam_name_col", help="Dam column field", default="DAM_NAME")
     parser.add_argument("-d", "--dem", help="Input DEM")
     parser.add_argument("--out_dir", help="Folder to store extracted dem")
     parser.add_argument(
@@ -236,7 +238,9 @@ def area_mapping_args() -> argparse.ArgumentParser:
     )
     parser.add_argument("--epsg", help="The target projection as integer", default=2154)
     parser.add_argument(
-        "--resolution", help="The target resolution (supposed to be squared", default=10
+        "--target_resolution",
+        help="The target resolution (supposed to be squared",
+        default=10,
     )
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser
@@ -247,17 +251,17 @@ def main() -> None:
     parser = area_mapping_args()
     args = parser.parse_args()
     area_mapping(
-        dam_database=args.infile,
-        dam_name=args.name,
+        dam_database=args.dam_database,
+        dam_name=args.dam_name,
         retrieve_mode=args.retrieve_mode,
         epsg=args.epsg,
         out_dir=args.out_dir,
-        target_resolution=args.resolution,
-        to_crop_file=args.dem,
-        dam_name_col=args.name_db,
+        target_resolution=args.target_resolution,
+        dem=args.dem,
+        dam_name_col=args.dam_name_col,
         buffer_roi=args.buffer_roi,
-        dam_id=args.id,
-        dam_id_col=args.id_db,
+        dam_id=args.dam_id,
+        dam_id_col=args.dam_id_col,
         debug=args.debug,
     )
 
