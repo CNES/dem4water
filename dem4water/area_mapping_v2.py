@@ -125,22 +125,16 @@ def get_dam(
 
 
 def area_mapping(
-    dam_name,
-    id_db,
-    watermap,
-    dem,
-    out_dem,
-    out_wmap,
-    output_download_path,
+    dam_name: str,
+    dam_id: int,
     dam_database: str,
     out_dir: str,
-    mode: str,
+    to_crop_file: str,
     retrieve_mode: str = "local",
     epsg: int = 2154,
     target_resolution: int = 5,
     dam_name_col: str = "DAM_NAME",
-    dam_id: Optional[int] = None,
-    dam_id_col: Optional[str] = None,
+    dam_id_col: Optional[str] = "ID_DB",
     buffer_roi: int = 1000,
     debug: bool = False,
 ) -> None:
@@ -200,7 +194,7 @@ def area_mapping(
     min_x, min_y, max_x, max_y = gdf_dam.total_bounds
     out_file = os.path.join(out_dir, f"dem_extract_{dam_name.replace(' ', '-')}.tif")
     if retrieve_mode == "local":
-        dem = extract_from_vrt(dem, min_x, max_x, min_y, max_y, epsg, out_file)
+        dem = extract_from_vrt(to_crop_file, min_x, max_x, min_y, max_y, epsg, out_file)
     elif retrieve_mode == "cop30":
         dem = download_cop30(min_x, max_x, min_y, max_y, out_dir)
     else:
@@ -226,18 +220,23 @@ def area_mapping_args() -> argparse.ArgumentParser:
     )
     parser.add_argument("-i", "--infile", help="Input file")
     parser.add_argument(
-        "--retrieve_mode", help="The retrieve mode", choices=["local", "cop30"]
+        "--retrieve_mode",
+        help="The retrieve mode",
+        choices=["local", "cop30"],
+        default="local",
     )
     parser.add_argument("--id", help="Dam ID")
-    parser.add_argument("--id_db", help="Dam id field in database")
+    parser.add_argument("--id_db", help="Dam id field in database", default="ID_DB")
     parser.add_argument("--name", help="Dam name")
-    parser.add_argument("--name_db", help="Dam column field")
+    parser.add_argument("--name_db", help="Dam column field", default="DAM_NAME")
     parser.add_argument("-d", "--dem", help="Input DEM")
     parser.add_argument("--out_dir", help="Folder to store extracted dem")
-    parser.add_argument("--buffer_roi", help="Buffer area around the water body")
-    parser.add_argument("--epsg", help="The target projection as integer")
     parser.add_argument(
-        "--resolution", help="The target resolution (supposed to be squared"
+        "--buffer_roi", help="Buffer area around the water body", default=1000
+    )
+    parser.add_argument("--epsg", help="The target projection as integer", default=2154)
+    parser.add_argument(
+        "--resolution", help="The target resolution (supposed to be squared", default=10
     )
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser

@@ -487,7 +487,7 @@ def find_cutline_and_pdb_args():
     parser.add_argument("--database_dam", help="GeoJSON database file")
     parser.add_argument("--dem_raster", help="Input DEM raster")
     parser.add_argument("--work_dir", help="Working directory")
-    parser.add_argument("--gdp_buffer_size", help="contourline.json file")
+    parser.add_argument("--gdp_buffer_size", help="contourline.json file", default=50)
     parser.add_argument(
         "--radius_search_size",
         type=int,

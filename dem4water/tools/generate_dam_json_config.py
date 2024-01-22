@@ -101,8 +101,8 @@ def write_json(
                 version_file.write(version_name)
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
-        watermap = config["campaign"]["watermap"]
-        dem = config["campaign"]["dem"]
+        # watermap = config["campaign"]["watermap"]
+        # dem = config["campaign"]["dem"]
         customs_files = config["campaign"]["customs_files"]
         dam_id_column = config["campaign"]["id_dam_column"]
         dam_name_column = config["campaign"]["dam_name_column"]
@@ -151,6 +151,9 @@ def write_json(
             extract_wmap = os.path.join(
                 output_dam_extract_path, f"wmap_extract_{dam_path_name}.tif"
             )
+            extract_db = os.path.join(
+                output_dam_extract_path, f"DB_{dam_path_name}.geojson"
+            )
 
             elevsamp = config["cut_contourlines"]["elevsampling"]
             contourline_file = os.path.join(
@@ -190,28 +193,34 @@ def write_json(
                     output_path, "log", f"{dam_log}_{id_dam}_err.log"
                 ),
             }
+            # dict_dam["area_mapping"] = {
+            #     "dam_database": database,
+            #     "dam_id": id_dam,
+            #     "dam_name": dam,
+            #     "id_db": dam_id_column,
+            #     "watermap": watermap,
+            #     "to_crop_file": dem,
+            #     "out_dir": output_dam_extract_path,
+            #     "out_wmap": extract_wmap,
+            #     "out_dem": extract_dem,
+            #     "output_download_path": output_download_path,
+            #     "mode": mode,
+            #     **config["area_mapping"],
+            # }
             dict_dam["area_mapping"] = {
-                "dam_database" : database,
-                "dam_id" : id_dam,
-                "dam_name" : dam,
-                "id_db" : dam_id_column,
-                "watermap" : watermap,
-                "dem" : dem,
-                "out_dir" : output_dam_extract_path,
-                "out_wmap": extract_wmap,
-                "out_dem": extract_dem,
-                "output_download_path": output_download_path,
-                "mode" : mode,
+                "dam_name": dam,
+                "dam_database": database,
+                "out_dir": output_dam_extract_path,
                 **config["area_mapping"],
             }
             if mode == "GDP":
                 dict_dam["find_cutline_and_pdb"] = {
-                    "database_file" : database,
-                    "dem_raster" : extract_dem,
-                    "work_dir" : output_dam_camp_path,
-                    "id_db" : id_dam,
-                    "dam_name" : dam,
-                    "maximum_alt" : maximum_alt,
+                    "database_file": extract_db,
+                    "dem_raster": extract_dem,
+                    "work_dir": output_dam_camp_path,
+                    "id_db": id_dam,
+                    "dam_name": dam,
+                    "maximum_alt": maximum_alt,
                     **config["find_cutline_and_pdb"],
                 }
             else:
@@ -247,7 +256,7 @@ def write_json(
                 "cache": output_dam_extract_path,
                 "tmp": output_dam_tmp,
                 "out": output_dam_camp_path,
-                "mode" : mode,
+                "mode": mode,
                 **config["cut_contourlines"],
             }
 
