@@ -427,7 +427,7 @@ def find_cutline_and_pdb(
                 list_alt_pdb.append(np.nan)
         index_min = np.nanargmin(list_alt_pdb)
         pdb_point = list_pdb[index_min]
-        for index in [index_min]: # gdf_gdp.index:
+        for index in [index_min]:  # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
@@ -504,6 +504,7 @@ def find_cutline_and_pdb_args():
         "--id_db",
         help="DAM id in database",
     )
+    parser.add_argument("--elevoffset", help="Offset for maximum altitude", default=20)
     parser.add_argument("--dam_name", help="DAM name in DB")
     parser.add_argument("--debug", action="store_true", help="Activate Debug Mode")
     return parser
@@ -522,6 +523,7 @@ def main():
         maximum_alt=args.maximum_alt,
         id_db=args.id_db,
         dam_name=args.dam_name,
+        elevoffset=args.elevoffset,
         debug=args.debug,
     )
 
