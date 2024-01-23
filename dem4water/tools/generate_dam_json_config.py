@@ -147,10 +147,12 @@ def write_json(
             extract_dem = os.path.join(
                 output_dam_extract_path, f"dem_extract_{dam_path_name}.tif"
             )
-
-            extract_wmap = os.path.join(
-                output_dam_extract_path, f"wmap_extract_{dam_path_name}.tif"
-            )
+            if mode == "GDP":
+                extract_wmap = os.path.join(output_dam_camp_path, "waterbody_bin.tif")
+            else:
+                extract_wmap = os.path.join(
+                    output_dam_extract_path, f"wmap_extract_{dam_path_name}.tif"
+                )
             extract_db = os.path.join(
                 output_dam_extract_path, f"DB_{dam_path_name}.geojson"
             )
