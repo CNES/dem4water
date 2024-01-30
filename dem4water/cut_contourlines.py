@@ -370,7 +370,7 @@ def cut_countourlines(
             r_area.append(max_area)
             r_id = r_id + 1
         else:
-            logger.debug("No relevant polygon found for Elevation {max_elev} m")
+            logger.debug(f"No relevant polygon found for Elevation {max_elev} m")
 
     logger.debug(f"Identified levels: {r_id}")
 
