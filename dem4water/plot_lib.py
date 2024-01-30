@@ -277,6 +277,9 @@ def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
 
 def plot_vs(all_zi, all_szi, damelev, alpha, beta, damname, outfile):
     """Plot V(S)."""
+    print(damelev)
+    print(all_zi[0])
+    print(float(damelev) - all_zi[0])
     s_dam = all_szi[0] + alpha * math.pow((float(damelev) - all_zi[0]), beta)
     surf = range(0, math.ceil(s_dam) + 10000)
     vol0 = 0.0

@@ -83,6 +83,7 @@ def filter_szi(
     water_body_area = wb.compute_area_from_database_geom(database, damname, shp_wmap)
     logging.info(f"water body area: {water_body_area}")
     thres_wb = (water_body_area * area_threshold) / 100
+    logging.info(f"Minimal surface allowed : {thres_wb}")
     # zi[0] is the PDB
     zi_min = z_i[1]
     zi_max = z_i[-1]
@@ -102,7 +103,7 @@ def filter_szi(
             filter_zi_out.append(val_zi)
             filter_szi_out.append(val_szi)
         else:
-            print(
+            logging.info(
                 f"Szi {val_szi} for altitude {val_zi} is too small. Check the cutline."
             )
     filter_szi_out.append(s_zi[-1])

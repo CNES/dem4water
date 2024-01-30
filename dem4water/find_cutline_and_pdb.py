@@ -22,6 +22,16 @@ from dem4water.tools.polygonize_raster import polygonize
 from dem4water.tools.rasterize_vectors import RasterizarionParams, rasterize
 from dem4water.tools.remove_holes_in_shapes import close_holes
 
+logger = logging.getLogger("find_cutline_and_pdb")
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
+logging.getLogger("geopandas").setLevel(logging.WARNING)
+
+logging.getLogger("rasterio").setLevel(logging.WARNING)
+
+logging.getLogger("fiona").setLevel(logging.WARNING)
+logger = logging.getLogger("find_cutline_and_pdb")
+
 
 # ########################################
 # Database utils
@@ -47,7 +57,7 @@ def preprocess_water_body(in_vector, epsg, simplify=False, buff_simplify=200):
         gdf_wb.geometry = gdf_wb.geometry.buffer(buff_simplify)
         gdf_wb.geometry = gdf_wb.geometry.buffer(-buff_simplify)
     if len(gdf_wb.index) > 1:
-        logging.error("WARNING: multiple water body detected, process only the larger")
+        logger.error("WARNING: multiple water body detected, process only the larger")
         gdf_wb = gdf_wb[gdf_wb.geometry.area == max(gdf_wb.geometry.area)]
     return gdf_wb
 
@@ -158,6 +168,8 @@ def extract_points_from_raster(raster, poly_dataframe):
         transformer = rasterio.transform.AffineTransformer(transf)
 
         no_data = src.nodata
+        if no_data is None:
+            raise ValueError("The DEM extracted as no nodata value set. Error")
         data = out_image[0, :, :]
         row, col = np.where(data != no_data)
         values = np.extract(data != no_data, data)
@@ -211,7 +223,7 @@ def find_dam(wb_poly, pdb_point, insider_point):
     inter = line.intersection(poly_wb.boundary)
     # input(inter)
     if isinstance(inter, MultiPoint):
-        logging.info("Multipoint dam")
+        logger.info("Multipoint dam")
         return None
     return inter
 
@@ -279,18 +291,18 @@ def find_base_line_using_segments(
         inter = gpd.sjoin(gdf, gdf_gdp_buff, how="inner")
         # handle the case of multiple segment intersecting the same GDP
         if inter.empty:
-            logging.info("Search base for cutline failed. No intersection found")
-            logging.info(
+            logger.info("Search base for cutline failed. No intersection found")
+            logger.info(
                 f"No intersection for buffer size {buff}. "
                 f"Try higher (max {buffer_size_max})"
             )
         else:
-            logging.info(f"Intersection found for buffer {buff}. Process")
+            logger.info(f"Intersection found for buffer {buff}. Process")
             break
         if buffer_size_max == buff:
             return None, ident
     if not len(inter.index) == 1:
-        logging.info("More than one segment intersect the same GDP. Try to fuse them")
+        logger.info("More than one segment intersect the same GDP. Try to fuse them")
 
     lines = list(inter.geometry.values)
     id_seg = list(inter.segments.values)
@@ -311,7 +323,7 @@ def find_base_line_using_segments(
         else:
             coords_new_seg = seg1 + seg2
     else:
-        logging.info("Only two segments found.")
+        logger.info("Only two segments found.")
         if id_seg[0] == 0 and id_seg[-1] == len(ori_lines) - 1:
             coords_new_seg = list(lines[-1].coords) + list(lines[0].coords)
             for seg in lines[1:-1]:
@@ -356,18 +368,16 @@ def find_cutline_and_pdb(
     database_file:
     dem_raster:
     """
-    logging_format = (
+    logger_format = (
         "%(asctime)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s"
     )
     if debug:
         logging.basicConfig(
-            stream=sys.stdout, level=logging.DEBUG, format=logging_format
+            stream=sys.stdout, level=logging.DEBUG, format=logger_format
         )
     else:
-        logging.basicConfig(
-            stream=sys.stdout, level=logging.INFO, format=logging_format
-        )
-    logging.info("Starting search cutline and PDB using GDP")
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logger_format)
+    logger.info("Starting search cutline and PDB using GDP")
     maximum_alt = maximum_alt + elevoffset
     # 1. Manage the particularity of database:
     # - Fuse multipolygon
@@ -388,6 +398,7 @@ def find_cutline_and_pdb(
         )
         waterbody_bin = os.path.join(work_dir, "waterbody_bin.tif")
         rasterize(gdf_wb, dem, params_raster, waterbody_bin)
+        logger.info("Ending the water body preparation")
         # 2. Compute the gradient dot product using dem and cleaned water body
         # - The output is a raster then vectorize it over the whole area
         # - Remove the 0 polygons which means no GDP found
@@ -397,20 +408,28 @@ def find_cutline_and_pdb(
         polygonize(gdp_raster, gdp_vector)
         gdf_gdp = clear_polygonize(gdp_vector, epsg)
         if gdf_gdp is None:
-            logging.info("ERROR: when computing GDP, no slope found")
-            logging.info("ERROR: Stopping the chain")
+            logger.info("ERROR: when computing GDP, no slope found")
+            logger.info("ERROR: Stopping the chain")
             return None
+        logger.info("GDP have run successfuly")
         # 3. Fuse close GDP
+        # 5. TODO: filter by area to remove small GDP
+        gdf_gdp = gdf_gdp[gdf_gdp.geometry.area > 500]
+        gdf_gdp = gdf_gdp.reset_index(drop=True)
+        gdf_gdp.to_file(
+            os.path.join(work_dir, "gdp_fusion_nearest_remove_small.geojson")
+        )
         gdf_gdp = merge_close_gdp(gdf_gdp, gdp_buffer_size)
         if gdf_gdp.empty:
-            logging.info("ERROR: Empty dataframe after merging GDP.")
+            logger.info("ERROR: Empty dataframe after merging GDP.")
             return None
         gdf_gdp.to_file(os.path.join(work_dir, "gdp_fusion_nearest.geojson"))
+        logger.info("Fusion ended. Remove very small object")
         # 4. Filter by convex hull to remove all insider GDP
         gdf_gdp = filter_by_convex_hull(gdf_gdp, "gdp_unique_id")
-        # 5. TODO: filter by area to remove small GDP
-        gdf_gdp = gdf_gdp[gdf_gdp.geometry.area > 200]
-        gdf_gdp = gdf_gdp.reset_index(drop=True)
+        gdf_gdp.to_file(os.path.join(work_dir, "gdp_fusion_nearest_convex.geojson"))
+
+        logger.info("End filtering. Look for a PDB")
         # 6 Convert the water body into a sett of point with regular sampling
         list_ident = []
         list_line = []
@@ -425,47 +444,64 @@ def find_cutline_and_pdb(
                 list_alt_pdb.append(alt)
             else:
                 list_alt_pdb.append(np.nan)
+        print(list_alt_pdb)
         index_min = np.nanargmin(list_alt_pdb)
         pdb_point = list_pdb[index_min]
+        logger.info(f"PDB {pdb_point} found at altitude {list_alt_pdb[index_min]}")
         for index in [index_min]:  # gdf_gdp.index:
             row = gdf_gdp.loc[[index]]
+            row.to_file(os.path.join(work_dir, "search.geojson"))
             # 7. For each GDP find a PDB
             # pdb = find_pdb(row, dem_raster)
             # 8. For each GDP found a insider point
+            logger.info("Look for an insider point")
             insider = find_insider(gdf_wb, row)
+            logger.info(f"Insider : {insider}")
             if insider is None:
                 continue
             # Find dam
+            logging.info("Try to find the DAM")
             dam_point = find_dam(gdf_wb, pdb_point, insider)
+            logger.info(f"DAM: {dam_point}")
             # 9. For each GDP draw baselines
             gdf_line, ident = find_base_line_using_segments(
                 gdf_wb, row, ident, index, angle_threshold=150
             )
+            logger.info("Base line found. looking for extent")
             # print("aft", ident)
             if gdf_line is None:
                 continue
             # 10. For each baseline find extents
+
             coords_new_line = find_extent_to_line(
                 gdf_line, dem_raster, gdf_wb, radius_search_size, maximum_alt, work_dir
             )
+            logger.info("Extents found.")
             list_line.append(LineString(coords_new_line))
             list_ident.append(ident)
 
         # 11. Merge all cutlines into one file
         if not list_line:
             return None
+        logger.info("Fuse all files")
         gdf_final = gpd.GeoDataFrame(
             {"ident_line": list_ident}, geometry=list_line, crs=gdf_wb.crs
         )
         dam_name = dam_name.replace(" ", "-")
+        logging.info("Write cutline")
         out_cutline = os.path.join(work_dir, f"{dam_name}_cutline.geojson")
         gdf_final.to_file(out_cutline)
         # Dam info
+        print([list_alt_pdb[index_min], maximum_alt - elevoffset, ""])
         gdf_dam = gpd.GeoDataFrame(
             {
                 "name": ["PDB", "Dam", "Insider"],
                 "ID": [id_db, id_db, id_db],
-                "elev": ["", maximum_alt - 20, ""],
+                "elev": [
+                    int(list_alt_pdb[index_min]),
+                    int(maximum_alt) - elevoffset,
+                    0,
+                ],
                 "damname": [
                     dam_name.replace(" ", "-"),
                     dam_name.replace(" ", "-"),

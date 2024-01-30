@@ -21,12 +21,22 @@ from rasterio.coords import BoundingBox
 
 from dem4water.tools.save_raster import save_image
 
+logger = logging.getLogger("area_mapping_v2")
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
+logging.getLogger("geopandas").setLevel(logging.WARNING)
+
+logging.getLogger("rasterio").setLevel(logging.WARNING)
+
+logging.getLogger("fiona").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 
 def download_cop30(
     min_x: float, max_x: float, min_y: float, max_y: float, output_path: str
 ) -> str:
     """Download the Copernicus 30 meters DEM."""
-    logging.info("Default DEM mode - automatic download: COPERNICUS-30m")
+    logger.info("Default DEM mode - automatic download: COPERNICUS-30m")
 
     params = {
         "dem_type": "COP30",
@@ -183,7 +193,7 @@ def area_mapping(
         logging.basicConfig(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
-    logging.info(f"Starting area_mapping.py for {dam_name}")
+    logger.info(f"Starting area_mapping.py for {dam_name}")
     gdf_dam = gpd.read_file(dam_database)
     gdf_dam = gdf_dam.to_crs(epsg)
     gdf_dam = get_dam(gdf_dam, dam_name, dam_name_col, dam_id, dam_id_col)
@@ -196,6 +206,8 @@ def area_mapping(
     if retrieve_mode == "local":
         dem_roi = extract_from_vrt(dem, min_x, max_x, min_y, max_y, epsg, out_file)
     elif retrieve_mode == "cop30":
+        gdf_dam_wgs84 = gdf_dam.to_crs(4326)
+        min_x, min_y, max_x, max_y = gdf_dam_wgs84.total_bounds
         dem_roi = download_cop30(min_x, max_x, min_y, max_y, out_dir)
     else:
         raise ValueError(f"{retrieve_mode} is not a valid choice ")
@@ -206,11 +218,12 @@ def area_mapping(
         xRes=target_resolution,
         yRes=-target_resolution,
         resampleAlg=gdal.GRA_CubicSpline,
+        dstNodata=-10000,
     )
     t1_stop = perf_counter()
-    logging.info(f"Elapsed time: {t1_stop} s {t1_start} s")
+    logger.info(f"Elapsed time: {t1_stop} s {t1_start} s")
 
-    logging.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start} s")
+    logger.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start} s")
 
 
 def area_mapping_args() -> argparse.ArgumentParser:
