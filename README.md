@@ -80,7 +80,7 @@ value.
 Once the parameters are filled, you can simply launch the entry point using this json file:
 
 ```bash
-dem4water campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
+dem4water campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type Slurm
 ```
 
 The parameter `scheduler_type` is set by default to `PBS` which create a PBS file and send the `qsub` command for each
@@ -113,7 +113,7 @@ This mode allow to launch the test dataset provided to the git folder.
 
 ### Use PBS launcher
 
-It is possible to choose PBS ressources values for all modes. There is 4 arguments and they must be placed before the
+It is possible to choose Slurm resources values for all modes. There is 4 arguments and they must be placed before the
 mode parameter.
 
 - `-ram` : the amount of RAM per job, in GB (default = 60)
@@ -127,10 +127,9 @@ Exemple for the campaign mode:
 dem4water --ram 50 --walltime_hour 4 campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
 ```
 
-### Automatic download DEM/Watermap
+### Automatic download DEM
 
-DEM and Watermap can be automatically downloaded on (https://pypi.org/project/bmi-topography/)
-and (https://global-surface-water.appspot.com/download).
+DEM can be automatically downloaded on (https://pypi.org/project/bmi-topography/)
 
 In /YOUR_OUTPUT_PATH/campaign_template_file.json :
 
@@ -138,7 +137,6 @@ In /YOUR_OUTPUT_PATH/campaign_template_file.json :
 {
     "campaign": {
         "output_path": "/YOUR_OUTPUT_PATH/",
-        "watermap": null,
         "dem": null,
         "database": "/../data/andalousie/andalousie.geojson",
         "id_dam_column": "ID_SWOT",
@@ -151,62 +149,21 @@ In /YOUR_OUTPUT_PATH/campaign_template_file.json :
 }
 ```
 
-## Installation on Google Colab
+## Try it on Google Colab
 
 - Create a Gmail account.
+- The dataset contains a dam database and a reference set to produce plots at the end
 - Get your APIKEY : https://opentopography.org/blog/introducing-api-keys-access-opentopography-global-datasets
+- Copy the sources or clone them into your own drive
+- Follow the notebook in "demo_colab.ipynb"
 
-### Install the source project
+## Try it on a local notebook
 
-First you need to download code in Google Drive :
-
-```bash
-# then install dem4water in a dedicated virtual env in Google Colab :
-
-!pip install virtualenv
-!virtualenv dem4water
-!source dem4water/bin/activate
-
-# code in Google Drive 
-from google.colab import drive
-drive.mount('/content/drive')
-
-!pip install -e /content/drive/MyDrive/Dem4Water/script/dem4water/
-
- #Install Gdal/OGR, rasterio, bmi-topography
-!apt-get install gdal-bin -y
-
-
-#export apikey
-!export OPENTOPOGRAPHY_API_KEY='YOUR API KEY'
-
-#file .sh Permission denied 
-!chmod 755  /content/drive/MyDrive/Dem4Water/script/dem4water/dem4water/gen_contourline_polygons.sh
-
-```
-
-### Test your installation
-
-```bash
-!dem4water -h
-
-```
-
-## Usage
-
-### Mode campaign
-
-Be careful with paths in campaign_andalousie_params.json. No need wmap and dem parameters.
-For keeping results, output folder must be in Mydrive
-
-You can launch with :
-
-```bash
-!dem4water campaign -json_campaign /~/campaign_andalousie_params.json -scheduler_type local
-
-```
-
-See Contributing.md for all the information.
+- Clone the source
+- Get the opentopography api key if you need to download the DEM
+- If you already have a DEM, ensure that you have only one file or create a vrt
+- Look at the notebook "demo_local.ipynb" and follow the instructions
+- Note that you need to handle the installation of GDAL
 
 ## Database preparation
 
@@ -240,6 +197,19 @@ For the classic mode some information are mandatory in the input geojson and the
     - DAM_NAME: a str value
 - Unique identifier:
     - name free for example ID_DB: a str or int value
+
+### Custom corrections
+
+The chain try is best to provide the dam location, the PDB and the cutline.
+
+In some case, it is not possible to find correctly them or the reservoir is very complex.
+Then you need to manually provide correction to the daminfo.json and/or the cutline.geojson file.
+
+The best way to provide the corrections is to create a folder containing the corrected files.
+Once done, update the configuration file and especially the `custom_files` field with the path to the folder.
+
+Then launch the campaign. Messages will inform you that your corrections are found and used in the several steps of the
+workflow.
 
 ## Contributing
 

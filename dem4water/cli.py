@@ -260,10 +260,18 @@ def launch_full_process(input_config_json):
         )
     else:
         area_mapping(**config["area_mapping"])
-    if "find_cutline_and_pdb" in config:
-        find_cutline_and_pdb(**config["find_cutline_and_pdb"])
-    else:
-        find_pdb_and_cutline(**config["find_pdb_and_cutline"])
+    skip = False
+    if (
+        "_custom" in config["cut_contourlines"]["info"]
+        and "_custom" in config["cut_contourlines"]["cutline"]
+    ):
+        logging.info("Skip cutline and daminfo generation because customs files found.")
+        skip = True
+    if not skip:
+        if "find_cutline_and_pdb" in config:
+            find_cutline_and_pdb(**config["find_cutline_and_pdb"])
+        else:
+            find_pdb_and_cutline(**config["find_pdb_and_cutline"])
     # cutline_score(**config["cutline_score"])
     cut_countourlines(**config["cut_contourlines"])
     szi_to_model(**config["szi_to_model"])

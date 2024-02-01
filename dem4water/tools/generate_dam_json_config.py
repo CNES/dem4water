@@ -245,12 +245,12 @@ def write_json(
                 daminfo_file = os.path.join(
                     output_dam_camp_path, f"{dam_path_name}_daminfo.json"
                 )
-            dict_dam["cutline_score"] = {
-                "infile": cutline_file,
-                "watermap": extract_wmap,
-                "out": output_dam_camp_path,
-                **config["cutline_score"],
-            }
+            # dict_dam["cutline_score"] = {
+            #     "infile": cutline_file,
+            #     "watermap": extract_wmap,
+            #     "out": output_dam_camp_path,
+            #     **config["cutline_score"],
+            # }
 
             dict_dam["cut_contourlines"] = {
                 "info": daminfo_file,
