@@ -3,9 +3,12 @@
 import math
 from statistics import median
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
+
+matplotlib.use("agg")
 
 
 def plot_szi_points(r_elev, r_area, pdb_elev, damname, outfile):

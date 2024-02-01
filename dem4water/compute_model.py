@@ -7,9 +7,13 @@ import math
 import sys
 from statistics import median
 
+import geopandas as gpd
 import numpy as np
 
-import dem4water.water_body as wb
+logger = logging.getLogger("compute_model")
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
+logging.getLogger("geopandas").setLevel(logging.WARNING)
 
 
 def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
@@ -27,7 +31,7 @@ def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
         data = np.loadtxt(infile)
 
         if data.size <= 2:
-            logging.error(f"Not enough S(Zi) data inside file {infile}")
+            logger.error(f"Not enough S(Zi) data inside file {infile}")
             sys.exit("Error")
 
         z_i = data[:, 0]
@@ -50,13 +54,13 @@ def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
             break
 
     if break_found is True:
-        logging.debug(
+        logger.debug(
             f"Dropping S_ZI after index {stop_i} with a delta ratio of {ratio}."
         )
         z_i = z_i[stop_i:]
         s_zi = s_zi[stop_i:]
     else:
-        logging.debug("No outliers detected, keeping all S_ZI data.")
+        logger.debug("No outliers detected, keeping all S_ZI data.")
     return z_i, s_zi
 
 
@@ -73,28 +77,30 @@ def filter_szi(
     """Filter szi looking at the watermap."""
     data = np.loadtxt(infile)
     if data.size <= 2:
-        logging.error(f"Not enough S(Zi) data inside file {infile}")
+        logger.error(f"Not enough S(Zi) data inside file {infile}")
         sys.exit("Error")
 
     z_i = data[:, 0]
     s_zi = data[:, 1]
-    shp_wmap = wb.create_water_mask(watermap, water_map_thres)
+    water_body = gpd.read_file(database)
+    water_body_area = water_body.geometry.area.values[0]
+    # shp_wmap = wb.create_water_mask(watermap, water_map_thres)
     # water_body_area = wb.compute_area_from_water_body(daminfo, shp_wmap)
-    water_body_area = wb.compute_area_from_database_geom(database, damname, shp_wmap)
-    logging.info(f"water body area: {water_body_area}")
+    # water_body_area = wb.compute_area_from_database_geom(database, damname, shp_wmap)
+    logger.info(f"water body area: {water_body_area}")
     thres_wb = (water_body_area * area_threshold) / 100
-    logging.info(f"Minimal surface allowed : {thres_wb}")
-    # zi[0] is the PDB
-    zi_min = z_i[1]
-    zi_max = z_i[-1]
+    logger.info(f"Minimal surface allowed : {thres_wb}")
+    # zi[-1] is the PDB Alt are stored in reverse order
+    zi_min = z_i[-2]
+    zi_max = z_i[1]
     if zi_max > max_elev:
-        logging.info("Too high contour detected filter S_ZI data")
+        logger.info("Too high contour detected filter S_ZI data")
     else:
-        logging.info("Contour seems correct for max bound. Process")
+        logger.info("Contour seems correct for max bound. Process")
     if zi_min < min_elev:
-        logging.info("Too low contour detected filter S_ZI data")
+        logger.info("Too low contour detected filter S_ZI data")
     else:
-        logging.info("Contour seems correct for min bound. Process")
+        logger.info("Contour seems correct for min bound. Process")
 
     filter_zi_out = []
     filter_szi_out = []
@@ -103,7 +109,7 @@ def filter_szi(
             filter_zi_out.append(val_zi)
             filter_szi_out.append(val_szi)
         else:
-            logging.info(
+            logger.info(
                 f"Szi {val_szi} for altitude {val_zi} is too small. Check the cutline."
             )
     filter_szi_out.append(s_zi[-1])
@@ -151,10 +157,10 @@ def select_lower_szi(z_i, sz_i, damelev, max_offset, winsize):
 
 def compute_model(z_i, s_zi, z_0, s_z0):
     """Compute model from points."""
-    logging.info(f"Model computed using {len(s_zi)} values.")
+    logger.info(f"Model computed using {len(s_zi)} values.")
     poly = np.polyfit(z_i, s_zi, 1, rcond=None, full=False, w=None, cov=False)
     beta = poly[0] * (median(z_i) - z_0) / (median(s_zi) - s_z0)
-    print(poly[0], z_i, z_0, beta)
+    # print(poly[0], z_i, z_0, beta)
     alpha = poly[0] * (math.pow(median(z_i) - z_0, 1 - beta)) / beta
 
     mae_sum = 0
@@ -162,5 +168,5 @@ def compute_model(z_i, s_zi, z_0, s_z0):
         surf = s_z0 + alpha * math.pow((alt - z_0), beta)
         mae_sum += abs(s_z - surf)
     mae = mae_sum / len(z_i)
-    logging.info(f"MAE computed: {mae}")
+    logger.info(f"MAE computed: {mae}")
     return alpha, beta, mae, poly

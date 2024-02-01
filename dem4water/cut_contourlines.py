@@ -171,8 +171,8 @@ def create_contour_lines(
     list_gdf = []
     list_temp_file_to_remove = []
     for elev in range(start_elev, end_elev, elev_sampling):
-        output_shp = os.path.join(tmp_path, f"contour_{elev}.shp")
-        ogr_ds = ogr.GetDriverByName("ESRI Shapefile").CreateDataSource(output_shp)
+        output_shp = os.path.join(tmp_path, f"contour_{elev}.gpkg")
+        ogr_ds = ogr.GetDriverByName("GPKG").CreateDataSource(output_shp)
         ogr_lyr = ogr_ds.CreateLayer("contour", geom_type=ogr.wkbMultiPolygon, srs=proj)
         field_defn = ogr.FieldDefn("ID", ogr.OFTInteger)
         ogr_lyr.CreateField(field_defn)
@@ -201,10 +201,12 @@ def create_contour_lines(
         gdf = gdf.explode(ignore_index=True)
         # Ensure no multipolygon
         gdf = gdf.loc[gdf.area == np.max(gdf.area)]
-        gdf.to_file(output_shp)
-
+        if not gdf.empty:
+            gdf.to_file(output_shp)
+            list_gdf.append(gdf)
+        else:
+            logger.info(f"{output_shp} is empty. Ignore surface for {elev}.")
         list_temp_file_to_remove.append(output_shp)
-        list_gdf.append(gdf)
     # reverse to store them in a visual convenience
 
     list_gdf.reverse()
@@ -288,8 +290,6 @@ def cut_countourlines(
         )
     logger.info("Starting cut_contourlines.py")
 
-    # Silence Mathplotlib related debug messages (font matching)
-
     geo = osr.SpatialReference()
     geo.ImportFromEPSG(4326)
 
@@ -345,16 +345,17 @@ def cut_countourlines(
     r_id = 1
     r_elev = []
     r_area = []
+
     for feature in jsl["features"]:
         level = shape(feature["geometry"])
         results = split(level, line)
         found = False
         max_area = -10000
-        max_elev = -10000
+        max_elev = float(feature["properties"]["level"])
         for poly in results.geoms:
             if poly.contains(in_w):
                 max_area = poly.area
-                max_elev = float(feature["properties"]["level"])
+                # max_elev = float(feature["properties"]["level"])
                 found = True
                 logger.info(f"Elevation: {max_elev}m - Area: {poly.area} m2")
                 r_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())

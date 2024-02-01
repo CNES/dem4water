@@ -266,7 +266,7 @@ def write_json(
 
             dict_dam["szi_to_model"] = {
                 "szi_file": szi_dat_file,
-                "database": database,
+                "database": extract_db,
                 "watermap": extract_wmap,
                 "daminfo": daminfo_file,
                 "outfile": os.path.join(
