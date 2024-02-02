@@ -36,8 +36,8 @@ def extract_dam_info(dam_info):
     dam_name = str(insider_info.damname.values[0])
     dam_path = dam_name.replace(" ", "-")
     d_temp = dict(zip(gdf.name, gdf.elev))
-    dam_elev = d_temp["Dam"]
-    pdb_elev = d_temp["PDB"]
+    dam_elev = int(float(d_temp["Dam"]))
+    pdb_elev = int(float(d_temp["PDB"]))
     print(dam_name, in_w, dam_elev, pdb_elev)
     return dam_name, dam_path, dam_elev, pdb_elev, in_w
 
@@ -233,11 +233,11 @@ def generate_countourlines(
 
     # TODO: set to 0 as it increase the surface over the cutline
     elev_margin = 0  # 3 * elevsampling
-    target_elev = dam_elev + elevoffset
+    target_elev = float(dam_elev) + float(elevoffset)
 
     if os.path.exists(level_file):
         os.remove(level_file)
-    start_elev = int(pdb_elev - elev_margin)
+    start_elev = int(float(pdb_elev) - elev_margin)
     end_elev = int(target_elev + elev_margin)
     start_elev, end_elev = ensure_elev_in_dem(dem, start_elev, end_elev, pdb_elev)
     logger.info("gen_contourline_polygons.sh parameters: ")
