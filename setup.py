@@ -9,10 +9,10 @@ with open("README.md", encoding="utf-8") as readme_file:
 
 requirements = [
     "geopandas",
+    "scipy",
     "numpy",
     "matplotlib",
     "flake8",
-    "cnes-pylint-extension",
     "gdal==3.4.3",
     "rasterio",
     "bmi_topography",
@@ -40,6 +40,7 @@ setup(
     entry_points={
         "console_scripts": [
             "dem4water=dem4water.cli:main",
+            "config_template=dem4water.tools.generate_default_configuration:main",
         ],
     },
     install_requires=requirements,

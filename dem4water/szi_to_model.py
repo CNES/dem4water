@@ -14,6 +14,12 @@ import numpy as np
 from dem4water import compute_model as cm
 from dem4water import plot_lib as pl
 
+logger = logging.getLogger("szi_to_model")
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.ERROR)
+
 
 def found_mae_first(
     found_first,
@@ -30,40 +36,38 @@ def found_mae_first(
     best_beta,
 ):
     """Analyze MAE to find the first local minimum."""
-    logging.debug("Reanalizing local mae to find the first local minimum.")
-    logging.debug(f"len(l_mae): {len(l_mae)}")
+    logger.debug("Reanalizing local mae to find the first local minimum.")
+    logger.debug(f"len(l_mae): {len(l_mae)}")
     if len(l_i) > 4:
         if l_mae[0] < l_mae[1] and l_mae[0] < l_mae[2]:
-
             found_first = True
-            logging.debug(f"First local minimum found at {l_z[0]} (i= {l_i[0]}).")
+            logger.debug(f"First local minimum found at {l_z[0]} (i= {l_i[0]}).")
             best_i = l_i[0]
             best_p = l_p[0]
             best = l_mae[0]
             best_beta = l_beta[0]
             best_alpha = l_alpha[0]
-            logging.debug(
+            logger.debug(
                 f"i: {best_i} - alpha= {best_alpha} - "
                 f"beta= {best_beta} - mae= {best}"
             )
 
         elif l_mae[1] < l_mae[0] and l_mae[1] < l_mae[2] and l_mae[1] < l_mae[3]:
-
             found_first = True
-            logging.debug(f"First local minimum found at {l_z[1]} (i= {l_i[1]}).")
+            logger.debug(f"First local minimum found at {l_z[1]} (i= {l_i[1]}).")
             best_i = l_i[1]
             best_p = l_p[1]
             best = l_mae[1]
             best_beta = l_beta[1]
             best_alpha = l_alpha[1]
-            logging.debug(
+            logger.debug(
                 f"i: {best_i} - alpha= {best_alpha} - "
                 f"beta= {best_beta} - mae= {best}"
             )
 
         else:
             x = range(0, len(l_i) - 1)
-            logging.debug(x)
+            logger.debug(x)
             for j in x[2:-2]:
                 if (
                     l_mae[j] < l_mae[j - 2]
@@ -71,9 +75,8 @@ def found_mae_first(
                     and l_mae[j] < l_mae[j + 1]
                     and l_mae[j] < l_mae[j + 2]
                 ):
-
                     found_first = True
-                    logging.debug(
+                    logger.debug(
                         f"First local minimum found at {l_z[j]} (i= {l_i[j]})."
                     )
                     best_i = l_i[j]
@@ -81,18 +84,18 @@ def found_mae_first(
                     best = l_mae[j]
                     best_beta = l_beta[j]
                     best_alpha = l_alpha[j]
-                    logging.debug(
+                    logger.debug(
                         f"i: {best_i} - alpha= {best_alpha} - beta= {best_beta} - mae= {best}"
                     )
                     break
 
             if found_first is False:
-                logging.info(
+                logger.info(
                     "Reanalizing local mae to find the first local minimum --> FAILLED."
                 )
                 # Exception ?
     else:
-        logging.debug("Reanalizing Impossible, not enough local mae data!")
+        logger.debug("Reanalizing Impossible, not enough local mae data!")
         # Exception ?
     return best_i, best_p, best, best_alpha, best_beta, found_first
 
@@ -120,18 +123,17 @@ def found_mae_hybrid(
     best_beta,
 ):
     """Analyze local mae to find optimal local minimum."""
-    logging.debug("Reanalizing local mae to find the optimal local minimum.")
+    logger.debug("Reanalizing local mae to find the optimal local minimum.")
     best = -10000
     x = range(0, len(l_i) - 1)
     for j in x:
-        #  logging.debug("j: "+ str(j)
+        #  logger.debug("j: "+ str(j)
         #  +" - l_z[j]: "+ str(l_z[j]))
         if (
             l_z[j] <= zmaxoffset + float(damelev)
             and l_z[j] >= float(damelev)
             and ((best == -10000) or (l_mae[j] < best))
         ):
-
             best_j = j
             best_z = l_z[j]
             best_i = l_i[j]
@@ -140,12 +142,12 @@ def found_mae_hybrid(
             best_beta = l_beta[j]
             best_alpha = l_alpha[j]
 
-            logging.debug(
+            logger.debug(
                 f"j: {best_j} - alpha= {best_alpha} - beta= "
                 f"{best_beta} - mae= {best}@{best_z}m"
             )
 
-    logging.info(
+    logger.info(
         f"Hybrid pass #1 => i: {best_i} - alpha= {best_alpha} "
         f"- beta= {best_beta} - mae= {best}@{best_z}m"
     )
@@ -158,7 +160,7 @@ def found_mae_hybrid(
         if l_z[k] >= float(damelev) - zminoffset and abs(ds[k]) < dslopethresh:
             # and
             #  (l_mae[k] < best)):
-            logging.debug(
+            logger.debug(
                 "k: %s - lmae[k]: %s - l_z[k]: %s - ds[k]: %s",
                 str(k),
                 str(l_mae[k]),
@@ -174,18 +176,18 @@ def found_mae_hybrid(
         else:
             break
 
-    logging.info(
+    logger.info(
         f"Hybrid pass #2 => i: {best_i} - alpha= {best_alpha} - beta= "
         f"{best_beta} - mae= {best}@{best_z}m"
     )
 
-    logging.info("Model updated using hybrid optimal model selection.")
-    logging.info(
+    logger.info("Model updated using hybrid optimal model selection.")
+    logger.info(
         f"alpha= {best_alpha} - beta= {best_beta}"
         f" (Computed on the range [{z_i[best_i]}; {z_i[best_i + winsize]}])"
         f" (i= {best_i})."
     )
-    logging.info(
+    logger.info(
         f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} "
         f"* ( Z - {z_i[0]:.2F} ) ^ {best_beta:.3E}"
     )
@@ -220,7 +222,7 @@ def szi_to_model(
     """
     t1_start = perf_counter()
     # Silence Mathplotlib related debug messages (font matching)
-    logging.getLogger("matplotlib").setLevel(logging.ERROR)
+
     #  print(args)
 
     logging_format = (
@@ -234,14 +236,17 @@ def szi_to_model(
         logging.basicConfig(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
-    logging.info("Starting szi_to_model.py")
-
+    logger.info("Starting szi_to_model.py")
+    if filter_area not in ["enabled", "disabled"]:
+        raise ValueError(
+            f"{filter_area} is not a correct value for 'filter_area' parameter"
+        )
     # load GeoJSON file containing info
     with open(daminfo, encoding="utf-8") as i:
         jsi = json.load(i)
     for feature in jsi["features"]:
         if feature["properties"]["name"] == "Dam":
-            logging.debug(feature)
+            logger.debug(feature)
             damname = feature["properties"]["damname"]
             damelev = feature["properties"]["elev"]
             dam_id = feature["properties"]["ID"]
@@ -250,14 +255,15 @@ def szi_to_model(
     # shp_wmap = wb.create_water_mask(watermap, 0.05)
     # water_body_area = wb.compute_area_from_database_geom(database, damname, shp_wmap)
     # wm_thres = (water_body_area * 15)/100
+
     if filter_area == "enabled":
-        logging.info("Filter small surfaces enabled.")
+        logger.info("Filter small surfaces enabled.")
         z_i, s_zi = cm.filter_szi(szi_file, database, watermap, damname, 100000, 0)
     else:
         z_i = None
         s_zi = None
     z_i, s_zi = cm.remove_jump_szi(szi_file, z_i, s_zi, int(jump_ratio))
-    logging.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
+    logger.debug(f"Number of S_Zi used for compute model: {len(s_zi)}")
     z_i = z_i[::-1]
     s_zi = s_zi[::-1]
     # find start_i
@@ -270,16 +276,18 @@ def szi_to_model(
     else:
         for alt in z_i:
             if alt > float(damelev) - zminoffset:
-                logging.debug(f"start_i = : {start_i}  - search stopped at Zi = {alt}")
+                logger.debug(f"start_i = : {start_i}  - search stopped at Zi = {alt}")
                 break
             start_i = start_i + 1
-    print("Filtered : ", z_i, s_zi)
-    logging.debug("z_i: ")
-    logging.debug(z_i[:])
-    logging.debug("s_zi: ")
-    logging.debug(s_zi[:])
-    logging.debug(f"Zi_max: {z_i[-1]} - S(Zi_max): {s_zi[-1]}")
-    logging.info(f"Z0: {z_i[0]} - S(Z0): {s_zi[0]}")
+
+            # TODO: if start_i equals len(Zi) this causes troubles for the rest of algorithm
+    logger.info(f"Filtered : {z_i}, {s_zi}")
+    logger.debug("z_i: ")
+    logger.debug(z_i[:])
+    logger.debug("s_zi: ")
+    logger.debug(s_zi[:])
+    logger.debug(f"Zi_max: {z_i[-1]} - S(Zi_max): {s_zi[-1]}")
+    logger.info(f"Z0: {z_i[0]} - S(Z0): {s_zi[0]}")
 
     i = start_i
     best = -10000
@@ -301,13 +309,13 @@ def szi_to_model(
     # autorise d'avoir un seul point...
     if (i + winsize) >= (len(z_i) - 1):
         data_shortage = True
-        logging.warning("Just enough data! Compute unique model.")
+        logger.warning("Just enough data! Compute unique model.")
         alpha, beta, mae, poly = cm.compute_model(z_i[1:], s_zi[1:], z_i[0], s_zi[0])
-        logging.debug(
+        logger.debug(
             f"Zrange [{z_i[0]} ; {z_i[-1]}] --> alpha= {alpha} - "
             f"beta= {beta}  with a local mae of: {mae} m2"
         )
-        logging.debug(
+        logger.debug(
             f"i: {i} - Slope= {poly[0]} - z_med= {median(z_i)} -"
             f" Sz_med= {median(s_zi)}"
         )
@@ -324,22 +332,22 @@ def szi_to_model(
     # Enough data but not in specified distance to the dam
     # (maybe estimated dam elevation is false, maybe offsets are to strict)
     print(z_i, i, winsize)
+    # TODO : mettre un elif
+    # Test si z_i[] est pas vide
     if median(z_i[i : i + winsize]) >= zmaxoffset + float(damelev):
         data_shortage = True
-        logging.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
-        logging.error("Maybe dam elevation estimation is not correct.")
-        logging.warning(
-            "Computing unique model with the first available S(Zi) dataset."
-        )
+        logger.error("zmaxoffset to restrictive, no S(Zi) data within search range.")
+        logger.error("Maybe dam elevation estimation is not correct.")
+        logger.warning("Computing unique model with the first available S(Zi) dataset.")
         alpha, beta, mae, poly = cm.compute_model(
             z_i[i : i + winsize], s_zi[i : i + winsize], z_i[0], s_zi[0]
         )
 
-        logging.debug(
+        logger.debug(
             f"i: {i} - Zrange [{z_i[i]}; {z_i[i + winsize]}] --> alpha="
             f" {alpha} - beta= {beta} with a local mae of: {mae} m2"
         )
-        logging.debug(
+        logger.debug(
             f"i: {i} - Slope= {poly[0]} - z_med= "
             f"{median(z_i[i : i + winsize])} - "
             f"Sz_med= {median(s_zi[i : i + winsize])}"
@@ -355,15 +363,15 @@ def szi_to_model(
     while ((i + winsize) < (len(z_i) - 1)) and (
         median(z_i[i : i + winsize]) < zmaxoffset + float(damelev)
     ):
-        logging.debug(f"len(z_i[i:i+winsize]): {len(z_i[i : i + winsize])}")
+        logger.debug(f"len(z_i[i:i+winsize]): {len(z_i[i : i + winsize])}")
         alpha, beta, loc_mae, poly = cm.compute_model(
             z_i[i : i + winsize], s_zi[i : i + winsize], z_i[0], s_zi[0]
         )
-        logging.debug(
+        logger.debug(
             f"i: {i} - Zrange [{z_i[i]}; {z_i[i + winsize]}] --> alpha="
             f" {alpha} - beta= {beta} with a local mae of: {loc_mae} m2"
         )
-        logging.debug(
+        logger.debug(
             f"i: {i} - Slope= {poly[0]} - z_med="
             f" {median(z_i[i : i + winsize])} - "
             f"Sz_med= {median(s_zi[i : i + winsize])}"
@@ -396,11 +404,9 @@ def szi_to_model(
     abs_beta = best_beta
     abs_alpha = best_alpha
 
-    logging.debug("Best Abs")
-    logging.debug(
-        f"i: {best_i} - alpha= {best_alpha} - beta= {best_beta} - mae= {best}"
-    )
-    logging.info(
+    logger.debug("Best Abs")
+    logger.debug(f"i: {best_i} - alpha= {best_alpha} - beta= {best_beta} - mae= {best}")
+    logger.info(
         f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} "
         f"* ( Z - {z_i[0]:.2F} ) ^ {best_beta:.3E}"
     )
@@ -446,13 +452,13 @@ def szi_to_model(
             best_beta,
         )
     if found_first is True:
-        logging.info("Model updated using first LMAE minimum.")
-        logging.info(
+        logger.info("Model updated using first LMAE minimum.")
+        logger.info(
             f"alpha= {best_alpha} - beta= {best_beta}"
             f" (Computed on the range [{z_i[best_i]}; {z_i[best_i + winsize]}])"
             f" (i= {best_i})."
         )
-        logging.info(
+        logger.info(
             f"{damname}: S(Z) = {s_zi[0]:.2F} + {best_alpha:.3E} *"
             f" ( Z - {z_i[0]:.2F}) ^ {best_beta:.3E}"
         )
@@ -545,9 +551,9 @@ def szi_to_model(
     )
 
     t1_stop = perf_counter()
-    logging.info(f"Elapsed time: {t1_stop}s, {t1_start}s")
+    logger.info(f"Elapsed time: {t1_stop}s, {t1_start}s")
 
-    logging.info(f"Elapsed time during the whole program in s :{t1_stop-t1_start}s")
+    logger.info(f"Elapsed time during the whole program in s :{t1_stop-t1_start}s")
 
 
 def szi_to_model_parameters():

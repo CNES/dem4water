@@ -6,15 +6,16 @@ import json
 import os
 import sys
 
-from dem4water.area_mapping import area_mapping_args
+from dem4water.area_mapping_v2 import area_mapping_args
 from dem4water.cut_contourlines import cut_countourlines_ars
 from dem4water.cutline_score import cutline_score_parameters
+from dem4water.find_cutline_and_pdb import find_cutline_and_pdb_args
 from dem4water.find_pdb_and_cutline import find_pdb_and_cutline_parameters
 from dem4water.szi_to_model import szi_to_model_parameters
 from dem4water.val_report import val_report_parameters
 
 
-def get_all_parameters(output_path):
+def get_all_parameters(output_path, mode):
     """Create a json file from parameters."""
     all_parameters = {}
     all_parameters["campaign"] = {
@@ -26,6 +27,7 @@ def get_all_parameters(output_path):
         "dam_name_column": None,
         "reference": None,
         "customs_files": None,
+        "mode": mode,
     }
     if not os.path.exists(output_path):
         os.mkdir(output_path)
@@ -41,15 +43,24 @@ def get_all_parameters(output_path):
             all_parameters["area_mapping"][arg] = value
 
     # szi_from_contourline
-    parser = find_pdb_and_cutline_parameters()
-    szi_cont_args = parser.parse_args()
-    all_parameters["find_pdb_and_cutline"] = {}
+    if mode == "standard":
+        parser = find_pdb_and_cutline_parameters()
+        szi_cont_args = parser.parse_args()
+        all_parameters["find_pdb_and_cutline"] = {}
 
-    for arg in vars(szi_cont_args):
-        value = getattr(szi_cont_args, arg)
-        if value is not None:
-            all_parameters["find_pdb_and_cutline"][arg] = value
-
+        for arg in vars(szi_cont_args):
+            value = getattr(szi_cont_args, arg)
+            if value is not None:
+                all_parameters["find_pdb_and_cutline"][arg] = value
+    else:
+        # find_cutline_and_pdb
+        parser = find_cutline_and_pdb_args()
+        find_cut_and_pdb_args = parser.parse_args()
+        all_parameters["find_cutline_and_pdb"] = {}
+        for arg in vars(find_cut_and_pdb_args):
+            value = getattr(find_cut_and_pdb_args, arg)
+            if value is not None:
+                all_parameters["find_cutline_and_pdb"][arg] = value
     # cutline score
     parser = cutline_score_parameters()
     score_args = parser.parse_args()
@@ -103,10 +114,17 @@ def main():
     parser_in.add_argument(
         "-o", "--output_path", help="Global json config file", required=True
     )
+    parser_in.add_argument(
+        "-m",
+        "--mode",
+        help="Mode to launch the chain",
+        choices=["GDP", "standard"],
+        default="GDP",
+    )
     args = parser_in.parse_args()
     # DO NOT TOUCH THIS LINE
     sys.argv = [sys.argv[0]]
-    get_all_parameters(args.output_path)
+    get_all_parameters(args.output_path, args.mode)
 
 
 if __name__ == "__main__":

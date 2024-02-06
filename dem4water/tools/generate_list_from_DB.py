@@ -37,9 +37,8 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
                 try:
                     float(dam_lvl_m)
                     id_dam = int(feature["properties"][dam_id])
-
                     output_file.write(f"{id_dam},{name_dam} \n")
-                    dam_to_process[name_dam] = id_dam
+                    dam_to_process[name_dam] = [id_dam, dam_lvl_m]
                     count_correct += 1
                 except ValueError:
                     print(
@@ -47,7 +46,6 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
                         f"{dam_lvl_m} detected. Please check your DB"
                     )
                     count_incorrect += 1
-
     print(f"{count_correct + count_incorrect} dams found in {dams_file}")
     print(f"Ready to launch : {count_correct} dams")
     print(f"{count_incorrect} dams need corrections")

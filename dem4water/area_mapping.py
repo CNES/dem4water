@@ -21,7 +21,7 @@ from dem4water.tools.extract_roi import (
     ExtractROIParam,
     compute_roi_from_ref,
     extract_roi,
-    extract_roi_crop
+    extract_roi_crop,
 )
 from dem4water.tools.save_raster import save_image
 from dem4water.tools.superimpose import (
@@ -95,6 +95,8 @@ def area_mapping(
     if dem is None:
         # Download DEM
         if not glob.glob(os.path.join(output_download_path, "COP30*")):
+            logging.info("Default DEM mode - automatic download: COPERNICUS-30m")
+
             long_radius = abs(bbox[2] - bbox[3])
             lat_radius = abs(bbox[0] - bbox[1])
             if long_radius > lat_radius:
@@ -130,6 +132,10 @@ def area_mapping(
     if watermap is None:
         # Download occurence
         if not glob.glob(os.path.join(output_download_path, "occurrence*")):
+            logging.info(
+                "Default Watermap mode - automatic download: GlobalSurfaceWater"
+            )
+
             DATASET_NAME = "occurrence"
             lg = abs(bbox[0])
             lt = abs(bbox[2])
@@ -207,7 +213,9 @@ def area_mapping(
         mode_radius_cy=point.GetY(),
         dtype="float",
     )
-    extw, profile_etw = extract_roi_crop(rio.open(watermap), extract_roi_parameters_extw, out_wmap)
+    extw, profile_etw = extract_roi_crop(
+        rio.open(watermap), extract_roi_parameters_extw, out_wmap
+    )
     save_image(extw, profile_etw, out_wmap)
 
     # TODO: extract dem before superimpose ?

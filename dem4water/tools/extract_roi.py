@@ -13,6 +13,7 @@ from pyproj import Transformer
 from rasterio.coords import BoundingBox
 from rasterio.windows import Window
 from shapely.geometry import box
+
 from dem4water.tools.save_raster import save_image
 
 DTYPE = {
@@ -37,7 +38,7 @@ class ExtractROIParam:
 
 
 def coord_phys_to_pixel(
-    in_raster: str,
+    in_raster: rio.io.DatasetReader,
     extractroi_parameters: ExtractROIParam,
 ):
     """
@@ -90,7 +91,7 @@ def extract_roi(
                 )
 
             window = Window(row_off, col_off, width, height)
-            window=rio.windows.intersection(window)
+            window = rio.windows.intersection(window)
             data = in_raster.read(window=window)
             transform = rio.windows.transform(window, in_raster.transform)
 
@@ -104,7 +105,8 @@ def extract_roi(
                 }
             )
             return data, profile
-            
+
+
 def extract_roi_crop(
     in_raster: rio.io.DatasetReader,
     extractroi_parameters: ExtractROIParam,
@@ -165,6 +167,7 @@ def extract_roi_crop(
             )
             save_image(crop_array, profile, out_file)
     return crop_array, profile
+
 
 def compute_roi_from_ref(ref_file, in_file, out_file):
     with rio.open(ref_file) as ref:

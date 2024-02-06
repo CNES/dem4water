@@ -28,8 +28,9 @@ class RasterizarionParams:
     mode: str
     binary_foreground_value: int
     background_value: int
-    column_field: str = None
+    column_field: Optional[str] = None
     dtype: str = "float"
+    nodata: int = 0
 
 
 def prepare_vector(in_vector: str, ref_proj: int) -> gpd.GeoDataFrame:
@@ -70,7 +71,11 @@ def binary_rasterize(
 
     """
     ref_proj = raster.crs.to_epsg()
-    vector = prepare_vector(in_vector, ref_proj)
+    if isinstance(in_vector, str):
+        vector = prepare_vector(in_vector, ref_proj)
+    else:
+        # If geodataframe
+        vector = in_vector
     # Convert dataframe into a list for rasterize input format
     # no pair value means a binary rasterization
     geom = list(vector.geometry)
@@ -87,8 +92,14 @@ def binary_rasterize(
         dtype=rasterize_params.dtype,
     )
     profile = raster.profile
-    profile.update({"dtype": DTYPE[rasterize_params.dtype], "driver": "GTiff"})
-
+    profile.update(
+        {
+            "dtype": DTYPE[rasterize_params.dtype],
+            "driver": "GTiff",
+            "nodata": 0,
+        }
+    )
+    vector_rasterized = vector_rasterized[None, :, :]
     return vector_rasterized, profile
 
 

@@ -16,7 +16,7 @@ persistent=yes
 
 # List of plugins (as comma separated values of python modules names) to load, 
 # usually to register additional checkers.
-load-plugins=cnes_checker,pylint.extensions.check_elif
+# load-plugins=cnes_checker,pylint.extensions.check_elif
 
 
 [MESSAGES CONTROL]

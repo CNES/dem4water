@@ -3,9 +3,12 @@
 import math
 from statistics import median
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
+
+matplotlib.use("agg")
 
 
 def plot_szi_points(r_elev, r_area, pdb_elev, damname, outfile):
@@ -33,6 +36,7 @@ def plot_szi_points(r_elev, r_area, pdb_elev, damname, outfile):
     plt.minorticks_on()
     plt.title(damname + ": S(Z_i)")
     fig.savefig(outfile)
+    plt.close()
 
 
 def plot_slope(
@@ -226,6 +230,7 @@ def plot_model_combo(
         fontsize=10,
     )
     plt.savefig(outfile, dpi=300)
+    plt.close()
 
 
 def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
@@ -273,10 +278,14 @@ def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
     plt.minorticks_on()
     plt.legend(prop={"size": 6}, loc="upper left")
     plt.savefig(outfile, dpi=300)
+    plt.close()
 
 
 def plot_vs(all_zi, all_szi, damelev, alpha, beta, damname, outfile):
     """Plot V(S)."""
+    print(damelev)
+    print(all_zi[0])
+    print(float(damelev) - all_zi[0])
     s_dam = all_szi[0] + alpha * math.pow((float(damelev) - all_zi[0]), beta)
     surf = range(0, math.ceil(s_dam) + 10000)
     vol0 = 0.0
@@ -310,6 +319,7 @@ def plot_vs(all_zi, all_szi, damelev, alpha, beta, damname, outfile):
     plt.minorticks_on()
     plt.legend(prop={"size": 6}, loc="upper left")
     plt.savefig(outfile, dpi=300)
+    plt.close()
 
 
 def plot_report_sz(
@@ -358,6 +368,7 @@ def plot_report_sz(
 
     plt.suptitle(damname + ": S(z)", fontsize=10)
     plt.savefig(outfile, dpi=300)
+    plt.close()
 
 
 def plot_report_vs(
@@ -403,6 +414,7 @@ def plot_report_vs(
 
     plt.suptitle(damname + ": V(S)", fontsize=10)
     plt.savefig(outfile, dpi=300)
+    plt.close()
 
 
 def plot_report_volume_rate(
@@ -444,3 +456,4 @@ def plot_report_volume_rate(
 
     plt.suptitle(damname + ": Volume Rate", fontsize=10)
     plt.savefig(outfile, dpi=300)
+    plt.close()
