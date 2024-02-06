@@ -21,6 +21,7 @@ from dem4water.tools.extract_roi import (
     ExtractROIParam,
     compute_roi_from_ref,
     extract_roi,
+    extract_roi_crop,
 )
 from dem4water.tools.save_raster import save_image
 from dem4water.tools.superimpose import (
@@ -212,8 +213,9 @@ def area_mapping(
         mode_radius_cy=point.GetY(),
         dtype="float",
     )
-
-    extw, profile_etw = extract_roi(rio.open(watermap), extract_roi_parameters_extw)
+    extw, profile_etw = extract_roi_crop(
+        rio.open(watermap), extract_roi_parameters_extw, out_wmap
+    )
     save_image(extw, profile_etw, out_wmap)
 
     # TODO: extract dem before superimpose ?

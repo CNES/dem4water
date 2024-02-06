@@ -272,7 +272,7 @@ def find_pdb_and_cutline(
         bml_alt = calt
     else:
         logging.info("Alt Estimated from Watermap.")
-        ext = otb.Registry.CreateApplication("ExtractROI")
+
         extract_roi_parameters_ext = ExtractROIParam(
             mode="radius",
             mode_radius_r=pdbradius,
@@ -291,7 +291,6 @@ def find_pdb_and_cutline(
             rio.open(watermap), ext, superimpose_extw, profile_ext, None
         )
         bml = np.where(extw > 0.05, ext, 0)
-
         np_bml = bml.reshape(bml.shape[1], bml.shape[2])
 
         bml_alt = np.amax(np_bml)
