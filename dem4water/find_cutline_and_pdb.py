@@ -12,7 +12,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
-from rasterio import Affine
 from rasterio.mask import mask
 from shapely.geometry import LineString, MultiPoint, Point
 
@@ -164,8 +163,8 @@ def extract_points_from_raster(raster, poly_dataframe):
     with rasterio.open(raster) as src:
         out_image, out_transform = mask(src, geoms, crop=True)
         # reference the pixel centre
-        transf = out_transform * Affine.translation(0.5, 0.5)
-        transformer = rasterio.transform.AffineTransformer(transf)
+        # transf = out_transform * Affine.translation(0.5, 0.5)
+        transformer = rasterio.transform.AffineTransformer(out_transform)
 
         no_data = src.nodata
         if no_data is None:
@@ -175,11 +174,11 @@ def extract_points_from_raster(raster, poly_dataframe):
         values = np.extract(data != no_data, data)
         df_p = pd.DataFrame({"col": col, "row": row, "val": values})
         df_p["x"] = df_p.apply(
-            lambda row_: transformer.xy(row_.row, row_.col)[0],
+            lambda row_: transformer.xy(row_.row, row_.col, offset="center")[0],
             axis=1,
         )
         df_p["y"] = df_p.apply(
-            lambda row_: transformer.xy(row_.row, row_.col)[1],
+            lambda row_: transformer.xy(row_.row, row_.col, offset="center")[1],
             axis=1,
         )
         gdf = gpd.GeoDataFrame(
