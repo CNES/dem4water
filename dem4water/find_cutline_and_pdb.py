@@ -465,7 +465,7 @@ def find_cutline_and_pdb(
             logger.info(f"DAM: {dam_point}")
             # 9. For each GDP draw baselines
             gdf_line, ident = find_base_line_using_segments(
-                gdf_wb, row, ident, index, angle_threshold=150
+                gdf_wb, row, ident, index, work_dir, angle_threshold=150
             )
             logger.info("Base line found. looking for extent")
             # print("aft", ident)
