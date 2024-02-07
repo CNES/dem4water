@@ -210,7 +210,7 @@ def find_insider(wb_poly, poly_gdp):
     inter = wb_poly.overlay(poly)
     if inter.empty:
         return None
-    insider = inter.geometry.centroid.values[0]
+    insider = inter.geometry.representative_point().values[0]
     return insider
 
 
