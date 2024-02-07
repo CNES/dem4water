@@ -74,6 +74,8 @@ A template is provided in this git folder under `example` folder. But it can be 
 command `python3 dem4water/tools/generate_default_configuration.py -o /YOUR_OUTPUT_PATH` which create a
 file: `/YOUR_OUTPUT_PATH/campaign_template_file.json`.
 
+A parameter `mode` is available, it allows to choose between the `GDP` or `standard` mode.
+
 You can edit every parameters in this file. If you not fill a parameter, for instance `reference` let it to `null`
 value.
 
