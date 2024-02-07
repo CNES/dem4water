@@ -1,12 +1,12 @@
 {
     "campaign": {
-        "output_path": "/XXXXX/campagne_ref",
+        "output_path": "/content/gdrive/MyDrive/dem4water/campagne_ref",
         "watermap": null,
         "dem": null,
-        "database": "/XXXXX/dem4water/data/occitanie/occitanie_INPE_geoms.geojson",
+        "database": "/content/gdrive/MyDrive/dem4water/code/dem4water/dem4water/data/occitanie/occitanie_INPE_geoms.geojson",
         "id_dam_column": "ID_SWOT",
         "dam_name_column": "DAM_NAME",
-        "reference": "/XXXXX/dem4water/data/occitanie/occitanie_ref.json",
+        "reference": "/content/gdrive/MyDrive/dem4water/code/dem4water/dem4water/data/occitanie/occitanie_ref.json",
         "customs_files": null,
         "mode": "GDP"
     },
