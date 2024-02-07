@@ -7,7 +7,7 @@
         "id_dam_column": "ID_SWOT",
         "dam_name_column": "DAM_NAME",
         "reference": "/content/gdrive/MyDrive/dem4water/code/dem4water/dem4water/data/occitanie/occitanie_ref.json",
-        "customs_files": "/content/gdrive/MyDrive/dem4water/code/dem4water/dem4water/data/occitanie/corrections,
+        "customs_files": "/content/gdrive/MyDrive/dem4water/code/dem4water/dem4water/data/occitanie/corrections",
         "mode": "GDP"
     },
     "area_mapping": {
