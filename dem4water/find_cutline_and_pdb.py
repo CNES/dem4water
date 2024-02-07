@@ -244,6 +244,7 @@ def find_base_line_using_segments(
     gdf_gdp,
     ident,
     index_line,
+    work_dir,
     buffer_size_max=50,
     step_buff=5,
     angle_threshold=130,
@@ -283,7 +284,7 @@ def find_base_line_using_segments(
         geometry=ori_lines,
         crs=gdf_wb.crs,
     )
-
+    gdf.to_file(os.path.join(work_dir, "segments.geojson"))
     for buff in range(0, buffer_size_max + step_buff, step_buff):
         gdf_gdp_buff = gdf_gdp.copy()
         gdf_gdp_buff.geometry = gdf_gdp_buff.geometry.buffer(buff)
