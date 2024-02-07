@@ -127,27 +127,24 @@ Exemple for the campaign mode:
 dem4water --ram 50 --walltime_hour 4 campaign -json_campaign /YOUR_OUTPUT_PATH/campaign_template_file.json -scheduler_type PBS
 ```
 
-### Automatic download DEM
+### Prepare your run
+
+You need to fill a configuration json file to launch the chain.
+
+An example is provided in notebook/demo_cfg.json
+
+You have to update the `output_path`
+
+If you have a DEM already downloaded, fill the `dem` field with the path and set `retrieve_mode` to `local`.
+
+Note that you need only one file or create a vrt
+
+If you want to automatically download the DEM, let `dem` to `null` and set the parameter `retrieve_mode` to
+`cop30`
 
 DEM can be automatically downloaded on (https://pypi.org/project/bmi-topography/)
 
-In /YOUR_OUTPUT_PATH/campaign_template_file.json :
-
-```bash
-{
-    "campaign": {
-        "output_path": "/YOUR_OUTPUT_PATH/",
-        "dem": null,
-        "database": "/../data/andalousie/andalousie.geojson",
-        "id_dam_column": "ID_SWOT",
-        "dam_name_column": "DAM_NAME",
-        "reference": "/../data/andalousie/andalousie_ref.json",
-        "customs_files": null
-    },
- .....
-
-}
-```
+Other DEM sources will be added in future updates.
 
 ## Try it on Google Colab
 
