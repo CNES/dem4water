@@ -12,7 +12,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
-from rasterio import Affine
 from rasterio.mask import mask
 from shapely.geometry import LineString, MultiPoint, Point
 
@@ -164,8 +163,8 @@ def extract_points_from_raster(raster, poly_dataframe):
     with rasterio.open(raster) as src:
         out_image, out_transform = mask(src, geoms, crop=True)
         # reference the pixel centre
-        transf = out_transform * Affine.translation(0.5, 0.5)
-        transformer = rasterio.transform.AffineTransformer(transf)
+        # transf = out_transform * Affine.translation(0.5, 0.5)
+        transformer = rasterio.transform.AffineTransformer(out_transform)
 
         no_data = src.nodata
         if no_data is None:
@@ -175,11 +174,11 @@ def extract_points_from_raster(raster, poly_dataframe):
         values = np.extract(data != no_data, data)
         df_p = pd.DataFrame({"col": col, "row": row, "val": values})
         df_p["x"] = df_p.apply(
-            lambda row_: transformer.xy(row_.row, row_.col)[0],
+            lambda row_: transformer.xy(row_.row, row_.col, offset="center")[0],
             axis=1,
         )
         df_p["y"] = df_p.apply(
-            lambda row_: transformer.xy(row_.row, row_.col)[1],
+            lambda row_: transformer.xy(row_.row, row_.col, offset="center")[1],
             axis=1,
         )
         gdf = gpd.GeoDataFrame(
@@ -211,7 +210,7 @@ def find_insider(wb_poly, poly_gdp):
     inter = wb_poly.overlay(poly)
     if inter.empty:
         return None
-    insider = inter.geometry.centroid.values[0]
+    insider = inter.geometry.representative_point().values[0]
     return insider
 
 
@@ -245,6 +244,7 @@ def find_base_line_using_segments(
     gdf_gdp,
     ident,
     index_line,
+    work_dir,
     buffer_size_max=50,
     step_buff=5,
     angle_threshold=130,
@@ -284,7 +284,7 @@ def find_base_line_using_segments(
         geometry=ori_lines,
         crs=gdf_wb.crs,
     )
-
+    gdf.to_file(os.path.join(work_dir, "segments.geojson"))
     for buff in range(0, buffer_size_max + step_buff, step_buff):
         gdf_gdp_buff = gdf_gdp.copy()
         gdf_gdp_buff.geometry = gdf_gdp_buff.geometry.buffer(buff)
@@ -465,7 +465,7 @@ def find_cutline_and_pdb(
             logger.info(f"DAM: {dam_point}")
             # 9. For each GDP draw baselines
             gdf_line, ident = find_base_line_using_segments(
-                gdf_wb, row, ident, index, angle_threshold=150
+                gdf_wb, row, ident, index, work_dir, angle_threshold=150
             )
             logger.info("Base line found. looking for extent")
             # print("aft", ident)
