@@ -13,7 +13,7 @@ requirements = [
     "numpy",
     "matplotlib",
     "flake8",
-    "gdal==3.4.3",
+    "gdal",
     "rasterio",
     "bmi_topography",
 ]
