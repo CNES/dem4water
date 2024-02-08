@@ -25,11 +25,13 @@ def ensure_log_name(name):
 def read_list_file(input_file):
     """Read the output of generate_list_from_DB."""
     dams_dict = {}
+    dams_list = []
     with open(input_file, "r", encoding="utf-8") as file_name:
         dams_to_process = file_name.readlines()
         for dam in dams_to_process:
             dams_dict[dam.split(",")[1].rstrip()] = dam.split(",")[0]
-        return dams_dict
+            dams_list.append(dam.split(",")[1].rstrip())
+        return dams_list
 
 
 def generate_folders(output_path):
@@ -110,11 +112,17 @@ def write_json(
         # Ensure output path exists
         output_list = os.path.join(output_path, "dam_list.txt")
         if input_force_list is not None:
-            dict_all_dams = read_list_file(input_force_list)
+            input_list_force = read_list_file(input_force_list)
         else:
-            dict_all_dams = create_dam_list_from_db(
-                database, dam_id_column, dam_name_column, output_list, concat
-            )
+            input_list_force = None
+        dict_all_dams = create_dam_list_from_db(
+            database,
+            dam_id_column,
+            dam_name_column,
+            output_list,
+            concat,
+            input_list_force,
+        )
 
         keys_ref = []
         if reference is not None:

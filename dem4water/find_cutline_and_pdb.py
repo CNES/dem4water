@@ -378,7 +378,7 @@ def find_cutline_and_pdb(
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logger_format)
     logger.info("Starting search cutline and PDB using GDP")
-    maximum_alt = maximum_alt + elevoffset
+    maximum_alt = float(maximum_alt) + float(elevoffset)
     # 1. Manage the particularity of database:
     # - Fuse multipolygon
     # - Remove holes inside water body
