@@ -10,7 +10,6 @@
 TMP_DIR=${6}
 
 for i in $(seq "$2" "$3" "$4"); do
-  # echo $i
   gdal_contour -p -amax ID -fl "$i" "$1" "${TMP_DIR}/__TMP__poly_${i}.json"
   ogr2ogr -where ID="$i" "${TMP_DIR}/__TMP__poly_${i}_FIL.json" "${TMP_DIR}/__TMP__poly_${i}.json"
   rm "${TMP_DIR}/__TMP__poly_${i}.json"

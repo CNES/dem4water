@@ -7,7 +7,17 @@ from setuptools import find_packages, setup
 with open("README.md", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
-requirements = ["geopandas", "numpy", "matplotlib"]
+requirements = [
+    "geopandas",
+    "scipy",
+    "numpy",
+    "matplotlib",
+    "flake8",
+    "gdal",
+    "rasterio",
+    "bmi_topography",
+]
+
 
 test_requirements = []
 
@@ -31,6 +41,8 @@ setup(
     entry_points={
         "console_scripts": [
             "dem4water=dem4water.cli:main",
+            "config_template=dem4water.tools.generate_default_configuration:main",
+
         ],
     },
     install_requires=requirements,

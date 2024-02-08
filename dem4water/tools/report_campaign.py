@@ -28,7 +28,6 @@ def ensure_combo(folder):
 
 
 def check_pbd_delta(folder, name):
-
     szi_file = glob.glob(os.path.join(folder, "*SZi.dat"))
     dam_info = os.path.join(folder, f"{name}_daminfo.json")
 
@@ -56,6 +55,10 @@ def check_pbd_delta(folder, name):
     return name, delta, delta2
 
 
+
+def compute_vmax():
+    pass
+
 def main(arguments):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -76,10 +79,7 @@ def main(arguments):
         ensure_combo(folder)
         ret = check_pbd_delta(folder, dam_name)
         deltas.append(ret)
-        _, val = check_cutline_score(
-            dam_name, os.path.join(logs_dir, f"{dam_name}_out.log")
-        )
-        cutline_score[dam_name] = val
+
     deltas = sorted(deltas, key=lambda x: x[1])
     # print(deltas)
     for k, v, v2 in deltas:

@@ -63,7 +63,9 @@ file](./AUTHORS.md).
 
 The Merge Request will be merged into master after being reviewed by dem4water steering committee (core committers) composed of:
 
+
 - Santiago Pena Luque (CNES)
+
 
 Only the members of this committee can merge into master.
 

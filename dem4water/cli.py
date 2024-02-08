@@ -6,14 +6,23 @@ import os
 import subprocess
 import sys
 
-from dem4water.area_mapping import area_mapping
+from dem4water.area_mapping_v2 import area_mapping
 from dem4water.cut_contourlines import cut_countourlines
-from dem4water.cutline_score import cutline_score
+from dem4water.find_cutline_and_pdb import find_cutline_and_pdb
 from dem4water.find_pdb_and_cutline import find_pdb_and_cutline
 from dem4water.szi_to_model import szi_to_model
 from dem4water.tools.generate_dam_json_config import write_json
 from dem4water.val_report import val_report
 
+
+
+def run_command(args):
+    """"""
+    output = subprocess.run(args, capture_output=True)
+    print("###############")
+    print("Return code:", output.returncode)
+    # use decode function to convert to string
+    print("Output:", output.stdout.decode("utf-8"))
 
 def get_current_git_rev():
     """Get the current revision number from git sources."""
@@ -50,7 +59,54 @@ def launch_pbs(conf, log_out, log_err, cpu=12, ram=60, h_wall=1, m_wall=0):
     out_file = log_out.replace(".log", ".pbs")
     with open(out_file, "w", encoding="utf-8") as ofile:
         ofile.write(pbs_file)
-    os.system(f"qsub {out_file}")
+    run_command(["qsub", out_file])
+
+
+def launch_slurm(
+    conf,
+    log_out,
+    log_err,
+    cpu=12,
+    ram=60,
+    h_wall=1,
+    m_wall=0,
+    account="campus",
+    dam_name=None,
+):
+    """Submit a job to pbs."""
+    # Export system variables simulating loading modules and venv
+    if dam_name is None:
+        name = "dem4water"
+    else:
+        name = f"d4w_{dam_name}"
+    pbs_file = (
+        "#!/bin/bash\n"
+        f"#SBATCH --job-name {name}"
+        "#SBATCH -N 1\n"
+        "#SBATCH --ntasks=1\n"
+        f"#SBATCH --cpus-per-task={cpu}\n"
+        f"#SBATCH --mem={ram}gb\n"
+        f"#SBATCH --time={int(h_wall):02d}:{int(m_wall):02d}:00\n"
+        f"#SBATCH --error={log_err}\n"
+        f"#SBATCH --output={log_out}\n"
+        f"#SBATCH --account={account}\n"
+        "\nmodule purge\n"
+        f"export PYTHONPATH={os.environ.get('PYTHONPATH')}\n"
+        f"export PATH={os.environ.get('PATH')}\n"
+        f"export LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH')}\n"
+        "export OTB_APPLICATION_PATH="
+        f"{os.environ.get('OTB_APPLICATION_PATH')}\n"
+        f"export GDAL_DATA={os.environ.get('GDAL_DATA')}\n"
+        f"export GEOTIFF_CSV={os.environ.get('GEOTIFF_CSV')}\n"
+        f"export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={cpu}\n\n"
+        f"dem4water single -dam_json {conf} -scheduler_type local"
+    )
+    out_file = log_out.replace(".log", ".slurm")
+    with open(out_file, "w", encoding="utf-8") as ofile:
+        ofile.write(pbs_file)
+    print("Submit slurm job ", out_file)
+    run_command(["sbatch", out_file])
+
 
 
 def launch_campaign(
@@ -63,26 +119,43 @@ def launch_campaign(
     input_force_list,
 ):
     """Launch on PBS or local."""
-    config_list = write_json(json_campaign, input_force_list)
+
+    config_list = write_json(json_campaign, input_force_list=input_force_list)
+
     # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
             launch_full_process(conf)
     else:
         for conf in config_list:
+            name = conf.split("/")[-1].split("_")[-1].split(".")[0]
+
             with open(conf, encoding="utf-8") as in_config:
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
                 log_err = config["chain"]["log_err"]
-                launch_pbs(
-                    conf,
-                    log_out,
-                    log_err,
-                    h_wall=walltime_hour,
-                    m_wall=walltime_minutes,
-                    ram=ram,
-                    cpu=cpu,
-                )
+                if scheduler == "PBS":
+                    launch_pbs(
+                        conf,
+                        log_out,
+                        log_err,
+                        h_wall=walltime_hour,
+                        m_wall=walltime_minutes,
+                        ram=ram,
+                        cpu=cpu,
+                    )
+                elif scheduler == "Slurm":
+                    launch_slurm(
+                        conf,
+                        log_out,
+                        log_err,
+                        h_wall=walltime_hour,
+                        m_wall=walltime_minutes,
+                        ram=ram,
+                        cpu=cpu,
+                        dam_name=name,
+                    )
+
 
 
 def launch_reference_validation_campaign(
@@ -156,11 +229,14 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
 
         launch_full_process(conf)
     else:
+        name = conf.split("/")[-1].split("_")[-1].split(".")[0]
+
         with open(conf, encoding="utf-8") as in_config:
             config = json.load(in_config)
             log_out = config["chain"]["log_out"]
             log_err = config["chain"]["log_err"]
-            launch_pbs(
+            launch_slurm(
+
                 conf,
                 log_out,
                 log_err,
@@ -168,32 +244,45 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
                 m_wall=walltime_minutes,
                 ram=ram,
                 cpu=cpu,
+                dam_name=name,
+
             )
 
 
 def launch_full_process(input_config_json):
     """Console script for dem4water."""
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("_", nargs="*")
-    # args = parser.parse_args()
 
     with open(input_config_json, encoding="utf-8") as in_config:
         config = json.load(in_config)
 
-    extract_watermap = config["area_mapping"]["out_wmap"]
-    extract_dem = config["area_mapping"]["out_dem"]
-
-    if os.path.exists(extract_watermap) and os.path.exists(extract_dem):
+    # extract_watermap = config["area_mapping"]["out_wmap"]
+    if "find_pdb_and_cutline" in config:
+        extract_dem = config["find_pdb_and_cutline"]["dem"]
+    else:
+        extract_dem = config["find_cutline_and_pdb"]["dem_raster"]
+    # algo = config["area_mapping"]["mode"]
+    # if (os.path.exists(extract_watermap) and
+    if os.path.exists(extract_dem):
         logging.info(
-            f"{extract_watermap} already exists.\n"
+            # f"{extract_watermap} already exists.\n"
             f"{extract_dem} already exists.\n"
             ".Skipping area_mapping"
         )
     else:
         area_mapping(**config["area_mapping"])
-
-    find_pdb_and_cutline(**config["find_pdb_and_cutline"])
-    cutline_score(**config["cutline_score"])
+    skip = False
+    if (
+        "_custom" in config["cut_contourlines"]["info"]
+        and "_custom" in config["cut_contourlines"]["cutline"]
+    ):
+        logging.info("Skip cutline and daminfo generation because customs files found.")
+        skip = True
+    if not skip:
+        if "find_cutline_and_pdb" in config:
+            find_cutline_and_pdb(**config["find_cutline_and_pdb"])
+        else:
+            find_pdb_and_cutline(**config["find_pdb_and_cutline"])
+    # cutline_score(**config["cutline_score"])
     cut_countourlines(**config["cut_contourlines"])
     szi_to_model(**config["szi_to_model"])
     if "val_report" in config:
@@ -232,7 +321,10 @@ def process_parameters():
         required=True,
     )
     parser_camp.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or Slurm",
+        default="Slurm",
+        choices=["local", "Slurm"],
     )
     parser_camp.add_argument(
         "-input_force_list",
@@ -261,7 +353,10 @@ def process_parameters():
         "-only_ref", action="store_true", help="Launch only dams with a ref."
     )
     parser_ref.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or PBS",
+        default="Slurm",
+        choices=["local", "PBS", "Slurm"],
     )
     # mode DAM unique
     # dem4water --json agly.json
@@ -272,7 +367,10 @@ def process_parameters():
         "-dam_json", help="Configuration for an unique dam", required=True
     )
     parser_single.add_argument(
-        "-scheduler_type", help="Local or PBS", default="PBS", choices=["local", "PBS"]
+        "-scheduler_type",
+        help="Local or PBS",
+        default="Slurm",
+        choices=["local", "PBS", "Slurm"],
     )
 
     return parser

@@ -8,8 +8,12 @@ import logging
 import sys
 
 
-def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=False):
+def create_dam_list_from_db(
+    dams_file, dam_id, dam_name, output_list, concat=False, input_force_list=None
+):
     """Parse geojson file and return the dam valid for processing."""
+    if input_force_list is None:
+        input_force_list = []
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     count_correct = 0
     count_incorrect = 0
@@ -22,7 +26,6 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
         if not crs == "CRS84":
             raise ValueError(f"CRS must be in WGS84/EPSG:4326, {crs} found.")
         with open(output_list, f"{suf}", encoding="utf-8") as output_file:
-
             for feature in reader["features"]:
                 # DAM_LVL_M is hard coded in dem4water
                 dam_lvl_m = feature["properties"]["DAM_LVL_M"]
@@ -37,9 +40,11 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
                 try:
                     float(dam_lvl_m)
                     id_dam = int(feature["properties"][dam_id])
-
+                    if input_force_list:
+                        if name_dam not in input_force_list:
+                            continue
                     output_file.write(f"{id_dam},{name_dam} \n")
-                    dam_to_process[name_dam] = id_dam
+                    dam_to_process[name_dam] = [id_dam, dam_lvl_m]
                     count_correct += 1
                 except ValueError:
                     print(
@@ -47,7 +52,6 @@ def create_dam_list_from_db(dams_file, dam_id, dam_name, output_list, concat=Fal
                         f"{dam_lvl_m} detected. Please check your DB"
                     )
                     count_incorrect += 1
-
     print(f"{count_correct + count_incorrect} dams found in {dams_file}")
     print(f"Ready to launch : {count_correct} dams")
     print(f"{count_incorrect} dams need corrections")

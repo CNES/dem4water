@@ -12,9 +12,14 @@ from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
-import otbApplication as otb
+
+import rasterio as rio
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
+
+from dem4water.tools.extract_roi import ExtractROIParam, extract_roi
+from dem4water.tools.save_raster import save_image
+from dem4water.tools.superimpose import SuperimposeParam, superimpose
 
 from dem4water.tools.utils import distance
 
@@ -153,6 +158,8 @@ def find_pdb_and_cutline(
             # dam_path = dam_path.replace("-","_")
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
+            # extraire l'altitude directement depuis le MNT
+
             if bool(feature.GetField("DAM_LVL_M")):
                 calt = float(feature.GetField("DAM_LVL_M"))
                 calt_from_DB = True
@@ -268,29 +275,27 @@ def find_pdb_and_cutline(
         bml_alt = calt
     else:
         logging.info("Alt Estimated from Watermap.")
-        ext = otb.Registry.CreateApplication("ExtractROI")
-        ext.SetParameterString("in", dem)
-        ext.SetParameterString("out", os.path.join(out, "dem_pdb.tif"))
-        ext.SetParameterString("mode", "radius")
-        ext.SetParameterString("mode.radius.unitr", "phy")
-        ext.SetParameterFloat("mode.radius.r", pdbradius)
-        ext.SetParameterString("mode.radius.unitc", "phy")
-        ext.SetParameterFloat("mode.radius.cx", dam.GetX())
-        ext.SetParameterFloat("mode.radius.cy", dam.GetY())
-        ext.ExecuteAndWriteOutput()
+        extract_roi_parameters_ext = ExtractROIParam(
+            mode="radius",
+            mode_radius_r=pdbradius,
+            mode_radius_unitr="phy",
+            mode_radius_unitc="phy",
+            mode_radius_cx=dam.GetX(),
+            mode_radius_cy=dam.GetY(),
+            dtype="float",
+        )
 
-        extw = otb.Registry.CreateApplication("Superimpose")
-        extw.SetParameterInputImage("inr", ext.GetParameterOutputImage("out"))
-        extw.SetParameterString("inm", watermap)
-        extw.Execute()
+        ext, profile_ext = extract_roi(rio.open(dem), extract_roi_parameters_ext)
+        save_image(ext, profile_ext, os.path.join(out, "dem_pdb.tif"))
 
-        bml = otb.Registry.CreateApplication("BandMath")
-        bml.AddImageToParameterInputImageList("il", extw.GetParameterOutputImage("out"))
-        bml.AddImageToParameterInputImageList("il", ext.GetParameterOutputImage("out"))
-        bml.SetParameterString("exp", "( im1b1  > 0.05 ) ? im2b1 : 0")
-        bml.Execute()
+        superimpose_extw = SuperimposeParam(interpolator="bco", dtype="float")
+        extw, profile_extw = superimpose(
+            rio.open(watermap), ext, superimpose_extw, profile_ext, None
+        )
+        bml = np.where(extw > 0.05, ext, 0)
+        np_bml = bml.reshape(bml.shape[1], bml.shape[2])
 
-        np_bml = bml.GetImageAsNumpyArray("out")
+
         bml_alt = np.amax(np_bml)
 
     targetelev = bml_alt + elevoffset
@@ -321,17 +326,20 @@ def find_pdb_and_cutline(
         rad_l = []
         alt_l = []
         for r in range(pdbradius, 1, -1 * pdbstep):
-            ext_l = otb.Registry.CreateApplication("ExtractROI")
-            ext_l.SetParameterString("in", dem)
-            ext_l.SetParameterString("mode", "radius")
-            ext_l.SetParameterString("mode.radius.unitr", "phy")
-            ext_l.SetParameterFloat("mode.radius.r", r)
-            ext_l.SetParameterString("mode.radius.unitc", "phy")
-            ext_l.SetParameterFloat("mode.radius.cx", dam.GetX())
-            ext_l.SetParameterFloat("mode.radius.cy", dam.GetY())
-            ext_l.Execute()
+            extract_roi_parameters_ext_l = ExtractROIParam(
+                mode="radius",
+                mode_radius_r=r,
+                mode_radius_unitr="phy",
+                mode_radius_unitc="phy",
+                mode_radius_cx=dam.GetX(),
+                mode_radius_cy=dam.GetY(),
+            )
 
-            np_ext_l = ext_l.GetImageAsNumpyArray("out")
+            ext_l, profile_ext_l = extract_roi(
+                rio.open(dem), extract_roi_parameters_ext_l
+            )
+
+            np_ext_l = ext_l.reshape(ext_l.shape[1], ext_l.shape[2])
             ext_l_alt = np.amin(np_ext_l)
 
             rad_l.append(r)
@@ -399,18 +407,19 @@ def find_pdb_and_cutline(
             sys.exit("PDB search failed for dam " + dam_name + ". Aborting.")
 
         # Retrieve PDB coordinates
-        ext = otb.Registry.CreateApplication("ExtractROI")
-        ext.SetParameterString("in", dem)
-        ext.SetParameterString("out", os.path.join(out, "dem_pdb.tif"))
-        ext.SetParameterString("mode", "radius")
-        ext.SetParameterString("mode.radius.unitr", "phy")
-        ext.SetParameterFloat("mode.radius.r", rad_pdb)
-        ext.SetParameterString("mode.radius.unitc", "phy")
-        ext.SetParameterFloat("mode.radius.cx", dam.GetX())
-        ext.SetParameterFloat("mode.radius.cy", dam.GetY())
-        ext.ExecuteAndWriteOutput()
+        extract_roi_parameters_ext = ExtractROIParam(
+            mode="radius",
+            mode_radius_r=rad_pdb,
+            mode_radius_unitr="phy",
+            mode_radius_unitc="phy",
+            mode_radius_cx=dam.GetX(),
+            mode_radius_cy=dam.GetY(),
+        )
 
-        np_ext = ext.GetImageAsNumpyArray("out")
+        ext, profile_ext = extract_roi(rio.open(dem), extract_roi_parameters_ext)
+        save_image(ext, profile_ext, os.path.join(out, "dem_pdb.tif"))
+        np_ext = ext.reshape(ext.shape[1], ext.shape[2])
+
         indices = np.where(np_ext == [alt_pdb])
         # TODO: if multiple pdb detected
         if len(indices[0]) > 1:
@@ -419,21 +428,10 @@ def find_pdb_and_cutline(
                 + str(len(indices[0]))
                 + "]"
             )
-        #  print("Indices Length: "+str(len(indices[0])))
-        #  print("X: "+str(indices[1][0]))
-        #  print("Y: "+str(indices[0][0]))
+
 
         ds = gdal.Open(os.path.join(out, "dem_pdb.tif"))
-        #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
-        #  xoffset, px_w, rot1, yoffset, rot2, px_h = ds.GetGeoTransform()
-        #  print(ds.GetGeoTransform())
 
-        #  posX = px_w * indices[1][0] + rot1 * indices[0][0] + xoffset
-        #  posY = rot2 * indices[1][0] + px_h * indices[0][0] + yoffset
-
-        # shift to the center of the pixel
-        #  posX += px_w / 2.0
-        #  posY += px_h / 2.0
 
         posX, posY = coord(indices[1][0], indices[0][0], ds)
         pX, pY = pixel(posX, posY, ds)
@@ -473,7 +471,8 @@ def find_pdb_and_cutline(
         p = ogr.CreateGeometryFromWkt(wkt)
         feat.SetGeometryDirectly(p)
         feat.SetField("name", "PDB")
-        feat.SetField("elev", "")
+        feat.SetField("elev", pdbalt)
+
         feat.SetField("damname", dam_path)
         feat.SetField("ID", dam_id)
         dst_layer.CreateFeature(feat)
@@ -563,18 +562,21 @@ def find_pdb_and_cutline(
 
     # Search for Dam Line
     # TODO: fix confusion between radius and pdbradius needed here
-    ext_r = otb.Registry.CreateApplication("ExtractROI")
-    ext_r.SetParameterString("in", dem)
-    ext_r.SetParameterString(
-        "out", os.path.join(tmp, "extract@" + str(radius) + "mFromDam.tif")
+    extract_roi_parameters_ext_r = ExtractROIParam(
+        mode="radius",
+        mode_radius_r=radius,
+        mode_radius_unitr="phy",
+        mode_radius_unitc="phy",
+        mode_radius_cx=dam.GetX(),
+        mode_radius_cy=dam.GetY(),
     )
-    ext_r.SetParameterString("mode", "radius")
-    ext_r.SetParameterString("mode.radius.unitr", "phy")
-    ext_r.SetParameterFloat("mode.radius.r", radius)
-    ext_r.SetParameterString("mode.radius.unitc", "phy")
-    ext_r.SetParameterFloat("mode.radius.cx", dam.GetX())
-    ext_r.SetParameterFloat("mode.radius.cy", dam.GetY())
-    ext_r.ExecuteAndWriteOutput()
+
+    ext_r, profile_ext_r = extract_roi(rio.open(dem), extract_roi_parameters_ext_r)
+    save_image(
+        ext_r,
+        profile_ext_r,
+        os.path.join(tmp, "extract@" + str(radius) + "mFromDam.tif"),
+    )
 
     r_ds = gdal.Open(
         os.path.join(tmp, "extract@" + str(radius) + "mFromDam.tif"),
@@ -582,7 +584,9 @@ def find_pdb_and_cutline(
     )
     r_x, r_y = pixel(dam.GetX(), dam.GetY(), r_ds)
 
-    np_r = ext_r.GetImageAsNumpyArray("out")
+
+    np_r = ext_r.reshape(ext_r.shape[1], ext_r.shape[2])
+
     (image_size_y, image_size_x) = np_r.shape
     # Disk definition:
     (center_x, center_y) = (r_x, r_y)
@@ -825,7 +829,7 @@ def find_pdb_and_cutline(
                     % (dem, prev1geo.GetY(), prev1geo.GetX())
                 ).read()
             )
-            #  logging.debug("Currently processing prev1 @radius: "+ str(radius) +" [Lat: "+ str(prev1geo.GetX()) +", Lon: "+ str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
+
             if (prev1alt > targetelev) and (stop_side_1 is False):
                 stop_side_1 = True
                 logging.info(
@@ -846,7 +850,7 @@ def find_pdb_and_cutline(
                     % (dem, str(prev2geo.GetY()), str(prev2geo.GetX()))
                 ).read()
             )
-            #  logging.debug("Currently processing prev2 @radius: "+ str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+ str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
+
             if (prev2alt > targetelev) and (stop_side_2 is False):
                 stop_side_2 = True
                 logging.info(

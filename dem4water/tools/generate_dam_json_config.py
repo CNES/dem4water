@@ -25,11 +25,14 @@ def ensure_log_name(name):
 def read_list_file(input_file):
     """Read the output of generate_list_from_DB."""
     dams_dict = {}
+    dams_list = []
+
     with open(input_file, "r", encoding="utf-8") as file_name:
         dams_to_process = file_name.readlines()
         for dam in dams_to_process:
             dams_dict[dam.split(",")[1].rstrip()] = dam.split(",")[0]
-        return dams_dict
+            dams_list.append(dam.split(",")[1].rstrip())
+        return dams_list
 
 
 def generate_folders(output_path):
@@ -42,12 +45,16 @@ def generate_folders(output_path):
     extract_path = os.path.join(output_path, "extracts")
     create_folder(extract_path)
 
+    download_path = os.path.join(output_path, "download")
+    create_folder(download_path)
+
     log_path = os.path.join(output_path, "log")
     create_folder(log_path)
 
 
 def copy_customs_files_to_camp_folder(custom_path, dest_path, dam):
-    """Copy custom files is exists and rename it to the correct nomenclature."""
+    """Copy custom files if exists and rename it to the correct nomenclature."""
+
     out_dam = None
     out_cut = None
     out_dat = None
@@ -98,21 +105,25 @@ def write_json(
                 version_file.write(version_name)
         database = config["campaign"]["database"]
         reference = config["campaign"]["reference"]
-        watermap = config["campaign"]["watermap"]
         dem = config["campaign"]["dem"]
         customs_files = config["campaign"]["customs_files"]
         dam_id_column = config["campaign"]["id_dam_column"]
         dam_name_column = config["campaign"]["dam_name_column"]
-
+        mode = config["campaign"]["mode"]
         # Ensure output path exists
         output_list = os.path.join(output_path, "dam_list.txt")
         if input_force_list is not None:
-            dict_all_dams = read_list_file(input_force_list)
+            input_list_force = read_list_file(input_force_list)
         else:
-            dict_all_dams = create_dam_list_from_db(
-                database, dam_id_column, dam_name_column, output_list, concat
-            )
-
+            input_list_force = None
+        dict_all_dams = create_dam_list_from_db(
+            database,
+            dam_id_column,
+            dam_name_column,
+            output_list,
+            concat,
+            input_list_force,
+        )
         keys_ref = []
         if reference is not None:
             with open(reference, encoding="utf-8") as ref_file:
@@ -120,7 +131,9 @@ def write_json(
                 dict_ref = dict(ref_cont)
                 keys_ref = dict_ref.keys()
                 keys_ref = [int(key) for key in keys_ref]
-        for dam, id_dam in dict_all_dams.items():
+        for dam, list_id_alt in dict_all_dams.items():
+            id_dam = list_id_alt[0]
+            maximum_alt = list_id_alt[1]
             if ref_only and keys_ref:
                 if id_dam not in keys_ref:
                     print(f"{dam} {id_dam} not in reference")
@@ -132,6 +145,8 @@ def write_json(
             create_folder(output_dam_camp_path)
             output_dam_tmp = os.path.join(output_path, "camp", dam_path_name, "tmp")
             create_folder(output_dam_tmp)
+            output_download_path = os.path.join(output_path, "download", dam_path_name)
+            create_folder(output_download_path)
             output_dam_extract_path = os.path.join(
                 output_path, "extracts", dam_path_name
             )
@@ -139,9 +154,14 @@ def write_json(
             extract_dem = os.path.join(
                 output_dam_extract_path, f"dem_extract_{dam_path_name}.tif"
             )
-
-            extract_wmap = os.path.join(
-                output_dam_extract_path, f"wmap_extract_{dam_path_name}.tif"
+            if mode == "GDP":
+                extract_wmap = os.path.join(output_dam_camp_path, "waterbody_bin.tif")
+            else:
+                extract_wmap = os.path.join(
+                    output_dam_extract_path, f"wmap_extract_{dam_path_name}.tif"
+                )
+            extract_db = os.path.join(
+                output_dam_extract_path, f"DB_{dam_path_name}.geojson"
             )
 
             elevsamp = config["cut_contourlines"]["elevsampling"]
@@ -183,37 +203,42 @@ def write_json(
                 ),
             }
             dict_dam["area_mapping"] = {
-                "infile": database,
-                "dam_id": id_dam,
-                "id_db": dam_id_column,
-                "watermap": watermap,
+                "dam_name": dam,
+                "dam_database": database,
+                "out_dir": output_dam_extract_path,
                 "dem": dem,
-                "out_wmap": extract_wmap,
-                "out_dem": extract_dem,
+                "dam_id": id_dam,
                 **config["area_mapping"],
             }
-            dict_dam["find_pdb_and_cutline"] = {
-                "infile": database,
-                "dam_id": id_dam,
-                "id_db": dam_id_column,
-                "watermap": extract_wmap,
-                "dem": extract_dem,
-                "out": output_dam_camp_path,
-                "info": daminfo_file,
-                "tmp": output_dam_tmp,
-                **config["find_pdb_and_cutline"],
-            }
+            if mode == "GDP":
+                dict_dam["find_cutline_and_pdb"] = {
+                    "database_file": extract_db,
+                    "dem_raster": extract_dem,
+                    "work_dir": output_dam_camp_path,
+                    "id_db": id_dam,
+                    "dam_name": dam,
+                    "maximum_alt": maximum_alt,
+                    **config["find_cutline_and_pdb"],
+                }
+            else:
+                dict_dam["find_pdb_and_cutline"] = {
+                    "infile": database,
+                    "dam_id": id_dam,
+                    "id_db": dam_id_column,
+                    "watermap": extract_wmap,
+                    "dem": extract_dem,
+                    "out": output_dam_camp_path,
+                    "info": daminfo_file,
+                    "tmp": output_dam_tmp,
+                    **config["find_pdb_and_cutline"],
+                }
+
+
             # If no custom daminfo, it was generated by the previous function
             if daminfo_file is None:
                 daminfo_file = os.path.join(
                     output_dam_camp_path, f"{dam_path_name}_daminfo.json"
                 )
-            dict_dam["cutline_score"] = {
-                "infile": cutline_file,
-                "watermap": extract_wmap,
-                "out": output_dam_camp_path,
-                **config["cutline_score"],
-            }
 
             dict_dam["cut_contourlines"] = {
                 "info": daminfo_file,
@@ -223,12 +248,14 @@ def write_json(
                 "cache": output_dam_extract_path,
                 "tmp": output_dam_tmp,
                 "out": output_dam_camp_path,
+                "mode": mode,
+
                 **config["cut_contourlines"],
             }
 
             dict_dam["szi_to_model"] = {
                 "szi_file": szi_dat_file,
-                "database": database,
+                "database": extract_db,
                 "watermap": extract_wmap,
                 "daminfo": daminfo_file,
                 "outfile": os.path.join(
