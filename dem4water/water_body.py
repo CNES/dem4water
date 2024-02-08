@@ -12,6 +12,7 @@ import rasterio as rio
 from dem4water.tools.save_raster import save_image
 
 
+
 def create_water_mask(watermap, water_thres=0.15):
     """Find the water body."""
     binary_water_map = watermap.replace(".tif", "_binary.tif")
@@ -38,6 +39,7 @@ def compute_area_from_water_body(dam_info, shp_w_map):
     gdf_filtered = gdf_w_map[gdf_w_map.DN == 1]
 
     gdf_dam = gpd.GeoDataFrame().from_file(dam_info)
+
     gdf_insider = gdf_dam[gdf_dam.name == "Insider"]
     # convert point to polygon
     gdf_insider.geometry = gdf_insider.geometry.buffer(1)

@@ -15,6 +15,7 @@ from dem4water.tools.generate_dam_json_config import write_json
 from dem4water.val_report import val_report
 
 
+
 def run_command(args):
     """"""
     output = subprocess.run(args, capture_output=True)
@@ -22,7 +23,6 @@ def run_command(args):
     print("Return code:", output.returncode)
     # use decode function to convert to string
     print("Output:", output.stdout.decode("utf-8"))
-
 
 def get_current_git_rev():
     """Get the current revision number from git sources."""
@@ -108,6 +108,7 @@ def launch_slurm(
     run_command(["sbatch", out_file])
 
 
+
 def launch_campaign(
     json_campaign,
     scheduler,
@@ -118,7 +119,9 @@ def launch_campaign(
     input_force_list,
 ):
     """Launch on PBS or local."""
+
     config_list = write_json(json_campaign, input_force_list=input_force_list)
+
     # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
@@ -126,6 +129,7 @@ def launch_campaign(
     else:
         for conf in config_list:
             name = conf.split("/")[-1].split("_")[-1].split(".")[0]
+
             with open(conf, encoding="utf-8") as in_config:
                 config = json.load(in_config)
                 log_out = config["chain"]["log_out"]
@@ -151,6 +155,7 @@ def launch_campaign(
                         cpu=cpu,
                         dam_name=name,
                     )
+
 
 
 def launch_reference_validation_campaign(
@@ -221,14 +226,17 @@ def launch_reference_validation_campaign(
 def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
     """Launch a single dam on PBS or local mode."""
     if scheduler == "local":
+
         launch_full_process(conf)
     else:
         name = conf.split("/")[-1].split("_")[-1].split(".")[0]
+
         with open(conf, encoding="utf-8") as in_config:
             config = json.load(in_config)
             log_out = config["chain"]["log_out"]
             log_err = config["chain"]["log_err"]
             launch_slurm(
+
                 conf,
                 log_out,
                 log_err,
@@ -237,11 +245,13 @@ def launch_single(conf, scheduler, walltime_hour, walltime_minutes, ram, cpu):
                 ram=ram,
                 cpu=cpu,
                 dam_name=name,
+
             )
 
 
 def launch_full_process(input_config_json):
     """Console script for dem4water."""
+
     with open(input_config_json, encoding="utf-8") as in_config:
         config = json.load(in_config)
 
@@ -312,7 +322,7 @@ def process_parameters():
     )
     parser_camp.add_argument(
         "-scheduler_type",
-        help="Local or PBS",
+        help="Local or Slurm",
         default="Slurm",
         choices=["local", "Slurm"],
     )

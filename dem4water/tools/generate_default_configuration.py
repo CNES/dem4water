@@ -6,13 +6,14 @@ import json
 import os
 import sys
 
+
 from dem4water.area_mapping_v2 import area_mapping_args
 from dem4water.cut_contourlines import cut_countourlines_ars
-from dem4water.cutline_score import cutline_score_parameters
 from dem4water.find_cutline_and_pdb import find_cutline_and_pdb_args
 from dem4water.find_pdb_and_cutline import find_pdb_and_cutline_parameters
 from dem4water.szi_to_model import szi_to_model_parameters
 from dem4water.val_report import val_report_parameters
+
 
 
 def get_all_parameters(output_path, mode):
@@ -61,15 +62,6 @@ def get_all_parameters(output_path, mode):
             value = getattr(find_cut_and_pdb_args, arg)
             if value is not None:
                 all_parameters["find_cutline_and_pdb"][arg] = value
-    # cutline score
-    parser = cutline_score_parameters()
-    score_args = parser.parse_args()
-    all_parameters["cutline_score"] = {}
-
-    for arg in vars(score_args):
-        value = getattr(score_args, arg)
-        if value is not None:
-            all_parameters["cutline_score"][arg] = value
 
     # cut_contourlines
     parser = cut_countourlines_ars()
@@ -125,6 +117,7 @@ def main():
     # DO NOT TOUCH THIS LINE
     sys.argv = [sys.argv[0]]
     get_all_parameters(args.output_path, args.mode)
+
 
 
 if __name__ == "__main__":

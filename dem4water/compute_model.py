@@ -16,6 +16,7 @@ log.setLevel(logging.ERROR)
 logging.getLogger("geopandas").setLevel(logging.WARNING)
 
 
+
 def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
     """Use a ratio to remove first jump found.
 
@@ -54,6 +55,7 @@ def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
             break
 
     if break_found is True:
+
         logger.debug(
             f"Dropping S_ZI after index {stop_i} with a delta ratio of {ratio}."
         )
@@ -61,6 +63,7 @@ def remove_jump_szi(infile, z_i=None, s_zi=None, jump_ratio=4):
         s_zi = s_zi[stop_i:]
     else:
         logger.debug("No outliers detected, keeping all S_ZI data.")
+
     return z_i, s_zi
 
 
@@ -157,10 +160,11 @@ def select_lower_szi(z_i, sz_i, damelev, max_offset, winsize):
 
 def compute_model(z_i, s_zi, z_0, s_z0):
     """Compute model from points."""
+
     logger.info(f"Model computed using {len(s_zi)} values.")
     poly = np.polyfit(z_i, s_zi, 1, rcond=None, full=False, w=None, cov=False)
     beta = poly[0] * (median(z_i) - z_0) / (median(s_zi) - s_z0)
-    # print(poly[0], z_i, z_0, beta)
+
     alpha = poly[0] * (math.pow(median(z_i) - z_0, 1 - beta)) / beta
 
     mae_sum = 0
@@ -169,4 +173,5 @@ def compute_model(z_i, s_zi, z_0, s_z0):
         mae_sum += abs(s_z - surf)
     mae = mae_sum / len(z_i)
     logger.info(f"MAE computed: {mae}")
+
     return alpha, beta, mae, poly

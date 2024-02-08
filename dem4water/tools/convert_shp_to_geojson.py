@@ -87,7 +87,6 @@ def main():
         list_values = list(gdf[field])
         corrected_values = normalize_list_float(list_values)
         gdf[field] = corrected_values
-        # input(gdf[field])
     gdf = gdf.to_crs("EPSG:2154")
     out_gdf = gpd.sjoin_nearest(gdf2, gdf, how="left")
     out_gdf = out_gdf.drop(["index_right"], axis="columns")

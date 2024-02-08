@@ -29,6 +29,7 @@ from dem4water.tools.superimpose import (
     superimpose,
     superimpose_with_shape,
 )
+
 from dem4water.tools.utils import distance
 
 
@@ -49,6 +50,7 @@ def area_mapping(
     Retrieve dam coordinate
     """
     t1_start = perf_counter()
+
     # Silence VRT related error (bad magic number)
     gdal.PushErrorHandler("CPLQuietErrorHandler")
 
@@ -73,8 +75,10 @@ def area_mapping(
     dam_name = ""
     # dam_path = ""
     dam_404 = True
+
     downloaded_dem = False
     for feature in layer:
+
         if str(int(feature.GetField(str(id_db)))) == str(dam_id):
             # Compute radius
             if radius is None:
@@ -121,6 +125,7 @@ def area_mapping(
         dem = glob.glob(os.path.join(output_download_path, "COP30*"))[0]
         downloaded_dem = True
         print(f"Input downloaded DEM found : {dem}")
+
     if dam_404 is True:
         logging.error("404 - Dam Not Found: {dam_id} is not present in {infile}")
     calt = float(
@@ -203,7 +208,6 @@ def area_mapping(
     point.AddPoint(clon, clat)
     point.Transform(coord_trans)
     logging.debug(f"Coordinates: {point.GetX()} - {point.GetY()}")
-
     extract_roi_parameters_extw = ExtractROIParam(
         mode="radius",
         mode_radius_r=float(radius),
@@ -221,39 +225,8 @@ def area_mapping(
     # TODO: extract dem before superimpose ?
     # Get information form DEM
     if not downloaded_dem:
-        # with rio.open(dem) as dem_raster:
-        #     epsg_dem = dem_raster.crs.to_epsg()
-        #     print("DEM epsg" , epsg_dem)
-        #     dst = osr.SpatialReference()
-        #     dst.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-        #     dst.ImportFromEPSG(epsg_dem)
-        #     coord_trans = osr.CoordinateTransformation(src, dst)
-        #     point_dem = ogr.Geometry(ogr.wkbPoint)
-        #     point_dem.AddPoint(clon, clat)
-        #     point_dem.Transform(coord_trans)
-        #     logging.info(
-        #         f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
-        #     )
-        #     print(
-        #         f"Coordinates for dem ROI: {point_dem.GetX()} - {point_dem.GetY()}"
-        #     )
-        #     print("radius", radius)
-        #     # extract_roi_parameters_dem = ExtractROIParam(
-        #     #     mode="radius",
-        #     #     mode_radius_r=float(radius) * 2,
-        #     #     mode_radius_unitr="phy",
-        #     #     mode_radius_unitc="phy",
-        #     #     mode_radius_cx=point_dem.GetX(),
-        #     #     mode_radius_cy=point_dem.GetY(),
-        #     #     dtype="float",
-        #     # )
-        #     # ext_dem, profile_dem = extract_roi(dem_raster, extract_roi_parameters_dem)
-        #     # save_image(ext_dem, profile_dem, roi_dem)
         roi_dem = out_dem.replace(".tif", "roi.tif")
         compute_roi_from_ref(out_wmap, dem, roi_dem)
-        print("coucou")
-        # roi_dem = dem
-        # input("dem extracted")
     else:
         roi_dem = dem
     superimpose_app = SuperimposeParam(interpolator="bco", dtype="float")

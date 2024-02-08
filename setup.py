@@ -18,6 +18,7 @@ requirements = [
     "bmi_topography",
 ]
 
+
 test_requirements = []
 
 setup(
@@ -41,6 +42,7 @@ setup(
         "console_scripts": [
             "dem4water=dem4water.cli:main",
             "config_template=dem4water.tools.generate_default_configuration:main",
+
         ],
     },
     install_requires=requirements,

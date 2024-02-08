@@ -8,10 +8,12 @@ import os
 import sys
 from time import perf_counter
 
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio as rio
+
 import shapely
 import shapely.wkt
 from osgeo import gdal, ogr, osr
@@ -19,6 +21,7 @@ from shapely.geometry import shape
 from shapely.ops import polygonize, split, unary_union
 
 from dem4water.plot_lib import plot_szi_points
+
 
 logger = logging.getLogger("cut_contourlines")
 log = logging.getLogger()
@@ -42,6 +45,7 @@ def extract_dam_info(dam_info):
     return dam_name, dam_path, dam_elev, pdb_elev, in_w
 
 
+
 def load_info_file(info, cartotogeo, dem):
     """Load info from daminfo file."""
     # load GeoJSON file containing info
@@ -49,6 +53,7 @@ def load_info_file(info, cartotogeo, dem):
         jsi = json.load(i)
     for feature in jsi["features"]:
         if feature["properties"]["name"] == "Dam":
+
             logger.debug(feature)
             # dam = shape(feature["geometry"])
             dam_elev = float(feature["properties"]["elev"])
@@ -57,7 +62,9 @@ def load_info_file(info, cartotogeo, dem):
             dam_path = damname.replace(" ", "-")
             # dam_path  = dam_path.replace("-","_")
         if feature["properties"]["name"] == "PDB":
+
             logger.debug(feature)
+
             pdbin = shape(feature["geometry"])
 
             pdb = ogr.Geometry(ogr.wkbPoint)
@@ -74,6 +81,7 @@ def load_info_file(info, cartotogeo, dem):
             logger.debug(f"Coordinates (carto): {pdbin.x} - {pdbin.y}")
             logger.debug(f"Coordinates (latlon): {pdblat} - {pdblon})")
             logger.info(
+
                 "PDB detected: "
                 f" [pdbLat: {pdblat}, pdbLon: {pdblon}, pdbAlt: {pdb_elev}]"
             )
@@ -117,6 +125,7 @@ def manage_cutline(jsc, lines, out, debug):
         if line.is_simple:
             logger.info("A loop was detected in cutline. It has been simplified.")
 
+
     if debug is True:
         dbg_simplified_cutline = shapely.geometry.mapping(line)
         dbg_simplified_cutline["crs"] = jsc["crs"]
@@ -126,7 +135,6 @@ def manage_cutline(jsc, lines, out, debug):
             json.dump(dbg_simplified_cutline, outfile)
 
     return line
-
 
 def ensure_elev_in_dem(dem, start_elev, target_elev, pdb_alt):
     """
@@ -248,10 +256,12 @@ def generate_countourlines(
     logger.info(f"output file: {level_file} ")
     logger.info(f"TMPDIR: {tmp} ")
 
+
     if start_elev > end_elev:
         raise ValueError(
             f"Start elevation {start_elev} is upper than target_elev {end_elev}"
         )
+
     create_contour_lines(dem, elev_sampling, start_elev, end_elev, cache, level_file)
     # path for auxillary script
     # script_path = os.path.dirname(__file__)
@@ -274,6 +284,7 @@ def cut_countourlines(
     out,
     mode,
     debug=False,
+
 ):
     """Cut contour lines based on the cutline to estimate the virtual water surface."""
     t1_start = perf_counter()
@@ -288,7 +299,9 @@ def cut_countourlines(
         logging.basicConfig(
             stream=sys.stdout, level=logging.INFO, format=logging_format
         )
+
     logger.info("Starting cut_contourlines.py")
+
 
     geo = osr.SpatialReference()
     geo.ImportFromEPSG(4326)
@@ -305,6 +318,7 @@ def cut_countourlines(
     if os.path.exists(os.path.join(out, damname + "_vSurfaces.geojson")):
         os.remove(os.path.join(out, damname + "_vSurfaces.geojson"))
     dst_ds = drv.CreateDataSource(os.path.join(out, damname + "_vSurfaces.geojson"))
+
     dst_layer = dst_ds.CreateLayer("", srs=carto, geom_type=ogr.wkbPolygon)
     field_defn_id = ogr.FieldDefn("ID", ogr.OFTString)
     field_defn = ogr.FieldDefn("level", ogr.OFTString)
@@ -325,6 +339,7 @@ def cut_countourlines(
         # Fixing linemerge not merging every part of MultiLineString
         line = manage_cutline(jsc, lines, out, debug)
 
+
     if level is None:
         level = generate_countourlines(
             cache,
@@ -339,6 +354,7 @@ def cut_countourlines(
 
     # If provided, load GeoJSON file containing contour lines
     logger.debug("Using provided contour line file.")
+
     with open(level, "r", encoding="utf-8") as lvl:
         jsl = json.load(lvl)
 
@@ -358,11 +374,13 @@ def cut_countourlines(
                 # max_elev = float(feature["properties"]["level"])
                 found = True
                 logger.info(f"Elevation: {max_elev}m - Area: {poly.area} m2")
+
                 r_feat = ogr.Feature(feature_def=dst_layer.GetLayerDefn())
                 r_p = ogr.CreateGeometryFromWkt(poly.wkt)
                 r_feat.SetGeometryDirectly(r_p)
                 r_feat.SetField("ID", str(r_id))
                 r_feat.SetField("level", max_elev)
+
 
         if found is True:
             dst_layer.CreateFeature(r_feat)
@@ -371,16 +389,14 @@ def cut_countourlines(
             r_area.append(max_area)
             r_id = r_id + 1
         else:
+
             logger.debug(f"No relevant polygon found for Elevation {max_elev} m")
 
     logger.debug(f"Identified levels: {r_id}")
 
+
     r_elev.append(pdb_elev)
     r_area.append(0.0)
-
-    # make sure data is sorted by elevation
-    # r_elev = np.sort(r_elev)[::-1]
-    # r_area = np.sort(r_area)[::-1]
 
     plot_szi_points(
         r_elev, r_area, pdb_elev, damname, os.path.join(out, damname + "_SZi.png")
@@ -390,8 +406,8 @@ def cut_countourlines(
     np.savetxt(os.path.join(out, damname + "_SZi.dat"), data)
     t1_stop = perf_counter()
     logger.info(f"Elapsed time: {t1_stop}s {t1_start}s")
-
     logger.info(f"Elapsed time during the whole program in s : {t1_stop-t1_start}s")
+
 
 
 def cut_countourlines_ars():

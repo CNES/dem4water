@@ -12,6 +12,7 @@ from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
+
 import rasterio as rio
 from osgeo import gdal, ogr, osr
 from shapely.geometry import shape
@@ -19,6 +20,7 @@ from shapely.geometry import shape
 from dem4water.tools.extract_roi import ExtractROIParam, extract_roi
 from dem4water.tools.save_raster import save_image
 from dem4water.tools.superimpose import SuperimposeParam, superimpose
+
 from dem4water.tools.utils import distance
 
 # from PIL import Image
@@ -157,6 +159,7 @@ def find_pdb_and_cutline(
             clat = float(feature.GetField("LAT_DD"))
             clon = float(feature.GetField("LONG_DD"))
             # extraire l'altitude directement depuis le MNT
+
             if bool(feature.GetField("DAM_LVL_M")):
                 calt = float(feature.GetField("DAM_LVL_M"))
                 calt_from_DB = True
@@ -272,7 +275,6 @@ def find_pdb_and_cutline(
         bml_alt = calt
     else:
         logging.info("Alt Estimated from Watermap.")
-
         extract_roi_parameters_ext = ExtractROIParam(
             mode="radius",
             mode_radius_r=pdbradius,
@@ -292,6 +294,7 @@ def find_pdb_and_cutline(
         )
         bml = np.where(extw > 0.05, ext, 0)
         np_bml = bml.reshape(bml.shape[1], bml.shape[2])
+
 
         bml_alt = np.amax(np_bml)
 
@@ -416,6 +419,7 @@ def find_pdb_and_cutline(
         ext, profile_ext = extract_roi(rio.open(dem), extract_roi_parameters_ext)
         save_image(ext, profile_ext, os.path.join(out, "dem_pdb.tif"))
         np_ext = ext.reshape(ext.shape[1], ext.shape[2])
+
         indices = np.where(np_ext == [alt_pdb])
         # TODO: if multiple pdb detected
         if len(indices[0]) > 1:
@@ -424,21 +428,10 @@ def find_pdb_and_cutline(
                 + str(len(indices[0]))
                 + "]"
             )
-        #  print("Indices Length: "+str(len(indices[0])))
-        #  print("X: "+str(indices[1][0]))
-        #  print("Y: "+str(indices[0][0]))
+
 
         ds = gdal.Open(os.path.join(out, "dem_pdb.tif"))
-        #  xoffset, px_w, rot1, yoffset, px_h, rot2 = ds.GetGeoTransform()
-        #  xoffset, px_w, rot1, yoffset, rot2, px_h = ds.GetGeoTransform()
-        #  print(ds.GetGeoTransform())
 
-        #  posX = px_w * indices[1][0] + rot1 * indices[0][0] + xoffset
-        #  posY = rot2 * indices[1][0] + px_h * indices[0][0] + yoffset
-
-        # shift to the center of the pixel
-        #  posX += px_w / 2.0
-        #  posY += px_h / 2.0
 
         posX, posY = coord(indices[1][0], indices[0][0], ds)
         pX, pY = pixel(posX, posY, ds)
@@ -479,6 +472,7 @@ def find_pdb_and_cutline(
         feat.SetGeometryDirectly(p)
         feat.SetField("name", "PDB")
         feat.SetField("elev", pdbalt)
+
         feat.SetField("damname", dam_path)
         feat.SetField("ID", dam_id)
         dst_layer.CreateFeature(feat)
@@ -590,7 +584,9 @@ def find_pdb_and_cutline(
     )
     r_x, r_y = pixel(dam.GetX(), dam.GetY(), r_ds)
 
+
     np_r = ext_r.reshape(ext_r.shape[1], ext_r.shape[2])
+
     (image_size_y, image_size_x) = np_r.shape
     # Disk definition:
     (center_x, center_y) = (r_x, r_y)
@@ -833,10 +829,7 @@ def find_pdb_and_cutline(
                     % (dem, prev1geo.GetY(), prev1geo.GetX())
                 ).read()
             )
-            #  logging.debug("Currently processing prev1 @radius: "+
-            # str(radius) +"
-            # [Lat: "+ str(prev1geo.GetX()) +", Lon: "+
-            # str(prev1geo.GetY()) +", Alt: "+ str(prev1alt) +"]")
+
             if (prev1alt > targetelev) and (stop_side_1 is False):
                 stop_side_1 = True
                 logging.info(
@@ -857,9 +850,7 @@ def find_pdb_and_cutline(
                     % (dem, str(prev2geo.GetY()), str(prev2geo.GetX()))
                 ).read()
             )
-            #  logging.debug("Currently processing prev2 @radius: "+
-            # str(radius) +" [Lat: "+ str(prev2geo.GetX()) +", Lon: "+
-            # str(prev2geo.GetY()) +", Alt: "+ str(prev2alt) +"]")
+
             if (prev2alt > targetelev) and (stop_side_2 is False):
                 stop_side_2 = True
                 logging.info(
