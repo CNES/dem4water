@@ -189,6 +189,24 @@ def extract_points_from_raster(raster, poly_dataframe):
         return gdf
 
 
+def extract_points_by_coordinates(raster, point):
+    """
+
+    Parameters
+    ----------
+    raster
+    point
+
+    Returns
+    -------
+
+    """
+    with rasterio.open(raster) as src:
+        row, col = rasterio.transform.rowcol(src.transform, [point.x], [point.y])
+        value = src.read()[row, col]
+        return value
+
+
 # #######################################################
 # PDB
 # ######################################################
@@ -378,7 +396,6 @@ def find_cutline_and_pdb(
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logger_format)
     logger.info("Starting search cutline and PDB using GDP")
-    maximum_alt = maximum_alt + elevoffset
     # 1. Manage the particularity of database:
     # - Fuse multipolygon
     # - Remove holes inside water body
@@ -411,7 +428,7 @@ def find_cutline_and_pdb(
             logger.info("ERROR: when computing GDP, no slope found")
             logger.info("ERROR: Stopping the chain")
             return None
-        logger.info("GDP have run successfuly")
+        logger.info("GDP have run successfully")
         # 3. Fuse close GDP
         # 5. TODO: filter by area to remove small GDP
         gdf_gdp = gdf_gdp[gdf_gdp.geometry.area > 500]
@@ -444,7 +461,7 @@ def find_cutline_and_pdb(
                 list_alt_pdb.append(alt)
             else:
                 list_alt_pdb.append(np.nan)
-        print(list_alt_pdb)
+        # print(list_alt_pdb)
         index_min = np.nanargmin(list_alt_pdb)
         pdb_point = list_pdb[index_min]
         logger.info(f"PDB {pdb_point} found at altitude {list_alt_pdb[index_min]}")
@@ -462,7 +479,12 @@ def find_cutline_and_pdb(
             # Find dam
             logging.info("Try to find the DAM")
             dam_point = find_dam(gdf_wb, pdb_point, insider)
-            logger.info(f"DAM: {dam_point}")
+            dam_alt = extract_points_by_coordinates(dem_raster, dam_point)
+            if maximum_alt is None:
+                maximum_alt = dam_alt + elevoffset
+            else:
+                maximum_alt = maximum_alt + elevoffset
+            logger.info(f"DAM: {dam_point}, altitude : {dam_alt}")
             # 9. For each GDP draw baselines
             gdf_line, ident = find_base_line_using_segments(
                 gdf_wb, row, ident, index, work_dir, angle_threshold=150
