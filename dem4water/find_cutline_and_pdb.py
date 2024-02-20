@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.mask import mask
+from rasterio.plot import reshape_as_image
 from shapely.geometry import LineString, MultiPoint, Point
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
@@ -187,6 +188,27 @@ def extract_points_from_raster(raster, poly_dataframe):
             crs=poly_dataframe.crs,
         )
         return gdf
+
+
+def extract_points_by_coordinates(raster, point):
+    """
+
+    Parameters
+    ----------
+    raster
+    point
+
+    Returns
+    -------
+
+    """
+    with rasterio.open(raster) as src:
+        row, col = rasterio.transform.rowcol(src.transform, [point.x], [point.y])
+        src_array = src.read()
+        src_array = reshape_as_image(src_array)
+        print(src_array.shape)
+        value = src_array[row, col]
+        return value[0][0]
 
 
 # #######################################################
@@ -378,7 +400,6 @@ def find_cutline_and_pdb(
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=logger_format)
     logger.info("Starting search cutline and PDB using GDP")
-    maximum_alt = float(maximum_alt) + float(elevoffset)
     # 1. Manage the particularity of database:
     # - Fuse multipolygon
     # - Remove holes inside water body
@@ -411,7 +432,7 @@ def find_cutline_and_pdb(
             logger.info("ERROR: when computing GDP, no slope found")
             logger.info("ERROR: Stopping the chain")
             return None
-        logger.info("GDP have run successfuly")
+        logger.info("GDP have run successfully")
         # 3. Fuse close GDP
         # 5. TODO: filter by area to remove small GDP
         gdf_gdp = gdf_gdp[gdf_gdp.geometry.area > 500]
@@ -444,7 +465,7 @@ def find_cutline_and_pdb(
                 list_alt_pdb.append(alt)
             else:
                 list_alt_pdb.append(np.nan)
-        print(list_alt_pdb)
+        # print(list_alt_pdb)
         index_min = np.nanargmin(list_alt_pdb)
         pdb_point = list_pdb[index_min]
         logger.info(f"PDB {pdb_point} found at altitude {list_alt_pdb[index_min]}")
@@ -462,7 +483,12 @@ def find_cutline_and_pdb(
             # Find dam
             logging.info("Try to find the DAM")
             dam_point = find_dam(gdf_wb, pdb_point, insider)
-            logger.info(f"DAM: {dam_point}")
+            dam_alt = extract_points_by_coordinates(dem_raster, dam_point)
+            if maximum_alt is None:
+                maximum_alt = dam_alt + elevoffset
+            else:
+                maximum_alt = maximum_alt + elevoffset
+            logger.info(f"DAM: {dam_point}, altitude : {dam_alt}")
             # 9. For each GDP draw baselines
             gdf_line, ident = find_base_line_using_segments(
                 gdf_wb, row, ident, index, work_dir, angle_threshold=150
