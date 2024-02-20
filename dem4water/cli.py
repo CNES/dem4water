@@ -118,7 +118,7 @@ def launch_campaign(
     input_force_list,
 ):
     """Launch on PBS or local."""
-    config_list = write_json(json_campaign, input_force_list)
+    config_list = write_json(json_campaign, input_force_list=input_force_list)
     # config_list = [config_list[0]]
     if scheduler == "local":
         for conf in config_list:
