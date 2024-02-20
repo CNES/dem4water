@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.mask import mask
+from rasterio.plot import reshape_as_image
 from shapely.geometry import LineString, MultiPoint, Point
 
 from dem4water.tools.compute_grandient_dot_product import compute_gradient_product
@@ -203,8 +204,11 @@ def extract_points_by_coordinates(raster, point):
     """
     with rasterio.open(raster) as src:
         row, col = rasterio.transform.rowcol(src.transform, [point.x], [point.y])
-        value = src.read()[row, col]
-        return value
+        src_array = src.read()
+        src_array = reshape_as_image(src_array)
+        print(src_array.shape)
+        value = src_array[row, col]
+        return value[0][0]
 
 
 # #######################################################
