@@ -235,7 +235,7 @@ def plot_model_combo(
 
 def plot_model(model_szi, model_zi, z_0, sz_0, alpha, beta, damname, outfile):
     """Plot model."""
-    alt = range(int(model_zi[0]) + 1, int(model_zi[-1]))
+    alt = range(int(model_zi[0]) + 1, int(model_zi[-1] + 1))
     mod_sz = []
     for curr_alt in alt:
         mod_sz.append(sz_0 + alpha * math.pow((curr_alt - z_0), beta))
